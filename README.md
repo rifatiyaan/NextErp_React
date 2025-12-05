@@ -1,6 +1,6 @@
-# NextGenERP (Frontend)
+# NextErp_React (Frontend)
 
-**NextGenERP** is a modern, high-performance ERP frontend interface built with **Next.js 16**, **Tailwind CSS v4**, and **Shadcn/UI**.
+**NextErp_React** is a modern, high-performance ERP frontend interface built with **Next.js 16**, **Tailwind CSS v4**, and **Shadcn/UI**.
 
 It serves as the React-based frontend for the **NextErp** backend solution (located at `C:\Users\user\source\repos\EcommerceApplication`). Note that an Angular version of this frontend is also planned for the future.
 

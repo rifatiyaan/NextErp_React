@@ -115,7 +115,7 @@ export function Sidebar() {
             Shadboard used /images/icons/shadboard.svg.
             We can add an Image here if we have one, or just text.
            */}
-                    <span className="text-xl">NextGenERP</span>
+                    <span className="text-xl">NextErp_React</span>
                 </Link>
                 <CommandMenu buttonClassName="max-w-full" />
             </SidebarHeader>
