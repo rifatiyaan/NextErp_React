@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NextGenERP (Frontend)
 
-## Getting Started
+**NextGenERP** is a modern, high-performance ERP frontend interface built with **Next.js 16**, **Tailwind CSS v4**, and **Shadcn/UI**.
 
-First, run the development server:
+It serves as the React-based frontend for the **NextErp** backend solution (located at `C:\Users\user\source\repos\EcommerceApplication`). Note that an Angular version of this frontend is also planned for the future.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 🚀 Tech Stack
+
+- **Framework:** [Next.js 16](https://nextjs.org/) (App Router)
+- **Styling:** [Tailwind CSS v4](https://tailwindcss.com/)
+- **UI Library:** [Shadcn/UI](https://ui.shadcn.com/) (Radix UI primitives)
+- **Icons:** [Lucide React](https://lucide.dev/)
+- **State Management:** React Hooks / Context (Jotai planned for complex state)
+- **Package Manager:** NPM
+
+## 📂 Project Structure
+
+This project follows a **Container-Presentational** architecture to separate business logic from UI rendering.
+
+```
+D:\EcommerceUi\NextGenERP\nextgenerp
+├── app/                  # Next.js App Router pages and layouts
+│   ├── layout.tsx        # Root layout with Providers
+│   ├── page.tsx          # Home/Dashboard page
+│   └── globals.css       # Global styles and Tailwind directives
+├── components/           # Presentational (Dumb) Components
+│   ├── layout/           # Strategic layout blocks (Sidebar, Header)
+│   ├── ui/               # Reusable Shadcn/UI primitives (Button, Input, Sheet...)
+│   └── providers/        # Context providers (Theme, Sidebar status)
+├── containers/           # Container (Smart) Components
+│   └── layout/           # Logic-heavy layout wrappers (MainLayout)
+├── data/                 # Mock data and static configuration
+│   ├── dictionaries/     # i18n dictionaries (English default)
+│   └── navigations.ts    # Sidebar navigation structure
+├── hooks/                # Custom React hooks (use-mobile, etc.)
+├── lib/                  # Utilities and helper functions
+│   └── utils.ts          # Class merging (cn) and formatters
+└── types/                # TypeScript type definitions
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🔌 Backend Integration
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+This frontend is designed to consume APIs from the **NextErp** .NET backend.
+*   **Current State:** Uses mock data (`data/`) for UI development.
+*   **Future Integration:** API calls will replace mock data loaders in the `containers/` layer.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🛠️ Getting Started
 
-## Learn More
+1.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
 
-To learn more about Next.js, take a look at the following resources:
+2.  **Run the development server:**
+    ```bash
+    npm run dev
+    ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3.  **Build for production:**
+    ```bash
+    npm run build
+    npm start
+    ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🎨 Design System
 
-## Deploy on Vercel
+The UI is a direct port of the **Shadboard Analytics Dashboard**, ensuring a premium, responsive, and pixel-perfect design. It features:
+*   **Collapsible Sidebar:** Optimized for both desktop and mobile.
+*   **Themeable:** Built with CSS variables for easy theming (Zinc default).
+*   **Dark Mode:** Native support via `next-themes`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🔮 Future Roadmap
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+*   **Recharts Integration:** interactive analytics charts.
+*   **Auth Integration:** Connect to NextErp Identity.
+*   **Angular Version:** A parallel frontend implementation using Angular is planned.
