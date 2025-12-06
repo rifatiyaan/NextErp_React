@@ -1,16 +1,13 @@
 "use client"
 
-import Image from "next/image"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ChevronDown } from "lucide-react"
 
-import type {
-    NavigationNestedItem,
-    NavigationRootItem,
-} from "@/types"
-
-import { navigationsData } from "@/data/navigations"
+import type { MenuItem } from "@/types/module"
+import { moduleAPI, buildMenuTree } from "@/lib/api/module"
+import { useAuth } from "@/contexts/auth-context"
 
 import { Badge } from "@/components/ui/badge"
 import {
@@ -38,28 +35,49 @@ import { CommandMenu } from "./CommandMenu"
 export function Sidebar() {
     const pathname = usePathname()
     const { openMobile, setOpenMobile, isMobile } = useSidebar()
+    const { user } = useAuth()
+    const [menuItems, setMenuItems] = useState<MenuItem[]>([])
+    const [isLoading, setIsLoading] = useState(true)
 
-    // Simplified layout check - assuming vertical only for now, or handled by parent
-    // If we wanted horizontal support, we'd check a context/setting here.
+    // Fetch menu items when user is authenticated
+    useEffect(() => {
+        if (user) {
+            moduleAPI
+                .getUserMenu()
+                .then((modules) => {
+                    const tree = buildMenuTree(modules)
+                    setMenuItems(tree)
+                })
+                .catch((error) => {
+                    console.error("Failed to load menu:", error)
+                })
+                .finally(() => {
+                    setIsLoading(false)
+                })
+        } else {
+            setMenuItems([])
+            setIsLoading(false)
+        }
+    }, [user])
 
-    const renderMenuItem = (item: NavigationRootItem | NavigationNestedItem) => {
+    const renderMenuItem = (item: MenuItem) => {
         const title = item.title
-        const label = item.label
+        const badgeText = item.badgeText
 
-        // If the item has nested items, render it with a collapsible dropdown.
-        if (item.items) {
+        // If the item has children, render it with a collapsible dropdown
+        if (item.children && item.children.length > 0) {
             return (
                 <Collapsible className="group/collapsible">
                     <CollapsibleTrigger asChild>
                         <SidebarMenuButton className="w-full justify-between [&[data-state=open]>svg]:rotate-180">
                             <span className="flex items-center">
-                                {"iconName" in item && (
-                                    <DynamicIcon name={item.iconName} className="me-2 h-4 w-4" />
+                                {item.icon && (
+                                    <DynamicIcon name={item.icon} className="me-2 h-4 w-4" />
                                 )}
                                 <span>{title}</span>
-                                {"label" in item && (
+                                {badgeText && (
                                     <Badge variant="secondary" className="me-2">
-                                        {label}
+                                        {badgeText}
                                     </Badge>
                                 )}
                             </span>
@@ -68,8 +86,8 @@ export function Sidebar() {
                     </CollapsibleTrigger>
                     <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
                         <SidebarMenuSub>
-                            {item.items.map((subItem: NavigationNestedItem) => (
-                                <SidebarMenuItem key={subItem.title}>
+                            {item.children.map((subItem) => (
+                                <SidebarMenuItem key={subItem.id}>
                                     {renderMenuItem(subItem)}
                                 </SidebarMenuItem>
                             ))}
@@ -79,10 +97,12 @@ export function Sidebar() {
             )
         }
 
-        // Otherwise, render the item with a link.
-        if ("href" in item) {
-            const href = item.href
+        // Otherwise, render the item with a link
+        if (item.url) {
+            const href = item.url
             const isActive = pathname === href
+            const target = item.openInNewTab ? "_blank" : undefined
+            const rel = item.isExternal ? "noopener noreferrer" : undefined
 
             return (
                 <SidebarMenuButton
@@ -90,16 +110,18 @@ export function Sidebar() {
                     onClick={() => setOpenMobile(!openMobile)}
                     asChild
                 >
-                    <Link href={href}>
-                        {"iconName" in item && (
-                            <DynamicIcon name={item.iconName} className="h-4 w-4" />
+                    <Link href={href} target={target} rel={rel}>
+                        {item.icon && (
+                            <DynamicIcon name={item.icon} className="h-4 w-4" />
                         )}
                         <span>{title}</span>
-                        {"label" in item && <Badge variant="secondary">{label}</Badge>}
+                        {badgeText && <Badge variant="secondary">{badgeText}</Badge>}
                     </Link>
                 </SidebarMenuButton>
             )
         }
+
+        return null
     }
 
     return (
@@ -110,35 +132,34 @@ export function Sidebar() {
                     className="w-fit flex text-foreground font-black p-2 pb-0 mb-2"
                     onClick={() => isMobile && setOpenMobile(!openMobile)}
                 >
-                    {/* 
-            Replacing Shadboard logo with text or placeholder. 
-            Shadboard used /images/icons/shadboard.svg.
-            We can add an Image here if we have one, or just text.
-           */}
                     <span className="text-xl">NextErp_React</span>
                 </Link>
                 <CommandMenu buttonClassName="max-w-full" />
             </SidebarHeader>
             <ScrollArea>
                 <SidebarContent className="gap-0">
-                    {navigationsData.map((nav) => {
-                        const title = nav.title
-
-                        return (
-                            <SidebarGroup key={nav.title}>
-                                <SidebarGroupLabel>{title}</SidebarGroupLabel>
-                                <SidebarGroupContent>
-                                    <SidebarMenu>
-                                        {nav.items.map((item) => (
-                                            <SidebarMenuItem key={item.title}>
-                                                {renderMenuItem(item)}
-                                            </SidebarMenuItem>
-                                        ))}
-                                    </SidebarMenu>
-                                </SidebarGroupContent>
-                            </SidebarGroup>
-                        )
-                    })}
+                    {isLoading ? (
+                        <div className="p-4 text-sm text-muted-foreground">
+                            Loading menu...
+                        </div>
+                    ) : menuItems.length === 0 ? (
+                        <div className="p-4 text-sm text-muted-foreground">
+                            No menu items available
+                        </div>
+                    ) : (
+                        <SidebarGroup>
+                            <SidebarGroupLabel>Menu</SidebarGroupLabel>
+                            <SidebarGroupContent>
+                                <SidebarMenu>
+                                    {menuItems.map((item) => (
+                                        <SidebarMenuItem key={item.id}>
+                                            {renderMenuItem(item)}
+                                        </SidebarMenuItem>
+                                    ))}
+                                </SidebarMenu>
+                            </SidebarGroupContent>
+                        </SidebarGroup>
+                    )}
                 </SidebarContent>
             </ScrollArea>
         </SidebarWrapper>
