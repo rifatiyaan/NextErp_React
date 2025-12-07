@@ -30,40 +30,59 @@ export const moduleAPI = {
  * Transform backend Module[] to hierarchical menu structure
  */
 export function buildMenuTree(modules: Module[]): MenuItem[] {
+    // Helper to map a single module to item
+    const mapToMenuItem = (m: Module): MenuItem => ({
+        id: m.id,
+        title: m.title,
+        icon: m.icon,
+        url: m.url,
+        parentId: m.parentId,
+        children: m.children ? m.children.sort((a, b) => a.order - b.order).map(mapToMenuItem) : [],
+        type: m.type,
+        order: m.order,
+        isExternal: m.isExternal,
+        badgeText: m.metadata?.badgeText,
+        openInNewTab: m.metadata?.openInNewTab,
+    });
+
+    // 1. Map all input modules
+    // If the input is already a Tree (roots only), this effectively finishes the job.
+    // If the input is Flat (all items at top level), we need to link them.
+    // We'll use a Hybrid approach: logical filtering.
+
+    const allItems = modules.map(mapToMenuItem);
+
     // Sort by order
-    const sorted = [...modules].sort((a, b) => a.order - b.order)
+    allItems.sort((a, b) => a.order - b.order);
 
-    // Build hierarchy
-    const map = new Map<number, MenuItem>()
-    const roots: MenuItem[] = []
+    // Map for quick lookup
+    const map = new Map<number, MenuItem>();
+    allItems.forEach(item => map.set(item.id, item));
 
-    // First pass: create all items
-    sorted.forEach((module) => {
-        const item: MenuItem = {
-            id: module.id,
-            title: module.title,
-            icon: module.icon,
-            url: module.url,
-            parentId: module.parentId,
-            children: [],
-            type: module.type,
-            order: module.order,
-            isExternal: module.isExternal,
-            badgeText: module.metadata?.badgeText,
-            openInNewTab: module.metadata?.openInNewTab,
-        }
-        map.set(module.id, item)
-    })
+    const roots: MenuItem[] = [];
 
-    // Second pass: build tree
-    map.forEach((item) => {
+    // 2. Linkage
+    allItems.forEach(item => {
+        // If this item is already a child of someone in this list, do we move it?
+        // If the API returns a Tree, 'children' are already populated.
+        // If the API returns a Flat list, 'children' are empty initially.
+        // We only move 'item' into 'parent' IF 'parent' doesn't already have it.
+
         if (item.parentId && map.has(item.parentId)) {
-            const parent = map.get(item.parentId)!
-            parent.children.push(item)
-        } else {
-            roots.push(item)
-        }
-    })
+            const parent = map.get(item.parentId)!;
 
-    return roots
+            // Check if parent already has this child (by ID) to avoid duplication
+            // if we received a mix of Flat + Nested data.
+            if (!parent.children.some(c => c.id === item.id)) {
+                parent.children.push(item);
+                // Re-sort children after insertion
+                parent.children.sort((a, b) => a.order - b.order);
+            }
+        } else {
+            // It's a root (or parent missing from list)
+            roots.push(item);
+        }
+    });
+
+    return roots;
 }

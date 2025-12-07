@@ -6,13 +6,12 @@ export enum ModuleType {
 }
 
 export interface ModuleMetadata {
-    // From MenuItem
+    // From metadata object in JSON
     roles?: string[]
     badgeText?: string
     badgeColor?: string
     description?: string
     openInNewTab?: boolean
-    // From Module
     author?: string
     website?: string
     dependencies?: string[]
@@ -24,23 +23,23 @@ export interface Module {
     title: string
     icon?: string
     url?: string
-    parentId?: number
+    parentId?: number | null
     parent?: Module
     children: Module[]
     type: ModuleType
-    description?: string
-    version?: string
+    description?: string | null
+    version?: string | null
     isInstalled: boolean
     isEnabled: boolean
-    installedAt?: string
+    installedAt?: string | null
     order: number
     isActive: boolean
     isExternal: boolean
-    createdAt: string
-    updatedAt?: string
-    tenantId: string
+    createdAt?: string
+    updatedAt?: string | null
+    tenantId?: string
     branchId?: string
-    metadata: ModuleMetadata
+    metadata?: ModuleMetadata
 }
 
 // Simplified type for menu rendering
@@ -49,7 +48,7 @@ export interface MenuItem {
     title: string
     icon?: string
     url?: string
-    parentId?: number
+    parentId?: number | null
     children: MenuItem[]
     type: ModuleType
     order: number
@@ -57,3 +56,4 @@ export interface MenuItem {
     badgeText?: string
     openInNewTab?: boolean
 }
+

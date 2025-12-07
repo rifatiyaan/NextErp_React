@@ -10,11 +10,6 @@ import { moduleAPI, buildMenuTree } from "@/lib/api/module"
 import { useAuth } from "@/contexts/auth-context"
 
 import { Badge } from "@/components/ui/badge"
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from "@/components/ui/collapsible"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
     SidebarContent,
@@ -43,7 +38,7 @@ export function Sidebar() {
     useEffect(() => {
         if (user) {
             moduleAPI
-                .getUserMenu()
+                .getAllModules()
                 .then((modules) => {
                     const tree = buildMenuTree(modules)
                     setMenuItems(tree)
@@ -64,64 +59,35 @@ export function Sidebar() {
         const title = item.title
         const badgeText = item.badgeText
 
-        // If the item has children, render it with a collapsible dropdown
-        if (item.children && item.children.length > 0) {
-            return (
-                <Collapsible className="group/collapsible">
-                    <CollapsibleTrigger asChild>
-                        <SidebarMenuButton className="w-full justify-between [&[data-state=open]>svg]:rotate-180">
-                            <span className="flex items-center">
-                                {item.icon && (
-                                    <DynamicIcon name={item.icon} className="me-2 h-4 w-4" />
-                                )}
-                                <span>{title}</span>
-                                {badgeText && (
-                                    <Badge variant="secondary" className="me-2">
-                                        {badgeText}
-                                    </Badge>
-                                )}
-                            </span>
-                            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
-                        </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
-                        <SidebarMenuSub>
-                            {item.children.map((subItem) => (
-                                <SidebarMenuItem key={subItem.id}>
-                                    {renderMenuItem(subItem)}
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenuSub>
-                    </CollapsibleContent>
-                </Collapsible>
-            )
-        }
+        // We only render top-level items as links now.
+        // If url is missing, we might default to a slug based on title or id, but assuming url is present.
+        // Using strict matching for root or prefix matching for sub-routes?
+        // If I am at /sales/create, I want Sales to be active.
+        // item.url might be "/sales".
 
-        // Otherwise, render the item with a link
-        if (item.url) {
-            const href = item.url
-            const isActive = pathname === href
-            const target = item.openInNewTab ? "_blank" : undefined
-            const rel = item.isExternal ? "noopener noreferrer" : undefined
+        const href = item.url || "#"
+        // Active if pathname starts with the href (handling sub-routes)
+        // Ensure href is not just "/" to avoid highlighting everything.
+        const isActive = href === "/" ? pathname === href : pathname.startsWith(href)
 
-            return (
-                <SidebarMenuButton
-                    isActive={isActive}
-                    onClick={() => setOpenMobile(!openMobile)}
-                    asChild
-                >
-                    <Link href={href} target={target} rel={rel}>
-                        {item.icon && (
-                            <DynamicIcon name={item.icon} className="h-4 w-4" />
-                        )}
-                        <span>{title}</span>
-                        {badgeText && <Badge variant="secondary">{badgeText}</Badge>}
-                    </Link>
-                </SidebarMenuButton>
-            )
-        }
+        const target = item.openInNewTab ? "_blank" : undefined
+        const rel = item.isExternal ? "noopener noreferrer" : undefined
 
-        return null
+        return (
+            <SidebarMenuButton
+                isActive={isActive}
+                onClick={() => setOpenMobile(!openMobile)}
+                asChild
+            >
+                <Link href={href} target={target} rel={rel}>
+                    {item.icon && (
+                        <DynamicIcon name={item.icon as any} className="h-4 w-4" />
+                    )}
+                    <span>{title}</span>
+                    {badgeText && <Badge variant="secondary">{badgeText}</Badge>}
+                </Link>
+            </SidebarMenuButton>
+        )
     }
 
     return (
