@@ -31,12 +31,14 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Providers>
-          <AuthProvider>
-            <Toaster />
-            {children}
-          </AuthProvider>
-        </Providers>
+          <Providers>
+            <div className=" w-full">
+              <AuthProvider>
+                <Toaster />
+                {children}
+              </AuthProvider>
+            </div>
+          </Providers>
       </body>
     </html>
   );
