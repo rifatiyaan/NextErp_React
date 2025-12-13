@@ -14,12 +14,13 @@ export default function CategoriesPage() {
     const [data, setData] = useState<Category[]>([])
     const [loading, setLoading] = useState(true)
     const [pageIndex, setPageIndex] = useState(1)
+    const [pageSize, setPageSize] = useState(10)
     const [total, setTotal] = useState(0)
 
-    const fetchData = async (page: number) => {
+    const fetchData = async (page: number, size: number) => {
         setLoading(true)
         try {
-            const response = await categoryAPI.getCategories(page, 10)
+            const response = await categoryAPI.getCategories(page, size)
 
             // Handle different response structures gracefully
             if (response && response.data) {
@@ -42,10 +43,10 @@ export default function CategoriesPage() {
     }
 
     useEffect(() => {
-        fetchData(pageIndex)
-    }, [pageIndex])
+        fetchData(pageIndex, pageSize)
+    }, [pageIndex, pageSize])
 
-    const pageCount = Math.ceil(total / 10) || 1
+    const pageCount = Math.ceil(total / pageSize) || 1
 
     return (
         <div className="space-y-6">
@@ -68,7 +69,12 @@ export default function CategoriesPage() {
                     data={data}
                     pageCount={pageCount}
                     pageIndex={pageIndex}
+                    pageSize={pageSize}
                     onPageChange={setPageIndex}
+                    onPageSizeChange={(size) => {
+                        setPageSize(size)
+                        setPageIndex(1) // Reset to first page on size change
+                    }}
                 />
             )}
         </div>
