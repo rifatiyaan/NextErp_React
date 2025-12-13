@@ -71,7 +71,7 @@ export default function ModuleDashboard({ params }: { params: Promise<{ module: 
             </div>
 
             {/* Grid of Submodules */}
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 {currentModule.children && currentModule.children.length > 0 ? (
                     currentModule.children.map((child) => (
                         <Link

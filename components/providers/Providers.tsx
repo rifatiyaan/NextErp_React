@@ -1,24 +1,35 @@
 "use client"
 
-import { useEffect } from "react"
 import type { ReactNode } from "react"
+import { ThemeProvider as NextThemesProvider } from "next-themes"
 import { SidebarProvider } from "@/components/ui/sidebar"
-
-// Simple ThemeProvider to set default theme
-function ThemeProvider({ children }: { children: ReactNode }) {
-    useEffect(() => {
-        document.body.classList.add("theme-zinc")
-        document.documentElement.classList.add("light") // Default to light
-    }, [])
-    return <>{children}</>
-}
 
 export function Providers({ children }: { children: ReactNode }) {
     return (
-        <ThemeProvider>
+        <NextThemesProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            themes={[
+                "light",
+                "dark",
+                "theme-zinc",
+                "theme-slate",
+                "theme-stone",
+                "theme-gray",
+                "theme-neutral",
+                "theme-red",
+                "theme-rose",
+                "theme-orange",
+                "theme-green",
+                "theme-blue",
+                "theme-yellow",
+                "theme-violet"
+            ]}
+        >
             <SidebarProvider>
                 {children}
             </SidebarProvider>
-        </ThemeProvider>
+        </NextThemesProvider>
     )
 }

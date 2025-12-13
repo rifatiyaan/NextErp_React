@@ -4,6 +4,8 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 import { NotificationDropdown } from "./NotificationDropdown"
 import { UserDropdown } from "./UserDropdown"
 import { ToggleMobileSidebar } from "./ToggleMobileSidebar"
+import { ModeDropdown } from "./ModeDropdown"
+import { ThemeCustomizer } from "./ThemeCustomizer"
 import type { DictionaryType } from "@/lib/get-dictionary"
 
 export function Header({
@@ -18,8 +20,8 @@ export function Header({
                 <div className="grow flex justify-end gap-2">
                     <SidebarTrigger className="hidden lg:flex lg:me-auto" />
                     <NotificationDropdown dictionary={dictionary} />
-                    {/* <FullscreenToggle /> */}
-                    {/* <ModeDropdown dictionary={dictionary} /> */}
+                    <ThemeCustomizer />
+                    <ModeDropdown dictionary={dictionary} />
                     {/* <LanguageDropdown dictionary={dictionary} /> */}
                     <UserDropdown dictionary={dictionary} />
                 </div>

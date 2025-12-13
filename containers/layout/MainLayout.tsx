@@ -50,7 +50,7 @@ export function MainLayout({ children }: { children: ReactNode }) {
             <Sidebar />
             <div className="flex flex-col flex-1 min-w-0 transition-[margin] duration-300 ease-in-out">
                 <Header dictionary={dictionary} />
-                <main className="flex-1 p-6 overflow-y-auto bg-muted/20">
+                <main className="flex-1 p-4 overflow-y-auto bg-muted/20">
                     {children}
                 </main>
                 {/* <Footer /> */}
