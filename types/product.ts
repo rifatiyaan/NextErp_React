@@ -1,17 +1,10 @@
+import { Category } from "@/types/category"
+
 export interface ProductMetadata {
     description?: string | null
     color?: string | null
     warranty?: string | null
     categoryId?: number | null
-}
-
-export interface Category {
-    id: number
-    title: string
-    description?: string | null
-    metadata?: any
-    isActive: boolean
-    parentId?: number | null
 }
 
 export interface Product {
