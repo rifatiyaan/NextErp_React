@@ -1,6 +1,6 @@
 import { tokenStorage } from "@/lib/auth/storage"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://localhost:7245"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000"
 
 export class APIError extends Error {
     constructor(
