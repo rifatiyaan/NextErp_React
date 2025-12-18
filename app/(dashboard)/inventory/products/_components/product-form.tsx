@@ -73,15 +73,15 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
         },
     })
 
-    const onSubmit = async (data: z.infer<typeof productSchema>) => {
+    const onSubmit = async (data: any) => {
         setIsLoading(true)
         try {
             if (isEdit && initialData?.id) {
                 // Ensure ID is passed for update if distinct from data
-                await productAPI.updateProduct(initialData.id, data)
+                await productAPI.updateProduct(initialData.id, data as any)
                 toast.success("Product updated successfully")
             } else {
-                await productAPI.createProduct(data)
+                await productAPI.createProduct(data as any)
                 toast.success("Product created successfully")
             }
             router.push("/inventory/products")

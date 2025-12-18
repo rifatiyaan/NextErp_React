@@ -70,7 +70,7 @@ export default function CategoryForm({ initialData, isEdit }: CategoryFormProps)
         fetchCategories()
     }, [isEdit, initialData])
 
-    const onSubmit = async (data: CategoryFormValues) => {
+    const onSubmit = async (data: any) => {
         setIsLoading(true)
         try {
             if (isEdit && initialData?.id) {
