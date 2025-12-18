@@ -7,7 +7,7 @@ export const productSchema = z.object({
     stock: z.coerce.number().int().min(0, "Stock must be non-negative"),
     categoryId: z.coerce.number().min(1, "Category is required"), // Assuming 0 is invalid or checking > 0
     imageUrl: z.string().url("Invalid image URL").optional().or(z.literal("")),
-    isActive: z.boolean().default(true),
+    isActive: z.boolean(),
     metadata: z.object({
         description: z.string().optional(),
         color: z.string().optional(),
