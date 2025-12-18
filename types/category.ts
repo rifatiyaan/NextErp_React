@@ -17,7 +17,7 @@ export interface CategoryListResponse {
 
 export interface CreateCategoryRequest {
     title: string
-    description?: string
+    description?: string | null
     metadata?: any
     isActive: boolean
     parentId?: number | null

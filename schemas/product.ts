@@ -6,13 +6,13 @@ export const productSchema = z.object({
     price: z.coerce.number().min(0, "Price must be positive"),
     stock: z.coerce.number().int().min(0, "Stock must be non-negative"),
     categoryId: z.coerce.number().min(1, "Category is required"), // Assuming 0 is invalid or checking > 0
-    imageUrl: z.string().url("Invalid image URL").optional().or(z.literal("")),
+    imageUrl: z.string().url("Invalid image URL").optional().nullable().or(z.literal("")),
     isActive: z.boolean(),
     metadata: z.object({
-        description: z.string().optional(),
-        color: z.string().optional(),
-        warranty: z.string().optional(),
-    }).optional(),
+        description: z.string().optional().nullable(),
+        color: z.string().optional().nullable(),
+        warranty: z.string().optional().nullable(),
+    }).optional().nullable(),
 })
 
 export type ProductFormValues = z.infer<typeof productSchema>
