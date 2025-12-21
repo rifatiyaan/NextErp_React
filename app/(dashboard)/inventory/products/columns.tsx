@@ -30,9 +30,12 @@ export const columns: ColumnDef<Product>[] = [
                             className="object-cover"
                         />
                     ) : (
-                        <div className="flex h-full w-full items-center justify-center bg-muted text-xs text-muted-foreground">
-                            No Img
-                        </div>
+                        <Image
+                            src="https://placehold.co/600x400/png" // Placeholder
+                            alt="No Image"
+                            fill
+                            className="object-cover opacity-50"
+                        />
                     )}
                 </div>
             )

@@ -1,29 +1,44 @@
-import { productAPI } from "@/lib/api/product"
+"use client"
+
+import { useEffect, useState } from "react"
+import { useParams } from "next/navigation"
 import ProductForm from "../_components/product-form"
-import { notFound } from "next/navigation"
+import { productAPI } from "@/lib/api/product"
+import { Product } from "@/types/product"
+import { Loader2 } from "lucide-react"
 
-interface EditProductPageProps {
-    params: {
-        id: string
-    }
-}
+export default function EditProductPage() {
+    const params = useParams()
+    const [product, setProduct] = useState<Product | null>(null)
+    const [loading, setLoading] = useState(true)
 
-export default async function EditProductPage({ params }: EditProductPageProps) {
-    // Next.js 15+ allows async params access directly or via await depending on version
-    // For safety in App Router, we usually await fetches in server component
+    useEffect(() => {
+        async function fetchProduct() {
+            try {
+                const id = params.id
+                if (id) {
+                    const data = await productAPI.getProduct(String(id))
+                    setProduct(data)
+                }
+            } catch (error) {
+                console.error("Failed to fetch product", error)
+            } finally {
+                setLoading(false)
+            }
+        }
+        fetchProduct()
+    }, [params.id])
 
-    // Note: params might need to be awaited in future Next.js versions, but typically string in current stable 14/15
-    const id = params.id
-
-    let product
-    try {
-        product = await productAPI.getProduct(id)
-    } catch (error) {
-        notFound()
+    if (loading) {
+        return (
+            <div className="flex h-96 items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        )
     }
 
     if (!product) {
-        notFound()
+        return <div>Product not found</div>
     }
 
     return (

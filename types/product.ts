@@ -32,7 +32,7 @@ export interface CreateProductRequest {
     price: number
     stock: number
     categoryId: number
-    imageUrl?: string | null
+    imageUrl?: File | string | null
     metadata?: ProductMetadata
     isActive: boolean
     parentId?: number

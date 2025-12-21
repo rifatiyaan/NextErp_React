@@ -207,13 +207,56 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                 <FormField
                                     control={form.control}
                                     name="imageUrl"
-                                    render={({ field }) => (
+                                    render={({ field: { value, onChange, ...fieldProps } }) => (
                                         <FormItem>
-                                            <FormLabel>Image URL</FormLabel>
+                                            <FormLabel>Product Image</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="https://example.com/image.jpg" {...field} value={field.value || ""} />
+                                                <div className="flex flex-col gap-4">
+                                                    {/* Show preview if value is a string (URL) or File, otherwise placeholder */}
+                                                    <div className="relative h-40 w-40 overflow-hidden rounded-md border">
+                                                        <img
+                                                            src={
+                                                                value instanceof File
+                                                                    ? URL.createObjectURL(value)
+                                                                    : (typeof value === "string" && value.length > 0)
+                                                                        ? value
+                                                                        : "https://placehold.co/600x400/png"
+                                                            }
+                                                            alt="Product preview"
+                                                            className="h-full w-full object-cover"
+                                                            onLoad={() => {
+                                                                if (value instanceof File) {
+                                                                    URL.revokeObjectURL(value as any)
+                                                                }
+                                                            }}
+                                                        />
+                                                        {(value instanceof File || (typeof value === "string" && value.length > 0)) && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="destructive"
+                                                                size="icon"
+                                                                className="absolute right-0 top-0 h-6 w-6 rounded-bl-md rounded-tr-none"
+                                                                onClick={() => onChange("")}
+                                                            >
+                                                                <span className="sr-only">Remove image</span>
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                    <Input
+                                                        {...fieldProps}
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={(event) => {
+                                                            const file = event.target.files && event.target.files[0]
+                                                            if (file) {
+                                                                onChange(file)
+                                                            }
+                                                        }}
+                                                    />
+                                                </div>
                                             </FormControl>
-                                            <FormDescription>Link to hosted product image</FormDescription>
+                                            <FormDescription>Upload a product image</FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}
