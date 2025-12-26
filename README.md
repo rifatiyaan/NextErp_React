@@ -2,6 +2,8 @@
 
 **NextErp_React** is a modern, high-performance ERP frontend interface built with **Next.js 16**, **Tailwind CSS v4**, and **Shadcn/UI**.
 
+To Login : email : admin@test.com, password : nextErpIsAwesome 
+
 It serves as the React-based frontend for the **NextErp** backend solution : https://github.com/rifatiyaan/NextErp . Note that an Angular version of this frontend is also planned for the future.
 
 ## 🚀 Tech Stack
