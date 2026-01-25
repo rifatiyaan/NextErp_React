@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { productAPI } from "@/lib/api/product"
-import { Product } from "@/types/product"
+import { customerAPI } from "@/lib/api/customer"
+import { Customer } from "@/types/customer"
 import { DataTable } from "./data-table"
 import { columns } from "./columns"
 import { Button } from "@/components/ui/button"
-import { Plus, Loader2 } from "lucide-react"
+import { Plus, Loader2, Search } from "lucide-react"
 import Link from "next/link"
+import { Input } from "@/components/ui/input"
 import {
     Select,
     SelectContent,
@@ -15,32 +16,42 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
-import { Search } from "lucide-react"
 
-export default function ProductsPage() {
-    const [data, setData] = useState<Product[]>([])
+export default function CustomersPage() {
+    const [data, setData] = useState<Customer[]>([])
     const [loading, setLoading] = useState(true)
     const [pageIndex, setPageIndex] = useState(1)
     const [pageSize, setPageSize] = useState(10)
     const [total, setTotal] = useState(0)
     const [searchQuery, setSearchQuery] = useState("")
     const [statusFilter, setStatusFilter] = useState<string>("all")
-    const [categoryFilter, setCategoryFilter] = useState<string>("all")
 
     const fetchData = async (page: number, size: number) => {
         setLoading(true)
         try {
-            const response = await productAPI.getProducts(page, size)
+            const response = await customerAPI.getCustomers(
+                page,
+                size,
+                searchQuery || undefined
+            )
             if (response && response.data) {
-                setData(response.data)
+                // Filter by status if needed
+                let filteredData = response.data
+                if (statusFilter === "active") {
+                    filteredData = filteredData.filter((c) => c.isActive)
+                } else if (statusFilter === "inactive") {
+                    filteredData = filteredData.filter((c) => !c.isActive)
+                }
+                setData(filteredData)
                 setTotal(response.total)
             } else {
                 setData([])
                 setTotal(0)
             }
         } catch (error) {
-            console.error("Failed to fetch products:", error)
+            console.error("Failed to fetch customers:", error)
+            setData([])
+            setTotal(0)
         } finally {
             setLoading(false)
         }
@@ -50,47 +61,45 @@ export default function ProductsPage() {
         fetchData(pageIndex, pageSize)
     }, [pageIndex, pageSize])
 
-    const pageCount = Math.ceil(total / pageSize) || 1
+    // Debounce search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (pageIndex === 1) {
+                fetchData(1, pageSize)
+            } else {
+                setPageIndex(1)
+            }
+        }, 500)
 
-    // Filter data based on search and filters
-    const filteredData = data.filter((product) => {
-        const matchesSearch =
-            searchQuery === "" ||
-            product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            product.code.toLowerCase().includes(searchQuery.toLowerCase())
+        return () => clearTimeout(timer)
+    }, [searchQuery])
 
-        const matchesStatus =
-            statusFilter === "all" ||
-            (statusFilter === "active" && product.isActive && product.stock > 0) ||
-            (statusFilter === "out of stock" && product.stock === 0) ||
-            (statusFilter === "closed" && !product.isActive)
+    // Refetch when status filter changes
+    useEffect(() => {
+        fetchData(pageIndex, pageSize)
+    }, [statusFilter])
 
-        const matchesCategory =
-            categoryFilter === "all" ||
-            product.category?.title.toLowerCase() === categoryFilter.toLowerCase()
-
-        return matchesSearch && matchesStatus && matchesCategory
-    })
+    const pageCount = Math.ceil(total / pageSize)
 
     return (
         <div className="space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold tracking-tight">Products</h1>
+                <h1 className="text-3xl font-bold tracking-tight">Customers</h1>
                 <div className="flex items-center gap-4">
                     <div className="relative w-[300px]">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
-                            placeholder="Search by Product Name..."
+                            placeholder="Search by Customer Name..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="pl-10"
                         />
                     </div>
                     <Button asChild>
-                        <Link href="/inventory/products/create">
+                        <Link href="/inventory/customers/create">
                             <Plus className="mr-2 h-4 w-4" />
-                            Add Product
+                            Add Customer
                         </Link>
                     </Button>
                 </div>
@@ -98,49 +107,38 @@ export default function ProductsPage() {
 
             {/* Filters */}
             <div className="flex items-center gap-4">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <Select
+                    value={statusFilter}
+                    onValueChange={setStatusFilter}
+                >
                     <SelectTrigger className="w-[180px]">
                         <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Status</SelectItem>
                         <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="out of stock">Out of Stock</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
-                    </SelectContent>
-                </Select>
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Categories</SelectItem>
-                        <SelectItem value="electronics">Electronics</SelectItem>
-                        <SelectItem value="clothing">Clothing</SelectItem>
-                        <SelectItem value="beauty">Beauty</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
 
             {/* Data Table */}
             {loading ? (
-                <div className="flex h-64 items-center justify-center">
+                <div className="flex items-center justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
             ) : (
                 <DataTable
                     columns={columns}
-                    data={filteredData}
+                    data={data}
                     pageCount={pageCount}
                     pageIndex={pageIndex}
                     pageSize={pageSize}
                     onPageChange={setPageIndex}
-                    onPageSizeChange={(size) => {
-                        setPageSize(size)
-                        setPageIndex(1)
-                    }}
+                    onPageSizeChange={setPageSize}
                 />
             )}
         </div>
     )
 }
+

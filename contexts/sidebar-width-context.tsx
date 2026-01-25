@@ -11,7 +11,7 @@ interface SidebarWidthContextType {
 
 const SidebarWidthContext = createContext<SidebarWidthContextType | undefined>(undefined)
 
-const DEFAULT_WIDTH = 18 // rem
+const DEFAULT_WIDTH = 14 // rem
 const MIN_WIDTH = 12 // rem
 const MAX_WIDTH = 30 // rem
 

@@ -31,6 +31,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { DynamicIcon } from "@/components/dynamic-icon"
 import { CommandMenu } from "./CommandMenu"
+import { cn } from "@/lib/utils"
 
 export function Sidebar() {
     const pathname = usePathname()
@@ -39,6 +40,7 @@ export function Sidebar() {
     const { mode } = useSidebarView()
     const [menuItems, setMenuItems] = useState<MenuItem[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [openItems, setOpenItems] = useState<Set<number>>(new Set())
 
     // Fetch menu items when user is authenticated
     useEffect(() => {
@@ -126,6 +128,8 @@ export function Sidebar() {
         rel,
         setOpenMobile,
         pathname,
+        openItems,
+        setOpenItems,
     }: {
         item: MenuItem
         isActive: boolean
@@ -136,20 +140,46 @@ export function Sidebar() {
         rel?: string
         setOpenMobile: (open: boolean) => void
         pathname: string
+        openItems: Set<number>
+        setOpenItems: (updater: (prev: Set<number>) => Set<number>) => void
     }) => {
-        const [isOpen, setIsOpen] = useState(defaultOpen)
+        const isOpen = openItems.has(item.id)
 
-        // Sync with defaultOpen changes (e.g., when pathname changes)
+        const handleOpenChange = (open: boolean) => {
+            setOpenItems((prev) => {
+                const newSet = new Set(prev)
+                if (open) {
+                    // Add this item (independent behavior - multiple can be open)
+                    newSet.add(item.id)
+                } else {
+                    // Remove this item
+                    newSet.delete(item.id)
+                }
+                return newSet
+            })
+        }
+
+        // Initialize with defaultOpen if it's true (for active items)
         useEffect(() => {
-            setIsOpen(defaultOpen)
-        }, [defaultOpen])
+            if (defaultOpen && !isOpen) {
+                setOpenItems((prev) => {
+                    const newSet = new Set(prev)
+                    // Add this item without closing others
+                    newSet.add(item.id)
+                    return newSet
+                })
+            }
+        }, [defaultOpen, item.id, isOpen, setOpenItems])
 
         return (
-            <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+            <Collapsible open={isOpen} onOpenChange={handleOpenChange}>
                 <CollapsibleTrigger asChild>
                     <SidebarMenuButton
                         isActive={isActive || hasActiveChild}
                         onClick={() => setOpenMobile(!openMobile)}
+                        className={cn(
+                            (isActive || hasActiveChild) && "bg-sidebar-primary text-sidebar-primary-foreground"
+                        )}
                     >
                         {item.icon && (
                             <DynamicIcon name={item.icon as any} className="h-4 w-4" />
@@ -167,14 +197,27 @@ export function Sidebar() {
                     <SidebarMenuSub>
                         {item.children.map((child) => {
                             const childHref = child.url || "#"
-                            // Child items should only be active on exact match
-                            const childIsActive = pathname === childHref
+                            // Normalize paths: remove trailing slashes (except for root "/")
+                            const normalizePath = (path: string) => {
+                                if (path === "/" || path === "") return "/"
+                                return path.replace(/\/+$/, "")
+                            }
+                            const normalizedPathname = normalizePath(pathname)
+                            const normalizedChildHref = normalizePath(childHref)
+                            // Child items should only be active on exact match (strict comparison)
+                            const childIsActive = normalizedPathname === normalizedChildHref && normalizedChildHref !== "#"
                             const childTarget = child.openInNewTab ? "_blank" : undefined
                             const childRel = child.isExternal ? "noopener noreferrer" : undefined
 
                             return (
                                 <SidebarMenuSubItem key={child.id}>
-                                    <SidebarMenuSubButton asChild isActive={childIsActive}>
+                                    <SidebarMenuSubButton 
+                                        asChild 
+                                        isActive={childIsActive}
+                                        className={cn(
+                                            childIsActive && "bg-sidebar-accent text-sidebar-accent-foreground"
+                                        )}
+                                    >
                                         <Link
                                             href={childHref}
                                             target={childTarget}
@@ -212,10 +255,17 @@ export function Sidebar() {
         // Parent items: active if exact match OR pathname starts with href + "/" (for sub-routes)
         const isActive = href === "/" ? pathname === href : pathname === href || pathname.startsWith(href + "/")
         // Check if any child is active (exact match only)
+        const normalizePath = (path: string) => {
+            if (path === "/" || path === "") return "/"
+            return path.replace(/\/+$/, "")
+        }
+        const normalizedPathname = normalizePath(pathname)
         const hasActiveChild = hasChildren && item.children.some((child) => {
             const childHref = child.url || "#"
-            return pathname === childHref
+            const normalizedChildHref = normalizePath(childHref)
+            return normalizedPathname === normalizedChildHref && normalizedChildHref !== "#"
         })
+        // Only expand if active or has active child (accordion behavior - only one open at a time)
         const defaultOpen = hasActiveChild || isActive
 
         const target = item.openInNewTab ? "_blank" : undefined
@@ -234,6 +284,8 @@ export function Sidebar() {
                     rel={rel}
                     setOpenMobile={setOpenMobile}
                     pathname={pathname}
+                    openItems={openItems}
+                    setOpenItems={setOpenItems}
                 />
             )
         }

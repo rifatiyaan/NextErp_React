@@ -1,6 +1,32 @@
 import { fetchAPI } from "@/lib/api/client"
 import type { Module, MenuItem } from "@/types/module"
 
+export interface CreateModuleRequest {
+    title: string
+    icon?: string | null
+    url?: string | null
+    parentId?: number | null
+    type: number // 1 = Module, 2 = Link
+    description?: string | null
+    version?: string | null
+    isInstalled?: boolean
+    isEnabled?: boolean
+    order: number
+    isActive?: boolean
+    isExternal?: boolean
+    metadata?: {
+        roles?: string[]
+        badgeText?: string | null
+        badgeColor?: string | null
+        description?: string | null
+        openInNewTab?: boolean
+        author?: string | null
+        website?: string | null
+        dependencies?: string[]
+        configurationUrl?: string | null
+    }
+}
+
 export const moduleAPI = {
     /**
      * Get menu items for the current authenticated user based on their roles
@@ -23,6 +49,42 @@ export const moduleAPI = {
     async getModulesByType(type: number, tenantId?: string): Promise<Module[]> {
         const params = tenantId ? `?tenantId=${tenantId}` : ""
         return fetchAPI<Module[]>(`/api/Module/by-type/${type}${params}`)
+    },
+
+    /**
+     * Get a specific module by ID
+     */
+    async getModuleById(id: number): Promise<Module> {
+        return fetchAPI<Module>(`/api/Module/${id}`)
+    },
+
+    /**
+     * Create a new module
+     */
+    async createModule(data: CreateModuleRequest): Promise<Module> {
+        return fetchAPI<Module>("/api/Module", {
+            method: "POST",
+            body: JSON.stringify(data),
+        })
+    },
+
+    /**
+     * Update an existing module
+     */
+    async updateModule(id: number, data: CreateModuleRequest): Promise<Module> {
+        return fetchAPI<Module>(`/api/Module/${id}`, {
+            method: "PUT",
+            body: JSON.stringify(data),
+        })
+    },
+
+    /**
+     * Delete a module
+     */
+    async deleteModule(id: number): Promise<void> {
+        return fetchAPI<void>(`/api/Module/${id}`, {
+            method: "DELETE",
+        })
     },
 }
 
