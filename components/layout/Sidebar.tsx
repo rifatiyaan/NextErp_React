@@ -6,8 +6,10 @@ import { usePathname } from "next/navigation"
 import { ChevronDown } from "lucide-react"
 
 import type { MenuItem } from "@/types/module"
-import { moduleAPI, buildMenuTree } from "@/lib/api/module"
+import { moduleAPI } from "@/lib/api/module"
 import { useAuth } from "@/contexts/auth-context"
+import { useSidebarView } from "@/contexts/sidebar-view-context"
+import { ModuleType } from "@/types/module"
 
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -21,9 +23,12 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
     SidebarMenuSub,
+    SidebarMenuSubItem,
+    SidebarMenuSubButton,
     Sidebar as SidebarWrapper,
     useSidebar,
 } from "@/components/ui/sidebar"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { DynamicIcon } from "@/components/dynamic-icon"
 import { CommandMenu } from "./CommandMenu"
 
@@ -31,6 +36,7 @@ export function Sidebar() {
     const pathname = usePathname()
     const { openMobile, setOpenMobile, isMobile } = useSidebar()
     const { user } = useAuth()
+    const { mode } = useSidebarView()
     const [menuItems, setMenuItems] = useState<MenuItem[]>([])
     const [isLoading, setIsLoading] = useState(true)
 
@@ -38,13 +44,67 @@ export function Sidebar() {
     useEffect(() => {
         if (user) {
             moduleAPI
-                .getAllModules()
+                .getUserMenu()
                 .then((modules) => {
-                    const tree = buildMenuTree(modules)
-                    setMenuItems(tree)
+                    // Convert Module[] to MenuItem[] (the API already returns hierarchical structure)
+                    const tree: MenuItem[] = modules.map((m) => ({
+                        id: m.id,
+                        title: m.title,
+                        icon: m.icon,
+                        url: m.url,
+                        parentId: m.parentId,
+                        children: m.children
+                            ? m.children
+                                  .sort((a, b) => a.order - b.order)
+                                  .map((child) => ({
+                                      id: child.id,
+                                      title: child.title,
+                                      icon: child.icon,
+                                      url: child.url,
+                                      parentId: child.parentId,
+                                      children: [],
+                                      type: child.type,
+                                      order: child.order,
+                                      isExternal: child.isExternal,
+                                      badgeText: child.metadata?.badgeText,
+                                      openInNewTab: child.metadata?.openInNewTab,
+                                  }))
+                            : [],
+                        type: m.type,
+                        order: m.order,
+                        isExternal: m.isExternal,
+                        badgeText: m.metadata?.badgeText,
+                        openInNewTab: m.metadata?.openInNewTab,
+                    }))
+                    
+                    if (mode === "grid") {
+                        // Grid mode: Only show parent modules (type = 1, Module) in the sidebar
+                        // Children will be displayed on the module's page
+                        const parentModules = tree
+                            .filter((m) => m.type === ModuleType.Module)
+                            .map((m) => ({
+                                ...m,
+                                children: [], // Don't render children in sidebar
+                            }))
+                            .sort((a, b) => a.order - b.order)
+                        
+                        setMenuItems(parentModules)
+                    } else {
+                        // Sidebar mode: Show all modules with children in collapsible format
+                        setMenuItems(tree.sort((a, b) => a.order - b.order))
+                    }
                 })
                 .catch((error) => {
                     console.error("Failed to load menu:", error)
+                    // Set empty menu items on error to prevent infinite loading
+                    setMenuItems([])
+                    // Show user-friendly error message
+                    if (error.message?.includes("Network error") || error.message?.includes("Failed to fetch")) {
+                        console.warn("⚠️ API connection failed. Please ensure:")
+                        console.warn("1. Backend is running on https://localhost:7245")
+                        console.warn("2. You have accepted the SSL certificate (visit https://localhost:7245/index.html first)")
+                        console.warn("3. CORS is properly configured")
+                    }
                 })
                 .finally(() => {
                     setIsLoading(false)
@@ -53,26 +113,134 @@ export function Sidebar() {
             setMenuItems([])
             setIsLoading(false)
         }
-    }, [user])
+    }, [user, mode])
+
+    // Component for collapsible menu items with children
+    const CollapsibleItem = ({
+        item,
+        isActive,
+        hasActiveChild,
+        defaultOpen,
+        badgeText,
+        target,
+        rel,
+        setOpenMobile,
+        pathname,
+    }: {
+        item: MenuItem
+        isActive: boolean
+        hasActiveChild: boolean
+        defaultOpen: boolean
+        badgeText?: string
+        target?: string
+        rel?: string
+        setOpenMobile: (open: boolean) => void
+        pathname: string
+    }) => {
+        const [isOpen, setIsOpen] = useState(defaultOpen)
+
+        // Sync with defaultOpen changes (e.g., when pathname changes)
+        useEffect(() => {
+            setIsOpen(defaultOpen)
+        }, [defaultOpen])
+
+        return (
+            <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+                <CollapsibleTrigger asChild>
+                    <SidebarMenuButton
+                        isActive={isActive || hasActiveChild}
+                        onClick={() => setOpenMobile(!openMobile)}
+                    >
+                        {item.icon && (
+                            <DynamicIcon name={item.icon as any} className="h-4 w-4" />
+                        )}
+                        <span>{item.title}</span>
+                        {badgeText && <Badge variant="secondary">{badgeText}</Badge>}
+                        <ChevronDown
+                            className={`ml-auto h-4 w-4 transition-transform duration-200 ${
+                                isOpen ? "rotate-180" : ""
+                            }`}
+                        />
+                    </SidebarMenuButton>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                    <SidebarMenuSub>
+                        {item.children.map((child) => {
+                            const childHref = child.url || "#"
+                            const childIsActive =
+                                childHref === "/"
+                                    ? pathname === childHref
+                                    : pathname.startsWith(childHref)
+                            const childTarget = child.openInNewTab ? "_blank" : undefined
+                            const childRel = child.isExternal ? "noopener noreferrer" : undefined
+
+                            return (
+                                <SidebarMenuSubItem key={child.id}>
+                                    <SidebarMenuSubButton asChild isActive={childIsActive}>
+                                        <Link
+                                            href={childHref}
+                                            target={childTarget}
+                                            rel={childRel}
+                                            onClick={() => setOpenMobile(!openMobile)}
+                                        >
+                                            {child.icon && (
+                                                <DynamicIcon
+                                                    name={child.icon as any}
+                                                    className="h-4 w-4"
+                                                />
+                                            )}
+                                            <span>{child.title}</span>
+                                            {child.badgeText && (
+                                                <Badge variant="secondary">
+                                                    {child.badgeText}
+                                                </Badge>
+                                            )}
+                                        </Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                            )
+                        })}
+                    </SidebarMenuSub>
+                </CollapsibleContent>
+            </Collapsible>
+        )
+    }
 
     const renderMenuItem = (item: MenuItem) => {
         const title = item.title
         const badgeText = item.badgeText
-
-        // We only render top-level items as links now.
-        // If url is missing, we might default to a slug based on title or id, but assuming url is present.
-        // Using strict matching for root or prefix matching for sub-routes?
-        // If I am at /sales/create, I want Sales to be active.
-        // item.url might be "/sales".
-
+        const hasChildren = item.children && item.children.length > 0
         const href = item.url || "#"
         // Active if pathname starts with the href (handling sub-routes)
-        // Ensure href is not just "/" to avoid highlighting everything.
         const isActive = href === "/" ? pathname === href : pathname.startsWith(href)
+        // Also check if any child is active
+        const hasActiveChild = hasChildren && item.children.some((child) => {
+            const childHref = child.url || "#"
+            return childHref === "/" ? pathname === childHref : pathname.startsWith(childHref)
+        })
+        const defaultOpen = hasActiveChild || isActive
 
         const target = item.openInNewTab ? "_blank" : undefined
         const rel = item.isExternal ? "noopener noreferrer" : undefined
 
+        // In sidebar mode, render with children as collapsible
+        if (mode === "sidebar" && hasChildren) {
+            return (
+                <CollapsibleItem
+                    item={item}
+                    isActive={isActive}
+                    hasActiveChild={hasActiveChild}
+                    defaultOpen={defaultOpen}
+                    badgeText={badgeText}
+                    target={target}
+                    rel={rel}
+                    setOpenMobile={setOpenMobile}
+                    pathname={pathname}
+                />
+            )
+        }
+
+        // Grid mode or no children: render as simple link
         return (
             <SidebarMenuButton
                 isActive={isActive}

@@ -32,11 +32,21 @@ const nextConfig: NextConfig = {
 
   // Optional: 
   async rewrites() {
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL
+
+    // If no API base URL is configured, skip rewrites to avoid crashing `next dev`.
+    // (You can still run the UI against mock data.)
+    if (!apiBaseUrl) return []
+
+    // Next.js requires `destination` to be an absolute URL or start with `/`.
+    // We only accept absolute URLs here.
+    if (!/^https?:\/\//.test(apiBaseUrl)) return []
+
     return [
       {
-        source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/:path*`,
-      }
+        source: "/api/:path*",
+        destination: `${apiBaseUrl}/api/:path*`,
+      },
     ]
   }
 };

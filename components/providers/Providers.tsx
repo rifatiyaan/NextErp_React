@@ -3,6 +3,7 @@
 import type { ReactNode } from "react"
 import { ThemeProvider as NextThemesProvider } from "next-themes"
 import { SidebarProvider } from "@/components/ui/sidebar"
+import { SidebarViewProvider } from "@/contexts/sidebar-view-context"
 
 export function Providers({ children }: { children: ReactNode }) {
     return (
@@ -28,7 +29,9 @@ export function Providers({ children }: { children: ReactNode }) {
             ]}
         >
             <SidebarProvider>
-                {children}
+                <SidebarViewProvider>
+                    {children}
+                </SidebarViewProvider>
             </SidebarProvider>
         </NextThemesProvider>
     )

@@ -23,6 +23,10 @@ export default function Home() {
         }
       } catch (error) {
         console.error("Failed to fetch modules for redirect", error)
+        // If API fails, don't block the user - they can navigate manually
+        if (error instanceof Error && (error.message.includes("Network error") || error.message.includes("Failed to fetch"))) {
+          console.warn("API connection failed. Please ensure backend is running and SSL certificate is accepted.")
+        }
         setIsLoading(false)
       }
     }

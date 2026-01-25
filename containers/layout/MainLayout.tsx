@@ -48,9 +48,9 @@ export function MainLayout({ children }: { children: ReactNode }) {
     return (
         <div className="flex h-full min-h-screen bg-background text-foreground">
             <Sidebar />
-            <div className="flex flex-col flex-1 min-w-0 transition-[margin] duration-300 ease-in-out">
+            <div className="flex flex-col flex-1 min-w-0 transition-[margin] duration-300 ease-in-out bg-background">
                 <Header dictionary={dictionary} />
-                <main className="flex-1 p-4 overflow-y-auto bg-muted/20">
+                <main className="flex-1 p-4 overflow-y-auto bg-background">
                     {children}
                 </main>
                 {/* <Footer /> */}

@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { LogOut, User, UserCog } from "lucide-react"
+import { LogOut, User, UserCog, LayoutGrid, Sidebar as SidebarIcon } from "lucide-react"
 
 import type { DictionaryType } from "@/lib/get-dictionary"
 import type { LocaleType } from "@/types"
@@ -7,9 +7,11 @@ import type { LocaleType } from "@/types"
 import { userData } from "@/data/user"
 
 import { getInitials } from "@/lib/utils"
+import { useSidebarView } from "@/contexts/sidebar-view-context"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -27,6 +29,8 @@ export function UserDropdown({
     dictionary: DictionaryType
     locale?: LocaleType
 }) {
+    const { mode, toggleMode } = useSidebarView()
+
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -74,6 +78,30 @@ export function UserDropdown({
                         </Link>
                     </DropdownMenuItem>
                 </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                    className="flex items-center justify-between cursor-pointer"
+                    onSelect={(e) => {
+                        e.preventDefault()
+                        toggleMode()
+                    }}
+                >
+                    <div className="flex items-center gap-2">
+                        {mode === "grid" ? (
+                            <LayoutGrid className="me-2 size-4" />
+                        ) : (
+                            <SidebarIcon className="me-2 size-4" />
+                        )}
+                        <span className="text-sm">
+                            {mode === "grid" ? "Grid View" : "Sidebar View"}
+                        </span>
+                    </div>
+                    <Switch
+                        checked={mode === "sidebar"}
+                        onCheckedChange={toggleMode}
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
                     <LogOut className="me-2 size-4" />

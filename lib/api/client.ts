@@ -1,6 +1,6 @@
 import { tokenStorage } from "@/lib/auth/storage"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:7245"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://localhost:7245"
 
 export class APIError extends Error {
     constructor(
@@ -34,6 +34,9 @@ export async function fetchAPI<T = any>(
         const response = await fetch(url, {
             ...options,
             headers,
+            // For development with self-signed certificates
+            // Note: This only works in Node.js, browsers will still validate certificates
+            // For browser, user must accept the certificate warning
         })
 
         // Handle non-JSON responses
@@ -61,8 +64,19 @@ export async function fetchAPI<T = any>(
             throw error
         }
         // Network or other errors
+        const errorMessage = error instanceof Error ? error.message : "Network error"
+        
+        // Provide more helpful error messages
+        if (errorMessage.includes("Failed to fetch") || errorMessage.includes("NetworkError")) {
+            console.error(`Failed to connect to API at ${url}. Possible causes:
+                1. Backend server is not running
+                2. SSL certificate not accepted (visit https://localhost:7245/index.html first)
+                3. CORS issue
+                4. Network connectivity problem`)
+        }
+        
         throw new APIError(
-            error instanceof Error ? error.message : "Network error",
+            errorMessage,
             0
         )
     }
