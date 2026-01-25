@@ -130,14 +130,14 @@ export function SupplierForm({ initialData, isEdit }: SupplierFormProps) {
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Update your supplier details</CardTitle>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-lg">Update your supplier details</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-6 pt-6">
+                    <CardContent className="space-y-4 pt-4">
                         {/* Profile Picture Section */}
-                        <div className="flex items-start gap-6 pb-6 border-b">
+                        <div className="flex items-start gap-4 pb-4 border-b">
                             <div className="relative">
                                 {avatarPreview ? (
                                     <div className="relative h-24 w-24 rounded-full overflow-hidden border-2 border-border">
@@ -149,13 +149,13 @@ export function SupplierForm({ initialData, isEdit }: SupplierFormProps) {
                                         />
                                     </div>
                                 ) : (
-                                    <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center border-2 border-border">
-                                        <User className="h-12 w-12 text-muted-foreground" />
+                                    <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center border-2 border-border">
+                                        <User className="h-10 w-10 text-muted-foreground" />
                                     </div>
                                 )}
                             </div>
-                            <div className="flex flex-col gap-2">
-                                <div className="flex gap-2">
+                            <div className="flex flex-col gap-1.5">
+                                <div className="flex gap-1.5">
                                     <input
                                         id="avatar-upload"
                                         type="file"
@@ -192,9 +192,9 @@ export function SupplierForm({ initialData, isEdit }: SupplierFormProps) {
                         </div>
 
                         {/* Form Fields */}
-                        <div className="grid gap-6 md:grid-cols-2">
+                        <div className="grid gap-4 md:grid-cols-2">
                             {/* Left Column */}
-                            <div className="space-y-6">
+                            <div className="space-y-4">
                                 <FormField
                                     control={form.control}
                                     name="title"
@@ -274,7 +274,7 @@ export function SupplierForm({ initialData, isEdit }: SupplierFormProps) {
                             </div>
 
                             {/* Right Column */}
-                            <div className="space-y-6">
+                            <div className="space-y-4">
                                 <FormField
                                     control={form.control}
                                     name="email"

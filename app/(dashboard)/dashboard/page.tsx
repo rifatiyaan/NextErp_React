@@ -14,17 +14,17 @@ import { QuickStats } from "./_components/QuickStats"
 
 export default function DashboardPage() {
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             {/* Header */}
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-                <p className="text-muted-foreground">
+                <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+                <p className="text-sm text-muted-foreground mt-1">
                     Welcome back! Here's what's happening with your business today.
                 </p>
             </div>
 
             {/* Main Stats */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
                 <StatCard
                     title="Total Revenue"
                     value="$125,430"
@@ -63,22 +63,22 @@ export default function DashboardPage() {
             <QuickStats />
 
             {/* Charts Row */}
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
                 <RevenueChart />
                 <SalesChart />
             </div>
 
             {/* Secondary Row */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                 <SalesByCategory />
                 <ConversionFunnel />
                 <TopProducts />
             </div>
 
             {/* Bottom Row */}
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
                 <RecentTransactions />
-                <div className="grid gap-4">
+                <div className="grid gap-3">
                     <TopCustomers />
                     <ActivityFeed />
                 </div>

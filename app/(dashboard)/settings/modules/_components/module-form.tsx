@@ -195,16 +195,16 @@ export function ModuleForm({ moduleId }: ModuleFormProps) {
     }
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Card>
-                <CardHeader>
-                    <CardTitle>Basic Information</CardTitle>
-                    <CardDescription>
+                <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">Basic Information</CardTitle>
+                    <CardDescription className="text-sm">
                         Enter the basic details for this module
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
+                <CardContent className="space-y-3 pt-4">
+                    <div className="space-y-1.5">
                         <Label htmlFor="title">Title *</Label>
                         <Input
                             id="title"
@@ -216,7 +216,7 @@ export function ModuleForm({ moduleId }: ModuleFormProps) {
                         )}
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-3 md:grid-cols-2">
                         <div className="space-y-2">
                             <Label htmlFor="type">Type *</Label>
                             <Select
@@ -269,8 +269,8 @@ export function ModuleForm({ moduleId }: ModuleFormProps) {
                         )}
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
+                    <div className="grid gap-3 md:grid-cols-2">
+                        <div className="space-y-1.5">
                             <Label htmlFor="icon">Icon</Label>
                             <IconPicker
                                 value={(watch("icon") as IconName) || undefined}
@@ -310,8 +310,8 @@ export function ModuleForm({ moduleId }: ModuleFormProps) {
                         )}
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
+                    <div className="grid gap-3 md:grid-cols-2">
+                        <div className="space-y-1.5">
                             <Label htmlFor="order">Order</Label>
                             <Input
                                 id="order"
@@ -346,7 +346,7 @@ export function ModuleForm({ moduleId }: ModuleFormProps) {
                     <CardTitle>Settings</CardTitle>
                     <CardDescription>Configure module behavior</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3 pt-4">
                     <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
                             <Label htmlFor="isActive">Active</Label>
@@ -411,7 +411,7 @@ export function ModuleForm({ moduleId }: ModuleFormProps) {
                 </CardContent>
             </Card>
 
-            <div className="flex items-center justify-end gap-4">
+            <div className="flex items-center justify-end gap-2">
                 <Button
                     type="button"
                     variant="outline"

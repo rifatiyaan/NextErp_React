@@ -63,7 +63,7 @@ export default function ModuleDashboard({ params }: { params: Promise<{ module: 
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-3">
             {/* Breadcrumb / Header */}
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                 <Link href="/" className="hover:text-foreground">Home</Link>
@@ -73,7 +73,7 @@ export default function ModuleDashboard({ params }: { params: Promise<{ module: 
 
             {/* Grid of Child Modules/Links - Only show in grid mode */}
             {mode === "grid" && (
-                <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                     {currentModule.children && currentModule.children.length > 0 ? (
                         currentModule.children
                             .sort((a, b) => a.order - b.order)

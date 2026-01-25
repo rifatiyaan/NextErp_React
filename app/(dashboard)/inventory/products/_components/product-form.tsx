@@ -207,16 +207,16 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
             </div>
 
             <Form {...form}>
-                <form onSubmit={form.handleSubmit((data) => onSubmit(data, true))} className="space-y-6">
-                    <div className="grid gap-6 lg:grid-cols-3">
+                <form onSubmit={form.handleSubmit((data) => onSubmit(data, true))} className="space-y-4">
+                    <div className="grid gap-4 lg:grid-cols-3">
                         {/* Left Column */}
-                        <div className="lg:col-span-2 space-y-6">
+                        <div className="lg:col-span-2 space-y-4">
                             {/* Product Details */}
                             <Card>
-                                <CardHeader>
-                                    <CardTitle>Product Details</CardTitle>
+                                <CardHeader className="pb-3">
+                                    <CardTitle className="text-lg">Product Details</CardTitle>
                                 </CardHeader>
-                                <CardContent className="space-y-4">
+                                <CardContent className="space-y-3 pt-4">
                                     <FormField
                                         control={form.control}
                                         name="title"

@@ -73,23 +73,23 @@ export default function ProductsPage() {
     })
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-3">
             {/* Header */}
             <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold tracking-tight">Products</h1>
-                <div className="flex items-center gap-4">
-                    <div className="relative w-[300px]">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <h1 className="text-2xl font-bold tracking-tight">Products</h1>
+                <div className="flex items-center gap-2">
+                    <div className="relative w-[280px]">
+                        <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Search by Product Name..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10"
+                            className="pl-9 h-9"
                         />
                     </div>
-                    <Button asChild>
+                    <Button asChild size="sm">
                         <Link href="/inventory/products/create">
-                            <Plus className="mr-2 h-4 w-4" />
+                            <Plus className="mr-1.5 h-4 w-4" />
                             Add Product
                         </Link>
                     </Button>
@@ -97,7 +97,7 @@ export default function ProductsPage() {
             </div>
 
             {/* Filters */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger className="w-[180px]">
                         <SelectValue placeholder="Status" />

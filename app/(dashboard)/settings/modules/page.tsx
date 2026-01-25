@@ -31,25 +31,25 @@ export default function ModulesPage() {
     }, [])
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-3">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Manage Modules</h1>
-                    <p className="text-muted-foreground">
+                    <h1 className="text-2xl font-bold tracking-tight">Manage Modules</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
                         Create and manage modules and submodules for your application
                     </p>
                 </div>
-                <Button asChild>
+                <Button asChild size="sm">
                     <Link href="/settings/modules/create">
-                        <Plus className="mr-2 h-4 w-4" />
+                        <Plus className="mr-1.5 h-4 w-4" />
                         Create Module
                     </Link>
                 </Button>
             </div>
 
             {/* Stats Cards */}
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-3">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Total Modules</CardTitle>
