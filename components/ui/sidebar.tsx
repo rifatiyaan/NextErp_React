@@ -37,6 +37,17 @@ export const SIDEBAR_WIDTH_MOBILE = "18rem"
 export const SIDEBAR_WIDTH_ICON = "3rem"
 export const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
+// Safe hook to get sidebar width (optional context)
+function useSidebarWidthSafe() {
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { useSidebarWidth } = require("@/contexts/sidebar-width-context")
+        return useSidebarWidth()
+    } catch {
+        return { width: SIDEBAR_WIDTH, widthInRem: 18 }
+    }
+}
+
 type SidebarContextType = {
     state: "expanded" | "collapsed"
     open: boolean
@@ -75,6 +86,7 @@ export function SidebarProvider({
 }: SidebarProviderProps) {
     const isMobile = useIsMobile()
     const [openMobile, setOpenMobile] = useState(false)
+    const { width: sidebarWidth } = useSidebarWidthSafe()
 
     // This is the internal state of the sidebar.
     // We use openProp and setOpenProp for control from outside the component.
@@ -140,7 +152,7 @@ export function SidebarProvider({
                     data-slot="sidebar-wrapper"
                     style={
                         {
-                            "--sidebar-width": SIDEBAR_WIDTH,
+                            "--sidebar-width": sidebarWidth,
                             "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
                             ...style,
                         } as CSSProperties
@@ -173,6 +185,47 @@ export function Sidebar({
     ...props
 }: SidebarProps) {
     const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+    const { width: sidebarWidth, widthInRem, setWidthInRem } = useSidebarWidthSafe()
+    const [isResizing, setIsResizing] = useState(false)
+    const [startX, setStartX] = useState(0)
+    const [startWidth, setStartWidth] = useState(0)
+
+    useEffect(() => {
+        if (!isResizing) return
+
+        const handleMouseMove = (e: MouseEvent) => {
+            const deltaX = e.clientX - startX
+            // Convert pixels to rem (assuming 16px = 1rem)
+            const deltaRem = deltaX / 16
+            const newWidth = Math.max(12, Math.min(30, startWidth + deltaRem))
+            if (setWidthInRem) {
+                setWidthInRem(newWidth)
+            }
+        }
+
+        const handleMouseUp = () => {
+            setIsResizing(false)
+        }
+
+        document.addEventListener("mousemove", handleMouseMove)
+        document.addEventListener("mouseup", handleMouseUp)
+        document.body.style.cursor = "col-resize"
+        document.body.style.userSelect = "none"
+
+        return () => {
+            document.removeEventListener("mousemove", handleMouseMove)
+            document.removeEventListener("mouseup", handleMouseUp)
+            document.body.style.cursor = ""
+            document.body.style.userSelect = ""
+        }
+    }, [isResizing, startX, startWidth, setWidthInRem])
+
+    const handleResizeMouseDown = (e: React.MouseEvent) => {
+        e.preventDefault()
+        setIsResizing(true)
+        setStartX(e.clientX)
+        setStartWidth(widthInRem || 18)
+    }
 
     if (isMobile) {
         return (
@@ -184,7 +237,7 @@ export function Sidebar({
                     className="w-(--sidebar-width) bg-sidebar text-sidebar-foreground p-0"
                     style={
                         {
-                            "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
+                            "--sidebar-width": sidebarWidth,
                         } as CSSProperties
                     }
                     side={side}
@@ -234,7 +287,8 @@ export function Sidebar({
             />
             <div
                 className={cn(
-                    "duration-200 fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] ease-linear md:flex",
+                    "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) md:flex",
+                    isResizing ? "" : "duration-200 transition-[left,right,width] ease-linear",
                     side === "left"
                         ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
                         : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
@@ -248,9 +302,25 @@ export function Sidebar({
             >
                 <div
                     data-sidebar="sidebar"
-                    className="flex h-full w-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow-sm"
+                    className="relative flex h-full w-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow-sm"
                 >
                     {children}
+                    {side === "left" && variant !== "floating" && variant !== "inset" && !isMobile && (
+                        <div
+                            onMouseDown={handleResizeMouseDown}
+                            className={cn(
+                                "absolute right-0 top-0 h-full w-1 cursor-col-resize bg-transparent hover:bg-primary/30 transition-colors z-20 group",
+                                "hover:w-1.5",
+                                isResizing && "bg-primary/50 w-1.5"
+                            )}
+                            style={{ touchAction: "none" }}
+                            aria-label="Resize sidebar"
+                            role="separator"
+                            aria-orientation="vertical"
+                        >
+                            <div className="absolute right-0 top-1/2 -translate-y-1/2 h-12 w-0.5 bg-border opacity-0 group-hover:opacity-100 transition-opacity rounded-full" />
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

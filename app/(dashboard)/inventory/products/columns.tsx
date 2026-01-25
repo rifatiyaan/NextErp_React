@@ -11,43 +11,54 @@ import {
     DropdownMenuLabel,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Badge } from "@/components/ui/badge"
+import { Rating } from "./_components/Rating"
 import Link from "next/link"
 import Image from "next/image"
 
+// Mock rating and status for products (in real app, these would come from API)
+const getProductRating = (productId: number) => {
+    const ratings: Record<number, number> = {
+        1: 4.9,
+        2: 4.65,
+        3: 4.65,
+        4: 4.65,
+        5: 4.65,
+    }
+    return ratings[productId] || 4.5
+}
+
+const getProductStatus = (product: Product) => {
+    if (!product.isActive) return "closed for sale"
+    if (product.stock === 0) return "out of stock"
+    return "active"
+}
+
 export const columns: ColumnDef<Product>[] = [
     {
-        accessorKey: "imageUrl",
-        header: "Image",
+        accessorKey: "productName",
+        header: "Product Name",
+        enableHiding: false,
         cell: ({ row }) => {
-            const imageUrl = row.getValue("imageUrl") as string
+            const product = row.original
+            const imageUrl = product.imageUrl || "https://placehold.co/100x100/png"
             return (
-                <div className="relative h-10 w-10 overflow-hidden rounded-md border bg-muted">
-                    {imageUrl ? (
+                <div className="flex items-center gap-3">
+                    <div className="relative h-12 w-12 overflow-hidden rounded-md border bg-muted flex-shrink-0">
                         <Image
                             src={imageUrl}
-                            alt={row.getValue("title")}
+                            alt={product.title}
                             fill
                             className="object-cover"
+                            unoptimized
                         />
-                    ) : (
-                        <Image
-                            src="https://placehold.co/600x400/png" // Placeholder
-                            alt="No Image"
-                            fill
-                            className="object-cover opacity-50"
-                        />
-                    )}
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="font-medium">{product.title}</span>
+                    </div>
                 </div>
             )
         },
-    },
-    {
-        accessorKey: "title",
-        header: "Title",
-    },
-    {
-        accessorKey: "code",
-        header: "Code",
     },
     {
         accessorKey: "price",
@@ -62,18 +73,59 @@ export const columns: ColumnDef<Product>[] = [
         },
     },
     {
-        accessorKey: "stock",
-        header: "Stock",
-    },
-    {
-        accessorKey: "category.title",
+        accessorKey: "category",
         header: "Category",
         cell: ({ row }) => {
-            return row.original.category?.title || "N/A"
-        }
+            return (
+                <span className="text-sm text-muted-foreground">
+                    {row.original.category?.title || "N/A"}
+                </span>
+            )
+        },
+    },
+    {
+        accessorKey: "stock",
+        header: "Stock",
+        cell: ({ row }) => {
+            return <span className="font-medium">{row.getValue("stock")}</span>
+        },
+    },
+    {
+        accessorKey: "code",
+        header: "SKU",
+        cell: ({ row }) => {
+            return <span className="text-sm text-muted-foreground">{row.getValue("code")}</span>
+        },
+    },
+    {
+        accessorKey: "rating",
+        header: "Rating",
+        cell: ({ row }) => {
+            const rating = getProductRating(row.original.id)
+            return <Rating value={rating} />
+        },
+    },
+    {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => {
+            const status = getProductStatus(row.original)
+            const statusConfig: Record<
+                string,
+                { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
+            > = {
+                active: { label: "active", variant: "default" },
+                "out of stock": { label: "out of stock", variant: "secondary" },
+                "closed for sale": { label: "closed for sale", variant: "outline" },
+            }
+            const config = statusConfig[status] || statusConfig.active
+            return <Badge variant={config.variant}>{config.label}</Badge>
+        },
     },
     {
         id: "actions",
+        header: "",
+        enableHiding: false,
         cell: ({ row }) => {
             const product = row.original
 

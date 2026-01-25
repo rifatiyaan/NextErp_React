@@ -4,6 +4,7 @@ import type { ReactNode } from "react"
 import { ThemeProvider as NextThemesProvider } from "next-themes"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { SidebarViewProvider } from "@/contexts/sidebar-view-context"
+import { SidebarWidthProvider } from "@/contexts/sidebar-width-context"
 
 export function Providers({ children }: { children: ReactNode }) {
     return (
@@ -28,11 +29,13 @@ export function Providers({ children }: { children: ReactNode }) {
                 "theme-violet"
             ]}
         >
-            <SidebarProvider>
-                <SidebarViewProvider>
-                    {children}
-                </SidebarViewProvider>
-            </SidebarProvider>
+            <SidebarWidthProvider>
+                <SidebarProvider>
+                    <SidebarViewProvider>
+                        {children}
+                    </SidebarViewProvider>
+                </SidebarProvider>
+            </SidebarWidthProvider>
         </NextThemesProvider>
     )
 }

@@ -167,10 +167,8 @@ export function Sidebar() {
                     <SidebarMenuSub>
                         {item.children.map((child) => {
                             const childHref = child.url || "#"
-                            const childIsActive =
-                                childHref === "/"
-                                    ? pathname === childHref
-                                    : pathname.startsWith(childHref)
+                            // Child items should only be active on exact match
+                            const childIsActive = pathname === childHref
                             const childTarget = child.openInNewTab ? "_blank" : undefined
                             const childRel = child.isExternal ? "noopener noreferrer" : undefined
 
@@ -211,12 +209,12 @@ export function Sidebar() {
         const badgeText = item.badgeText
         const hasChildren = item.children && item.children.length > 0
         const href = item.url || "#"
-        // Active if pathname starts with the href (handling sub-routes)
-        const isActive = href === "/" ? pathname === href : pathname.startsWith(href)
-        // Also check if any child is active
+        // Parent items: active if exact match OR pathname starts with href + "/" (for sub-routes)
+        const isActive = href === "/" ? pathname === href : pathname === href || pathname.startsWith(href + "/")
+        // Check if any child is active (exact match only)
         const hasActiveChild = hasChildren && item.children.some((child) => {
             const childHref = child.url || "#"
-            return childHref === "/" ? pathname === childHref : pathname.startsWith(childHref)
+            return pathname === childHref
         })
         const defaultOpen = hasActiveChild || isActive
 

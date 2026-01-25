@@ -33,6 +33,7 @@ import {
     PaginationNext,
     PaginationPrevious,
 } from "@/components/ui/pagination"
+import { ColumnVisibility } from "./_components/ColumnVisibility"
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
@@ -109,6 +110,9 @@ export function DataTable<TData, TValue>({
 
     return (
         <div className="space-y-4">
+            <div className="flex items-center justify-end">
+                <ColumnVisibility table={table} />
+            </div>
             <div className="rounded-md border">
                 <Table>
                     <TableHeader>
@@ -196,6 +200,7 @@ export function DataTable<TData, TValue>({
                         <PaginationItem>
                             <PaginationPrevious
                                 href="#"
+                                size="default"
                                 onClick={(e) => { e.preventDefault(); if (pageIndex > 1) onPageChange(pageIndex - 1) }}
                                 className={pageIndex <= 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
                             />
@@ -209,6 +214,7 @@ export function DataTable<TData, TValue>({
                                     <PaginationLink
                                         href="#"
                                         isActive={page === pageIndex}
+                                        size="icon"
                                         onClick={(e) => { e.preventDefault(); onPageChange(Number(page)) }}
                                     >
                                         {page}
@@ -220,6 +226,7 @@ export function DataTable<TData, TValue>({
                         <PaginationItem>
                             <PaginationNext
                                 href="#"
+                                size="default"
                                 onClick={(e) => { e.preventDefault(); if (pageIndex < pageCount) onPageChange(pageIndex + 1) }}
                                 className={pageIndex >= pageCount ? "pointer-events-none opacity-50" : "cursor-pointer"}
                             />
