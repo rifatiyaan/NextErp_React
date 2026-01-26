@@ -21,6 +21,7 @@ import { moduleAPI, CreateModuleRequest } from "@/lib/api/module"
 import { Module, ModuleType } from "@/types/module"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
+import { Loader } from "@/components/ui/loader"
 import { toast } from "sonner"
 import { IconPicker, type IconName } from "@/components/ui/icon-picker"
 
@@ -187,11 +188,7 @@ export function ModuleForm({ moduleId }: ModuleFormProps) {
     }
 
     if (fetching) {
-        return (
-            <div className="flex h-64 items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-        )
+        return <Loader text="Loading module..." />
     }
 
     return (

@@ -204,7 +204,7 @@
   --chart-4: 280 65% 60%;
   --chart-5: 340 75% 55%;
   /* Sidebar colors - will be overridden by theme classes */
-  --sidebar-background: var(--card);
+  --sidebar-background: var(--secondary);
   --sidebar-foreground: var(--card-foreground);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);

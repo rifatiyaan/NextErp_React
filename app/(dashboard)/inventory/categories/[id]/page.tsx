@@ -5,7 +5,7 @@ import { useParams } from "next/navigation"
 import CategoryForm from "../_components/category-form"
 import { categoryAPI } from "@/lib/api/category"
 import { Category } from "@/types/category"
-import { Loader2 } from "lucide-react"
+import { Loader } from "@/components/ui/loader"
 
 export default function EditCategoryPage() {
     const params = useParams()
@@ -30,11 +30,7 @@ export default function EditCategoryPage() {
     }, [params.id])
 
     if (loading) {
-        return (
-            <div className="flex h-96 items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-        )
+        return <Loader text="Loading category..." />
     }
 
     if (!category) {

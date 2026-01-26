@@ -7,7 +7,8 @@ import { customerAPI } from "@/lib/api/customer"
 import { Customer } from "@/types/customer"
 import { CustomerForm } from "../_components/customer-form"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, Loader2 } from "lucide-react"
+import { ChevronLeft } from "lucide-react"
+import { Loader } from "@/components/ui/loader"
 import Link from "next/link"
 
 export default function EditCustomerPage({
@@ -39,11 +40,7 @@ export default function EditCustomerPage({
     }, [id, router])
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-        )
+        return <Loader text="Loading customer..." />
     }
 
     if (!customer) {

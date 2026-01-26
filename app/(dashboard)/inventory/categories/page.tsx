@@ -7,8 +7,8 @@ import { DataTable } from "./data-table"
 import { columns } from "./columns"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
+import { Loader } from "@/components/ui/loader"
 import Link from "next/link"
-import { Loader2 } from "lucide-react"
 
 export default function CategoriesPage() {
     const [data, setData] = useState<Category[]>([])
@@ -60,9 +60,7 @@ export default function CategoriesPage() {
             </div>
 
             {loading ? (
-                <div className="flex h-64 items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
+                <Loader text="Loading categories..." />
             ) : (
                 <DataTable
                     columns={columns}

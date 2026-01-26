@@ -5,7 +5,7 @@ import { useParams } from "next/navigation"
 import ProductForm from "../_components/product-form"
 import { productAPI } from "@/lib/api/product"
 import { Product } from "@/types/product"
-import { Loader2 } from "lucide-react"
+import { Loader } from "@/components/ui/loader"
 
 export default function EditProductPage() {
     const params = useParams()
@@ -30,11 +30,7 @@ export default function EditProductPage() {
     }, [params.id])
 
     if (loading) {
-        return (
-            <div className="flex h-96 items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-        )
+        return <Loader text="Loading product..." />
     }
 
     if (!product) {

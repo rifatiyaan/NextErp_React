@@ -6,7 +6,8 @@ import { Customer } from "@/types/customer"
 import { DataTable } from "./data-table"
 import { columns } from "./columns"
 import { Button } from "@/components/ui/button"
-import { Plus, Loader2, Search } from "lucide-react"
+import { Plus, Search } from "lucide-react"
+import { Loader } from "@/components/ui/loader"
 import Link from "next/link"
 import { Input } from "@/components/ui/input"
 import {
@@ -124,9 +125,7 @@ export default function CustomersPage() {
 
             {/* Data Table */}
             {loading ? (
-                <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
+                <Loader text="Loading customers..." />
             ) : (
                 <DataTable
                     columns={columns}

@@ -215,7 +215,7 @@ export function Sidebar() {
                                         asChild 
                                         isActive={childIsActive}
                                         className={cn(
-                                            childIsActive && "bg-sidebar-accent text-sidebar-accent-foreground"
+                                            childIsActive && "bg-primary/10 dark:bg-primary/20 text-primary dark:text-foreground font-medium"
                                         )}
                                     >
                                         <Link

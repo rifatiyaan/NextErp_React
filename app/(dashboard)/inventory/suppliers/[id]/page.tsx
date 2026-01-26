@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { SupplierForm } from "../_components/supplier-form"
 import { supplierAPI } from "@/lib/api/supplier"
 import { Supplier } from "@/types/supplier"
-import { Loader2 } from "lucide-react"
+import { Loader } from "@/components/ui/loader"
 
 export default function EditSupplierPage({
     params,
@@ -44,11 +44,7 @@ export default function EditSupplierPage({
     }, [paramsData, router])
 
     if (isLoading) {
-        return (
-            <div className="flex h-64 items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-        )
+        return <Loader text="Loading supplier..." />
     }
 
     if (!initialData) {

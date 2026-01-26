@@ -6,7 +6,8 @@ import { Product } from "@/types/product"
 import { DataTable } from "./data-table"
 import { columns } from "./columns"
 import { Button } from "@/components/ui/button"
-import { Plus, Loader2 } from "lucide-react"
+import { Plus } from "lucide-react"
+import { Loader } from "@/components/ui/loader"
 import Link from "next/link"
 import {
     Select,
@@ -124,9 +125,7 @@ export default function ProductsPage() {
 
             {/* Data Table */}
             {loading ? (
-                <div className="flex h-64 items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
+                <Loader text="Loading products..." />
             ) : (
                 <DataTable
                     columns={columns}
