@@ -7,6 +7,29 @@ export interface ProductMetadata {
     categoryId?: number | null
 }
 
+export interface VariationOption {
+    id: number
+    name: string
+    displayOrder: number
+    values: VariationValue[]
+}
+
+export interface VariationValue {
+    id: number
+    value: string
+    displayOrder: number
+}
+
+export interface ProductVariant {
+    id: number
+    sku: string
+    price: number
+    stock: number
+    isActive: boolean
+    title: string
+    variationValues: VariationValue[]
+}
+
 export interface Product {
     id: number
     title: string
@@ -18,6 +41,9 @@ export interface Product {
     metadata?: ProductMetadata
     category?: Category | null
     isActive: boolean
+    hasVariations?: boolean
+    variationOptions?: VariationOption[]
+    productVariants?: ProductVariant[]
 }
 
 export interface ProductListResponse {

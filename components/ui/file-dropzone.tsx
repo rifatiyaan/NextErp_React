@@ -7,8 +7,9 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
 interface FileDropzoneProps extends Omit<DropzoneOptions, "onDrop"> {
-  value?: File[]
+  value?: (File | string)[]
   onChange?: (files: File[]) => void
+  onUrlRemove?: (url: string) => void
   className?: string
   maxFiles?: number
 }
@@ -16,6 +17,7 @@ interface FileDropzoneProps extends Omit<DropzoneOptions, "onDrop"> {
 export function FileDropzone({
   value = [],
   onChange,
+  onUrlRemove,
   className,
   maxFiles = 10,
   accept = {
@@ -24,11 +26,27 @@ export function FileDropzone({
   maxSize = 5 * 1024 * 1024, // 5MB
   ...props
 }: FileDropzoneProps) {
-  const [files, setFiles] = React.useState<File[]>(value)
+  // Separate files (File objects) from URLs (strings)
+  const filesOnly = React.useMemo(() => {
+    return value.filter((item): item is File => {
+      // Check if item is a File object by checking for File-specific properties
+      return typeof item !== "string" && 
+             item != null && 
+             typeof item === "object" &&
+             "constructor" in item &&
+             item.constructor.name === "File"
+    })
+  }, [value])
+  
+  const urlStrings = React.useMemo(() => {
+    return value.filter((item): item is string => typeof item === "string")
+  }, [value])
+
+  const [files, setFiles] = React.useState<File[]>(filesOnly)
 
   React.useEffect(() => {
-    setFiles(value)
-  }, [value])
+    setFiles(filesOnly)
+  }, [filesOnly])
 
   const onDrop = React.useCallback(
     (acceptedFiles: File[]) => {
@@ -72,14 +90,43 @@ export function FileDropzone({
           PNG, JPG, GIF or WEBP (max. 5MB)
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          {files.length} / {maxFiles} files
+          {files.length + urlStrings.length} / {maxFiles} files
         </p>
       </div>
 
-      {files.length > 0 && (
+      {(files.length > 0 || urlStrings.length > 0) && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* Display URL strings (existing images) */}
+          {urlStrings.map((url, index) => (
+            <div key={`url-${index}`} className="relative group">
+              <div className="relative aspect-square w-full overflow-hidden rounded-md border">
+                <img
+                  src={url}
+                  alt={`Image ${index + 1}`}
+                  className="h-full w-full object-cover"
+                />
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    // Call onUrlRemove callback if provided
+                    onUrlRemove?.(url)
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground truncate">
+                Existing image
+              </p>
+            </div>
+          ))}
+          {/* Display File objects (newly uploaded) */}
           {files.map((file, index) => (
-            <div key={index} className="relative group">
+            <div key={`file-${index}`} className="relative group">
               <div className="relative aspect-square w-full overflow-hidden rounded-md border">
                 {file.type.startsWith("image/") ? (
                   <img

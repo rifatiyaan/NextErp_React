@@ -41,17 +41,23 @@ export const columns: ColumnDef<Product>[] = [
         enableHiding: false,
         cell: ({ row }) => {
             const product = row.original
-            const imageUrl = product.imageUrl || "https://placehold.co/100x100/png"
+            const imageUrl = product.imageUrl || "/placeholder-product.png"
             return (
                 <div className="flex items-center gap-3">
                     <div className="relative h-12 w-12 overflow-hidden rounded-md border bg-muted flex-shrink-0">
-                        <Image
-                            src={imageUrl}
-                            alt={product.title}
-                            fill
-                            className="object-cover"
-                            unoptimized
-                        />
+                        {product.imageUrl ? (
+                            <Image
+                                src={imageUrl}
+                                alt={product.title}
+                                fill
+                                className="object-cover"
+                                unoptimized
+                            />
+                        ) : (
+                            <div className="flex items-center justify-center h-full w-full bg-muted">
+                                <span className="text-xs text-muted-foreground">No Image</span>
+                            </div>
+                        )}
                     </div>
                     <div className="flex flex-col">
                         <span className="font-medium">{product.title}</span>
@@ -76,18 +82,12 @@ export const columns: ColumnDef<Product>[] = [
         accessorKey: "category",
         header: "Category",
         cell: ({ row }) => {
+            const category = row.original.category
             return (
                 <span className="text-sm text-muted-foreground">
-                    {row.original.category?.title || "N/A"}
+                    {category?.title || "-"}
                 </span>
             )
-        },
-    },
-    {
-        accessorKey: "stock",
-        header: "Stock",
-        cell: ({ row }) => {
-            return <span className="font-medium">{row.getValue("stock")}</span>
         },
     },
     {

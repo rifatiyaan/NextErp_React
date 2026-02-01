@@ -55,15 +55,16 @@ const generateSKU = (): string => {
 export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
     const router = useRouter()
     const [isLoading, setIsLoading] = useState(false)
-    const [images, setImages] = useState<File[]>([])
+    const [images, setImages] = useState<(File | string)[]>([])
     const [categories, setCategories] = useState<Category[]>([])
     const [subCategories, setSubCategories] = useState<Category[]>([])
     const [loadingCategories, setLoadingCategories] = useState(true)
     const [newValueInputs, setNewValueInputs] = useState<Record<number, string>>({})
+    const [originalVariationOptions, setOriginalVariationOptions] = useState<any[]>([])
 
     const form = useForm<ProductFormValues>({
         resolver: zodResolver(productSchema),
-        defaultValues: initialData || {
+        defaultValues: {
             title: "",
             code: generateSKU(),
             price: 0,
@@ -131,6 +132,97 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
         }
     }, [isEdit, initialData, form])
 
+    // Load initialData into form when editing
+    useEffect(() => {
+        if (isEdit && initialData) {
+            // Reset form with initial data
+            const formData: any = {
+                title: initialData.title || "",
+                code: initialData.code || generateSKU(),
+                price: initialData.price || 0,
+                stock: initialData.stock || 0,
+                categoryId: initialData.categoryId && initialData.categoryId > 0 ? initialData.categoryId : undefined,
+                subCategoryId: initialData.subCategoryId && initialData.subCategoryId > 0 ? initialData.subCategoryId : undefined,
+                imageUrl: initialData.imageUrl ? [initialData.imageUrl] : [],
+                // Set images state for FileDropzone
+                isActive: initialData.isActive ?? true,
+                hasVariations: initialData.hasVariations || false,
+                variationOptions: [],
+                productVariants: [],
+                metadata: {
+                    description: initialData.metadata?.description || "",
+                    color: initialData.metadata?.color || "",
+                    warranty: initialData.metadata?.warranty || "",
+                },
+            }
+
+            // Convert backend variation format to form format
+            if (initialData.hasVariations && initialData.variationOptions && Array.isArray(initialData.variationOptions)) {
+                const formVariationOptions = initialData.variationOptions.map((opt: any) => ({
+                    name: opt.name || "",
+                    displayOrder: opt.displayOrder || 0,
+                    values: (opt.values || []).map((val: any) => ({
+                        value: val.value || "",
+                        displayOrder: val.displayOrder || 0,
+                    })),
+                }))
+                formData.variationOptions = formVariationOptions
+                // Store original variation options to track which values are original
+                setOriginalVariationOptions(formVariationOptions)
+
+                // Convert product variants
+                if (initialData.productVariants && Array.isArray(initialData.productVariants)) {
+                    const formVariants = initialData.productVariants.map((variant: any) => {
+                        // Build variationValueKeys from variationValues
+                        const keys: string[] = []
+                        if (variant.variationValues && Array.isArray(variant.variationValues)) {
+                            variant.variationValues.forEach((vv: any) => {
+                                // Find which option and value index this corresponds to
+                                formVariationOptions.forEach((opt: any, optIdx: number) => {
+                                    opt.values.forEach((val: any, valIdx: number) => {
+                                        if (val.value === vv.value) {
+                                            keys.push(`${optIdx}:${valIdx}`)
+                                        }
+                                    })
+                                })
+                            })
+                        }
+                        return {
+                            sku: variant.sku || "",
+                            price: variant.price || 0,
+                            stock: variant.stock || 0,
+                            isActive: variant.isActive ?? true,
+                            variationValueKeys: keys,
+                        }
+                    })
+                    formData.productVariants = formVariants
+                }
+            }
+
+            // Reset form with all data
+            form.reset(formData)
+            
+            // Set images state for FileDropzone (support both File and string URLs)
+            if (initialData.imageUrl) {
+                setImages([initialData.imageUrl])
+            } else {
+                setImages([])
+            }
+            
+            // Ensure field arrays are properly initialized after reset
+            // This is needed because form.reset() might not immediately update useFieldArray
+            if (formData.hasVariations && formData.variationOptions.length > 0) {
+                // Use requestAnimationFrame to ensure form state is updated
+                requestAnimationFrame(() => {
+                    form.setValue("variationOptions", formData.variationOptions, { shouldDirty: false, shouldValidate: false })
+                    if (formData.productVariants.length > 0) {
+                        form.setValue("productVariants", formData.productVariants, { shouldDirty: false, shouldValidate: false })
+                    }
+                })
+            }
+        }
+    }, [isEdit, initialData, form])
+
     // Filter subcategories based on selected category
     const selectedCategoryId = form.watch("categoryId")
     const filteredSubCategories = subCategories.filter(
@@ -138,7 +230,9 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
     )
 
     const handleImagesChange = (files: File[]) => {
-        setImages(files)
+        // Keep existing URL strings and add new files
+        const existingUrls = images.filter((img): img is string => typeof img === "string")
+        setImages([...existingUrls, ...files])
         form.setValue("imageUrl", files as any)
     }
 
@@ -278,8 +372,10 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
     const onSubmit = async (data: ProductFormValues) => {
         setIsLoading(true)
         try {
-            // Prepare image data - use first image if multiple
-            const imageData = images.length > 0 ? images[0] : data.imageUrl
+            // Prepare image data - use first File if available, otherwise use first URL string, otherwise use data.imageUrl
+            const firstFile = images.find((img): img is File => img instanceof File)
+            const firstUrl = images.find((img): img is string => typeof img === "string")
+            const imageData = firstFile || firstUrl || data.imageUrl
 
             const submitData: any = {
                 ...data,
@@ -289,13 +385,27 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
             // If product has variations, ensure variation data is included
             if (data.hasVariations) {
                 submitData.hasVariations = true
-                submitData.variationOptions = data.variationOptions || []
-                submitData.productVariants = data.productVariants || []
+                submitData.variationOptions = (data.variationOptions || []).filter((opt: any) => opt.name && opt.values && opt.values.length > 0)
+                submitData.productVariants = (data.productVariants || []).filter((v: any) => v.sku && v.variationValueKeys && v.variationValueKeys.length > 0)
+                
+                // Validate that we have valid variation data
+                if (submitData.variationOptions.length === 0 || submitData.productVariants.length === 0) {
+                    toast.error("Please add at least one variation option with values and ensure variants are generated")
+                    setIsLoading(false)
+                    return
+                }
             } else {
                 submitData.hasVariations = false
-                submitData.variationOptions = null
-                submitData.productVariants = null
+                submitData.variationOptions = []
+                submitData.productVariants = []
             }
+            
+            // Debug logging (remove in production)
+            console.log("Submitting product data:", {
+                hasVariations: submitData.hasVariations,
+                variationOptionsCount: submitData.variationOptions?.length || 0,
+                productVariantsCount: submitData.productVariants?.length || 0,
+            })
 
             if (isEdit && initialData?.id) {
                 await productAPI.updateProduct(initialData.id, submitData)
@@ -461,6 +571,14 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                     <FileDropzone
                                                         value={images}
                                                         onChange={handleImagesChange}
+                                                        onUrlRemove={(url) => {
+                                                            setImages(prev => prev.filter(img => img !== url))
+                                                            // If this was the only image, clear form value
+                                                            const remaining = images.filter(img => img !== url)
+                                                            if (remaining.length === 0) {
+                                                                form.setValue("imageUrl", undefined)
+                                                            }
+                                                        }}
                                                         maxFiles={10}
                                                     />
                                                 </FormControl>
@@ -487,21 +605,24 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                         This product has variations
                                                     </FormLabel>
                                                     <FormDescription>
-                                                        Enable to add variation options (e.g., Size, Color) and create product variants
+                                                        {isEdit ? "Variations cannot be edited after product creation" : "Enable to add variation options (e.g., Size, Color) and create product variants"}
                                                     </FormDescription>
                                                 </div>
                                                 <FormControl>
                                                     <Switch
                                                         checked={field.value}
+                                                        disabled={isEdit}
                                                         onCheckedChange={(checked) => {
-                                                            field.onChange(checked)
-                                                            if (!checked) {
-                                                                form.setValue("variationOptions", [])
-                                                                form.setValue("productVariants", [])
-                                                            } else {
-                                                                form.setValue("variationOptions", [
-                                                                    { name: "", displayOrder: 0, values: [] },
-                                                                ])
+                                                            if (!isEdit) {
+                                                                field.onChange(checked)
+                                                                if (!checked) {
+                                                                    form.setValue("variationOptions", [])
+                                                                    form.setValue("productVariants", [])
+                                                                } else {
+                                                                    form.setValue("variationOptions", [
+                                                                        { name: "", displayOrder: 0, values: [] },
+                                                                    ])
+                                                                }
                                                             }
                                                         }}
                                                     />
@@ -538,6 +659,8 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                                                 <Input
                                                                                     placeholder="Option name (e.g., Size, Color, Material)"
                                                                                     className="h-8 font-medium bg-background text-sm"
+                                                                                    disabled={isEdit}
+                                                                                    readOnly={isEdit}
                                                                                     {...field}
                                                                                 />
                                                                             </FormControl>
@@ -546,7 +669,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                                     )}
                                                                 />
                                                             </div>
-                                                            {variationOptionsFields.fields.length > 1 && (
+                                                            {variationOptionsFields.fields.length > 1 && !isEdit && (
                                                                 <Button
                                                                     type="button"
                                                                     variant="ghost"
@@ -579,7 +702,16 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                         {/* Values Section - Nested Children */}
                                                         <div className="p-3 bg-background space-y-2">
                                                             <div className="flex flex-wrap gap-1.5">
-                                                                {currentValues.map((val: any, valueIndex: number) => (
+                                                                {currentValues.map((val: any, valueIndex: number) => {
+                                                                    // Check if this value is from original data (in edit mode)
+                                                                    const originalOption = isEdit && originalVariationOptions.length > optionIndex 
+                                                                        ? originalVariationOptions[optionIndex] 
+                                                                        : null
+                                                                    const isOriginalValue = isEdit && originalOption 
+                                                                        ? originalOption.values.some((ov: any) => ov.value === val.value)
+                                                                        : false
+                                                                    
+                                                                    return (
                                                                     <div
                                                                         key={valueIndex}
                                                                         className="inline-flex items-center gap-1.5 px-2 py-1 bg-muted border rounded hover:bg-muted/80 transition-colors"
@@ -593,13 +725,16 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                                                         <Input
                                                                                             {...field}
                                                                                             className="h-6 w-20 px-1 text-sm border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-offset-0 p-0"
-                                                                                            onBlur={() => generateVariants()}
+                                                                                            disabled={isEdit && isOriginalValue}
+                                                                                            readOnly={isEdit && isOriginalValue}
+                                                                                            onBlur={() => !isEdit && generateVariants()}
                                                                                         />
                                                                                     </FormControl>
                                                                                     <FormMessage />
                                                                                 </FormItem>
                                                                             )}
                                                                         />
+                                                                        {(!isEdit || !isOriginalValue) && (
                                                                         <Button
                                                                             type="button"
                                                                             variant="ghost"
@@ -619,11 +754,13 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                                         >
                                                                             <X className="h-3.5 w-3.5" />
                                                                         </Button>
+                                                                        )}
                                                                     </div>
-                                                                ))}
+                                                                    )
+                                                                })}
                                                             </div>
                                                             
-                                                            {/* Add Value Input */}
+                                                            {/* Add Value Input - Allow adding new values in edit mode */}
                                                             <div className="flex items-center gap-1.5 pt-1.5 border-t">
                                                                 <Input
                                                                     placeholder="Type value and press Enter to add..."
@@ -686,6 +823,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                             })}
                                             
                                             {/* Add New Option Button */}
+                                            {!isEdit && (
                                             <Button
                                                 type="button"
                                                 variant="outline"
@@ -702,6 +840,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                 <Plus className="h-4 w-4 mr-2" />
                                                 Add Variation Option
                                             </Button>
+                                            )}
                                         </CardContent>
                                     </Card>
 
@@ -720,7 +859,6 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                                 <TableHead>SKU</TableHead>
                                                                 <TableHead>Price</TableHead>
                                                                 <TableHead>Stock</TableHead>
-                                                                <TableHead>Status</TableHead>
                                                             </TableRow>
                                                         </TableHeader>
                                                         <TableBody>
@@ -806,23 +944,6 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                                                 )}
                                                                             />
                                                                         </TableCell>
-                                                                        <TableCell>
-                                                                            <FormField
-                                                                                control={form.control}
-                                                                                name={`productVariants.${variantIndex}.isActive`}
-                                                                                render={({ field }) => (
-                                                                                    <FormItem>
-                                                                                        <FormControl>
-                                                                                            <Checkbox
-                                                                                                checked={field.value}
-                                                                                                onCheckedChange={field.onChange}
-                                                                                            />
-                                                                                        </FormControl>
-                                                                                        <FormMessage />
-                                                                                    </FormItem>
-                                                                                )}
-                                                                            />
-                                                                        </TableCell>
                                                                     </TableRow>
                                                                 )
                                                             })}
@@ -872,28 +993,6 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                             </FormItem>
                                         )}
                                     />
-                                    {!hasVariations && (
-                                        <FormField
-                                            control={form.control}
-                                            name="stock"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Stock *</FormLabel>
-                                                    <FormControl>
-                                                        <Input
-                                                            type="number"
-                                                            placeholder="0"
-                                                            {...field}
-                                                            onChange={(e) =>
-                                                                field.onChange(e.target.valueAsNumber || 0)
-                                                            }
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                    )}
                                 </CardContent>
                             </Card>
 
@@ -909,15 +1008,16 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                         render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Category *</FormLabel>
-                                                <Select
-                                                    onValueChange={(value) => {
-                                                        field.onChange(Number(value))
-                                                        // Reset subcategory when category changes
-                                                        form.setValue("subCategoryId", undefined)
-                                                    }}
-                                                    value={field.value ? String(field.value) : ""}
-                                                    disabled={loadingCategories}
-                                                >
+                                                    <Select
+                                                        onValueChange={(value) => {
+                                                            const numValue = Number(value)
+                                                            field.onChange(numValue > 0 ? numValue : undefined)
+                                                            // Reset subcategory when category changes
+                                                            form.setValue("subCategoryId", undefined)
+                                                        }}
+                                                        value={field.value && field.value > 0 ? String(field.value) : ""}
+                                                        disabled={loadingCategories}
+                                                    >
                                                     <FormControl>
                                                         <SelectTrigger>
                                                             <SelectValue placeholder="Select a category" />
@@ -948,7 +1048,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                             </FormItem>
                                         )}
                                     />
-                                    {selectedCategoryId && (
+                                    {selectedCategoryId && selectedCategoryId > 0 && (
                                         <FormField
                                             control={form.control}
                                             name="subCategoryId"
@@ -956,10 +1056,11 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                 <FormItem>
                                                     <FormLabel>Sub Category</FormLabel>
                                                     <Select
-                                                        onValueChange={(value) =>
-                                                            field.onChange(Number(value))
-                                                        }
-                                                        value={field.value ? String(field.value) : ""}
+                                                        onValueChange={(value) => {
+                                                            const numValue = Number(value)
+                                                            field.onChange(numValue > 0 ? numValue : undefined)
+                                                        }}
+                                                        value={field.value && field.value > 0 ? String(field.value) : ""}
                                                         disabled={loadingCategories}
                                                     >
                                                         <FormControl>
