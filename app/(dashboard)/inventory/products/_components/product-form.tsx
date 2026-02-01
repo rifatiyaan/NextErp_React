@@ -1,12 +1,13 @@
 "use client"
 
 import { z } from "zod"
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
-import { ProductFormValues, productSchema } from "@/schemas/product"
+import { ProductFormValues, VariationOptionFormValues, ProductVariantFormValues } from "@/schemas/product"
 import { productAPI } from "@/lib/api/product"
+import { categoryAPI } from "@/lib/api/category"
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -19,8 +20,6 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
     Select,
     SelectContent,
@@ -29,65 +28,53 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { FileDropzone } from "@/components/ui/file-dropzone"
+import { Switch } from "@/components/ui/switch"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "sonner"
-import { ChevronLeft, Upload, Plus, X, Link as LinkIcon } from "lucide-react"
-import Link from "next/link"
-
-// Mock categories for now - typically fetched from API
-const CATEGORIES = [
-    { id: 1, title: "Electronics" },
-    { id: 2, title: "Clothing" },
-    { id: 3, title: "Books" },
-    { id: 4, title: "Home & Kitchen" },
-    { id: 5, title: "Sports" },
-    { id: 6, title: "Toys" },
-    { id: 7, title: "Beauty" },
-    { id: 8, title: "Automotive" },
-    { id: 9, title: "Garden" },
-    { id: 10, title: "Furniture" },
-]
-
-const SUB_CATEGORIES = [
-    { id: 1, title: "Sub Category 1", categoryId: 1 },
-    { id: 2, title: "Sub Category 2", categoryId: 1 },
-    { id: 3, title: "Sub Category 3", categoryId: 2 },
-]
-
-const STATUS_OPTIONS = [
-    { value: "draft", label: "Draft", color: "orange" },
-    { value: "published", label: "Published", color: "green" },
-    { value: "archived", label: "Archived", color: "gray" },
-]
+import { ChevronLeft, Plus, X } from "lucide-react"
+import type { Category } from "@/types/category"
+import { productSchema } from "@/schemas/product"
 
 interface ProductFormProps {
     initialData?: any
     isEdit?: boolean
 }
 
+// Auto-generate SKU (alphanumeric)
+const generateSKU = (): string => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    let sku = ""
+    for (let i = 0; i < 8; i++) {
+        sku += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    return sku
+}
+
 export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
     const router = useRouter()
     const [isLoading, setIsLoading] = useState(false)
-    const [isDraftLoading, setIsDraftLoading] = useState(false)
     const [images, setImages] = useState<File[]>([])
-    const [isDragging, setIsDragging] = useState(false)
+    const [categories, setCategories] = useState<Category[]>([])
+    const [subCategories, setSubCategories] = useState<Category[]>([])
+    const [loadingCategories, setLoadingCategories] = useState(true)
+    const [newValueInputs, setNewValueInputs] = useState<Record<number, string>>({})
 
     const form = useForm<ProductFormValues>({
         resolver: zodResolver(productSchema),
         defaultValues: initialData || {
             title: "",
-            code: "",
-            barcode: "",
+            code: generateSKU(),
             price: 0,
-            discountedPrice: 0,
             stock: 0,
             categoryId: 0,
             subCategoryId: undefined,
             imageUrl: [],
             isActive: true,
-            chargeTax: false,
-            inStock: true,
-            status: "draft",
-            variants: [{ option: "", value: "", price: 0 }],
+            hasVariations: false,
+            variationOptions: [],
+            productVariants: [],
             metadata: {
                 description: "",
                 color: "",
@@ -96,133 +83,300 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
         },
     })
 
-    const { fields, append, remove } = useFieldArray({
+    const variationOptionsFields = useFieldArray({
         control: form.control,
-        name: "variants",
+        name: "variationOptions",
     })
 
-    const handleFileSelect = useCallback((files: FileList | null) => {
-        if (!files) return
-        const fileArray = Array.from(files)
-        setImages((prev) => [...prev, ...fileArray])
+    const productVariantsFields = useFieldArray({
+        control: form.control,
+        name: "productVariants",
+    })
+
+    // Fetch categories and subcategories from real API
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                setLoadingCategories(true)
+                // Fetch all categories from the real backend API
+                const allCategories = await categoryAPI.getAllCategories()
+                
+                // Filter to only show active categories
+                // Parent categories: categories without a parentId (null or undefined)
+                const parentCategories = allCategories.filter(
+                    (cat) => !cat.parentId && cat.isActive
+                )
+                
+                // Subcategories: categories with a parentId
+                const childCategories = allCategories.filter(
+                    (cat) => cat.parentId != null && cat.isActive
+                )
+                
+                setCategories(parentCategories)
+                setSubCategories(childCategories)
+            } catch (error) {
+                console.error("Failed to fetch categories:", error)
+                toast.error("Failed to load categories")
+            } finally {
+                setLoadingCategories(false)
+            }
+        }
+        fetchCategories()
     }, [])
 
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(true)
-    }, [])
+    // Auto-generate SKU on mount if not editing
+    useEffect(() => {
+        if (!isEdit && !initialData?.code) {
+            form.setValue("code", generateSKU())
+        }
+    }, [isEdit, initialData, form])
 
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-    }, [])
+    // Filter subcategories based on selected category
+    const selectedCategoryId = form.watch("categoryId")
+    const filteredSubCategories = subCategories.filter(
+        (subCat) => subCat.parentId === selectedCategoryId
+    )
 
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-        handleFileSelect(e.dataTransfer.files)
-    }, [handleFileSelect])
-
-    const removeImage = (index: number) => {
-        setImages((prev) => prev.filter((_, i) => i !== index))
+    const handleImagesChange = (files: File[]) => {
+        setImages(files)
+        form.setValue("imageUrl", files as any)
     }
 
-    const onSubmit = async (data: ProductFormValues, publish: boolean = false) => {
+    // Generate all possible variant combinations from variation options
+    const generateVariants = useCallback(() => {
+        const options = form.getValues("variationOptions") || []
+        if (options.length === 0) {
+            form.setValue("productVariants", [])
+            return
+        }
+
+        // Generate all combinations using cartesian product
+        const combinations: string[][] = []
+        const generateCombinations = (current: string[], optionIndex: number) => {
+            if (optionIndex >= options.length) {
+                combinations.push([...current])
+                return
+            }
+            const option = options[optionIndex]
+            option.values.forEach((_, valueIndex) => {
+                generateCombinations([...current, `${optionIndex}:${valueIndex}`], optionIndex + 1)
+            })
+        }
+        generateCombinations([], 0)
+
+        // Create or update variants
+        const existingVariants = form.getValues("productVariants") || []
+        const newVariants: ProductVariantFormValues[] = combinations.map((keys, index) => {
+            // Try to find existing variant with same keys
+            const existing = existingVariants.find(
+                (v) => JSON.stringify(v.variationValueKeys.sort()) === JSON.stringify(keys.sort())
+            )
+            
+            if (existing) {
+                return existing
+            }
+
+            // Generate variant title from values
+            const variantTitle = keys
+                .map((key) => {
+                    const [optIdx, valIdx] = key.split(":").map(Number)
+                    return options[optIdx]?.values[valIdx]?.value || ""
+                })
+                .filter(Boolean)
+                .join(" / ")
+
+            // Generate SKU
+            const baseCode = form.getValues("code") || "PROD"
+            const variantSuffix = keys
+                .map((key) => {
+                    const [optIdx, valIdx] = key.split(":").map(Number)
+                    const value = options[optIdx]?.values[valIdx]?.value || ""
+                    return value.substring(0, 3).toUpperCase()
+                })
+                .join("-")
+            const sku = `${baseCode}-${variantSuffix}`
+
+            return {
+                sku,
+                price: form.getValues("price") || 0,
+                stock: 0,
+                isActive: true,
+                variationValueKeys: keys,
+            }
+        })
+
+        form.setValue("productVariants", newVariants, { shouldDirty: false })
+    }, [form])
+
+    // Watch for changes in variation options and regenerate variants
+    const watchedVariationOptions = form.watch("variationOptions")
+    const hasVariations = form.watch("hasVariations")
+    
+    // Use refs to track previous values and prevent infinite loops
+    const isGeneratingRef = useRef(false)
+    const previousOptionsRef = useRef<string>("")
+    const isInitialMountRef = useRef(true)
+
+    useEffect(() => {
+        // Skip on initial mount
+        if (isInitialMountRef.current) {
+            isInitialMountRef.current = false
+            return
+        }
+
+        // Prevent infinite loops
+        if (isGeneratingRef.current) {
+            return
+        }
+
+        // Don't run if hasVariations is false
+        if (!hasVariations) {
+            // Only clear if we previously had variations
+            if (previousOptionsRef.current !== "") {
+                previousOptionsRef.current = ""
+                form.setValue("productVariants", [], { shouldDirty: false, shouldValidate: false })
+                form.setValue("variationOptions", [], { shouldDirty: false, shouldValidate: false })
+            }
+            return
+        }
+
+        // Only proceed if hasVariations is true
+        if (!watchedVariationOptions || watchedVariationOptions.length === 0) {
+            return
+        }
+
+        // Serialize options to detect actual changes
+        const optionsKey = JSON.stringify(
+            watchedVariationOptions.map(opt => ({
+                name: opt?.name,
+                values: opt?.values?.map(v => v?.value) || []
+            }))
+        )
+
+        // Skip if options haven't actually changed
+        if (previousOptionsRef.current === optionsKey) {
+            return
+        }
+
+        // Check if all options have at least one value
+        const allOptionsValid = watchedVariationOptions.every(
+            (opt) => opt && opt.values && opt.values.length > 0
+        )
+        
+        if (allOptionsValid && watchedVariationOptions.length > 0) {
+            isGeneratingRef.current = true
+            previousOptionsRef.current = optionsKey
+            generateVariants()
+            // Reset flag after a short delay to allow state updates to complete
+            requestAnimationFrame(() => {
+                isGeneratingRef.current = false
+            })
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [watchedVariationOptions, hasVariations])
+
+    const onSubmit = async (data: ProductFormValues) => {
         setIsLoading(true)
         try {
-            // Convert images array to single file or URL for API
+            // Prepare image data - use first image if multiple
             const imageData = images.length > 0 ? images[0] : data.imageUrl
-            
-            const submitData = {
+
+            const submitData: any = {
                 ...data,
                 imageUrl: imageData,
-                status: publish ? "published" : data.status,
+            }
+
+            // If product has variations, ensure variation data is included
+            if (data.hasVariations) {
+                submitData.hasVariations = true
+                submitData.variationOptions = data.variationOptions || []
+                submitData.productVariants = data.productVariants || []
+            } else {
+                submitData.hasVariations = false
+                submitData.variationOptions = null
+                submitData.productVariants = null
             }
 
             if (isEdit && initialData?.id) {
-                await productAPI.updateProduct(initialData.id, submitData as any)
+                await productAPI.updateProduct(initialData.id, submitData)
                 toast.success("Product updated successfully")
             } else {
-                await productAPI.createProduct(submitData as any)
-                toast.success(publish ? "Product published successfully" : "Product saved as draft")
+                await productAPI.createProduct(submitData)
+                toast.success("Product created successfully")
             }
             router.push("/inventory/products")
             router.refresh()
-        } catch (error) {
+        } catch (error: any) {
             console.error(error)
-            toast.error(isEdit ? "Failed to update product" : "Failed to create product")
+            const errorMessage =
+                error?.response?.data?.message ||
+                error?.message ||
+                (isEdit ? "Failed to update product" : "Failed to create product")
+            toast.error(errorMessage)
         } finally {
             setIsLoading(false)
         }
     }
 
-    const onSaveDraft = async () => {
-        setIsDraftLoading(true)
+    const onSave = async () => {
+        const isValid = await form.trigger()
+        if (!isValid) {
+            toast.error("Please fix form errors before saving")
+            return
+        }
         const data = form.getValues()
-        await onSubmit(data, false)
-        setIsDraftLoading(false)
-    }
-
-    const onPublish = async () => {
-        const data = form.getValues()
-        await onSubmit(data, true)
+        await onSubmit(data)
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-3">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between pb-2">
+                <div className="flex items-center gap-2">
                     <Button variant="ghost" size="icon" onClick={() => router.back()}>
-                        <ChevronLeft className="h-5 w-5" />
+                        <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <h1 className="text-2xl font-bold">Add Products</h1>
+                    <h1 className="text-xl font-semibold">{isEdit ? "Edit Product" : "Add Products"}</h1>
                 </div>
                 <div className="flex items-center gap-2">
                     <Button
                         type="button"
                         variant="outline"
+                        size="sm"
                         onClick={() => router.back()}
-                        disabled={isLoading || isDraftLoading}
+                        disabled={isLoading}
                     >
                         Discard
                     </Button>
                     <Button
                         type="button"
-                        variant="outline"
-                        onClick={onSaveDraft}
-                        disabled={isLoading || isDraftLoading}
-                    >
-                        {isDraftLoading ? "Saving..." : "Save Draft"}
-                    </Button>
-                    <Button
-                        type="button"
-                        onClick={onPublish}
-                        disabled={isLoading || isDraftLoading}
+                        size="sm"
+                        onClick={onSave}
+                        disabled={isLoading}
                         className="bg-foreground text-background hover:bg-foreground/90"
                     >
-                        {isLoading ? "Publishing..." : "Publish"}
+                        {isLoading ? "Saving..." : "Save"}
                     </Button>
                 </div>
             </div>
 
             <Form {...form}>
-                <form onSubmit={form.handleSubmit((data) => onSubmit(data, true))} className="space-y-4">
-                    <div className="grid gap-4 lg:grid-cols-3">
+                <form onSubmit={(e) => e.preventDefault()} className="space-y-2">
+                    <div className="grid gap-2 lg:grid-cols-3">
                         {/* Left Column */}
-                        <div className="lg:col-span-2 space-y-4">
+                        <div className="lg:col-span-2 space-y-2">
                             {/* Product Details */}
-                            <Card>
-                                <CardHeader className="pb-3">
-                                    <CardTitle className="text-lg">Product Details</CardTitle>
+                            <Card className="border-0 shadow-sm">
+                                <CardHeader className="pb-2 pt-3 px-4">
+                                    <CardTitle className="text-base font-medium">Product Details</CardTitle>
                                 </CardHeader>
-                                <CardContent className="space-y-3 pt-4">
+                                <CardContent className="space-y-2 pt-0 px-4 pb-3">
                                     <FormField
                                         control={form.control}
                                         name="title"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Name</FormLabel>
+                                                <FormLabel>Name *</FormLabel>
                                                 <FormControl>
                                                     <Input placeholder="Product name" {...field} />
                                                 </FormControl>
@@ -230,34 +384,43 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                             </FormItem>
                                         )}
                                     />
-                                    <div className="grid gap-4 md:grid-cols-2">
-                                        <FormField
-                                            control={form.control}
-                                            name="code"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>SKU</FormLabel>
-                                                    <FormControl>
-                                                        <Input placeholder="SKU" {...field} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={form.control}
-                                            name="barcode"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Barcode</FormLabel>
-                                                    <FormControl>
-                                                        <Input placeholder="Barcode" {...field} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                    </div>
+                                    <FormField
+                                        control={form.control}
+                                        name="code"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>SKU *</FormLabel>
+                                                <FormControl>
+                                                    <div className="flex gap-2">
+                                                        <Input 
+                                                            placeholder="SKU (alphanumeric only)" 
+                                                            {...field}
+                                                            onChange={(e) => {
+                                                                // Only allow alphanumeric characters
+                                                                const value = e.target.value.replace(/[^A-Za-z0-9]/g, '')
+                                                                field.onChange(value)
+                                                            }}
+                                                        />
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                const newSKU = generateSKU()
+                                                                field.onChange(newSKU)
+                                                            }}
+                                                        >
+                                                            Generate
+                                                        </Button>
+                                                    </div>
+                                                </FormControl>
+                                                <FormDescription>
+                                                    Auto-generated SKU (alphanumeric, click Generate to create new one)
+                                                </FormDescription>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
                                     <FormField
                                         control={form.control}
                                         name="metadata.description"
@@ -284,190 +447,411 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                             </Card>
 
                             {/* Product Images */}
-                            <Card>
-                                <CardHeader>
-                                    <div className="flex items-center justify-between">
-                                        <CardTitle>Product Images</CardTitle>
-                                        <Button
-                                            type="button"
-                                            variant="link"
-                                            className="h-auto p-0"
-                                            asChild
-                                        >
-                                            <Link href="#">
-                                                <LinkIcon className="h-4 w-4 mr-2" />
-                                                Add media from URL
-                                            </Link>
-                                        </Button>
-                                    </div>
+                            <Card className="border-0 shadow-sm">
+                                <CardHeader className="pb-2 pt-3 px-4">
+                                    <CardTitle className="text-base font-medium">Product Images</CardTitle>
                                 </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div
-                                        className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
-                                            isDragging
-                                                ? "border-primary bg-primary/5"
-                                                : "border-muted-foreground/25"
-                                        }`}
-                                        onDragOver={handleDragOver}
-                                        onDragLeave={handleDragLeave}
-                                        onDrop={handleDrop}
-                                    >
-                                        <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                                        <p className="text-sm font-medium mb-1">Drop your images here</p>
-                                        <p className="text-xs text-muted-foreground">PNG or JPG (max. 5MB)</p>
-                                    </div>
-                                    <Input
-                                        type="file"
-                                        accept="image/*"
-                                        multiple
-                                        onChange={(e) => handleFileSelect(e.target.files)}
-                                        className="hidden"
-                                        id="image-upload"
-                                    />
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => document.getElementById("image-upload")?.click()}
-                                        className="w-full"
-                                    >
-                                        <Upload className="h-4 w-4 mr-2" />
-                                        Select images
-                                    </Button>
-                                    {images.length > 0 && (
-                                        <div className="grid grid-cols-4 gap-4 mt-4">
-                                            {images.map((image, index) => (
-                                                <div key={index} className="relative group">
-                                                    <img
-                                                        src={URL.createObjectURL(image)}
-                                                        alt={`Preview ${index + 1}`}
-                                                        className="w-full h-24 object-cover rounded-md"
+                                <CardContent className="pt-0 px-4 pb-3">
+                                    <FormField
+                                        control={form.control}
+                                        name="imageUrl"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormControl>
+                                                    <FileDropzone
+                                                        value={images}
+                                                        onChange={handleImagesChange}
+                                                        maxFiles={10}
                                                     />
-                                                    <Button
-                                                        type="button"
-                                                        variant="destructive"
-                                                        size="icon"
-                                                        className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                        onClick={() => removeImage(index)}
-                                                    >
-                                                        <X className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
                                 </CardContent>
                             </Card>
 
-                            {/* Variants */}
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Variants</CardTitle>
+                            {/* Variations Toggle */}
+                            <Card className="border-0 shadow-sm">
+                                <CardHeader className="pb-2 pt-3 px-4">
+                                    <CardTitle className="text-base font-medium">Product Variations</CardTitle>
                                 </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-4">
-                                        <div className="grid grid-cols-3 gap-4 text-sm font-medium text-muted-foreground pb-2 border-b">
-                                            <div>Options</div>
-                                            <div>Value</div>
-                                            <div>Price</div>
-                                        </div>
-                                        {fields.map((field, index) => (
-                                            <div key={field.id} className="grid grid-cols-3 gap-4">
-                                                <FormField
-                                                    control={form.control}
-                                                    name={`variants.${index}.option`}
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <Select
-                                                                onValueChange={field.onChange}
-                                                                value={field.value}
-                                                            >
-                                                                <FormControl>
-                                                                    <SelectTrigger>
-                                                                        <SelectValue placeholder="Select a status" />
-                                                                    </SelectTrigger>
-                                                                </FormControl>
-                                                                <SelectContent>
-                                                                    <SelectItem value="size">Size</SelectItem>
-                                                                    <SelectItem value="color">Color</SelectItem>
-                                                                    <SelectItem value="material">Material</SelectItem>
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                                <FormField
-                                                    control={form.control}
-                                                    name={`variants.${index}.value`}
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormControl>
-                                                                <Input placeholder="Value" {...field} />
-                                                            </FormControl>
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                                <div className="flex gap-2">
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`variants.${index}.price`}
-                                                        render={({ field }) => (
-                                                            <FormItem className="flex-1">
-                                                                <FormControl>
-                                                                    <Input
-                                                                        type="number"
-                                                                        placeholder="Price"
-                                                                        {...field}
-                                                                        onChange={(e) =>
-                                                                            field.onChange(
-                                                                                e.target.valueAsNumber || 0
-                                                                            )
-                                                                        }
-                                                                    />
-                                                                </FormControl>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    {fields.length > 1 && (
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() => remove(index)}
-                                                        >
-                                                            <X className="h-4 w-4" />
-                                                        </Button>
-                                                    )}
+                                <CardContent className="pt-0 px-4 pb-3">
+                                    <FormField
+                                        control={form.control}
+                                        name="hasVariations"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                                                <div className="space-y-0.5">
+                                                    <FormLabel className="text-base">
+                                                        This product has variations
+                                                    </FormLabel>
+                                                    <FormDescription>
+                                                        Enable to add variation options (e.g., Size, Color) and create product variants
+                                                    </FormDescription>
                                                 </div>
-                                            </div>
-                                        ))}
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => append({ option: "", value: "", price: 0 })}
-                                            className="w-full"
-                                        >
-                                            <Plus className="h-4 w-4 mr-2" />
-                                            Add Variant
-                                        </Button>
-                                    </div>
+                                                <FormControl>
+                                                    <Switch
+                                                        checked={field.value}
+                                                        onCheckedChange={(checked) => {
+                                                            field.onChange(checked)
+                                                            if (!checked) {
+                                                                form.setValue("variationOptions", [])
+                                                                form.setValue("productVariants", [])
+                                                            } else {
+                                                                form.setValue("variationOptions", [
+                                                                    { name: "", displayOrder: 0, values: [] },
+                                                                ])
+                                                            }
+                                                        }}
+                                                    />
+                                                </FormControl>
+                                            </FormItem>
+                                        )}
+                                    />
                                 </CardContent>
                             </Card>
+
+                            {/* Variation Options Management - Hierarchical Professional Layout */}
+                            {hasVariations && (
+                                <>
+                                    <Card className="border-0 shadow-sm">
+                                        <CardHeader className="pb-2 pt-3 px-4">
+                                            <CardTitle className="text-base font-medium">Variation Options</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-2 pt-0 px-4 pb-3">
+                                            {variationOptionsFields.fields.map((field, optionIndex) => {
+                                                const currentValues = form.watch(`variationOptions.${optionIndex}.values`) || []
+                                                const newValue = newValueInputs[optionIndex] || ""
+
+                                                return (
+                                                    <div key={field.id} className="border rounded overflow-hidden">
+                                                        {/* Option Header - Parent */}
+                                                        <div className="bg-muted/30 px-3 py-2 border-b flex items-center justify-between">
+                                                            <div className="flex-1">
+                                                                <FormField
+                                                                    control={form.control}
+                                                                    name={`variationOptions.${optionIndex}.name`}
+                                                                    render={({ field }) => (
+                                                                        <FormItem>
+                                                                            <FormControl>
+                                                                                <Input
+                                                                                    placeholder="Option name (e.g., Size, Color, Material)"
+                                                                                    className="h-8 font-medium bg-background text-sm"
+                                                                                    {...field}
+                                                                                />
+                                                                            </FormControl>
+                                                                            <FormMessage />
+                                                                        </FormItem>
+                                                                    )}
+                                                                />
+                                                            </div>
+                                                            {variationOptionsFields.fields.length > 1 && (
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="ml-3 h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                                    onClick={() => {
+                                                                        variationOptionsFields.remove(optionIndex)
+                                                                        setNewValueInputs(prev => {
+                                                                            const updated = { ...prev }
+                                                                            delete updated[optionIndex]
+                                                                            const reindexed: Record<number, string> = {}
+                                                                            Object.keys(updated).forEach(key => {
+                                                                                const idx = parseInt(key)
+                                                                                if (idx > optionIndex) {
+                                                                                    reindexed[idx - 1] = updated[idx]
+                                                                                } else if (idx < optionIndex) {
+                                                                                    reindexed[idx] = updated[idx]
+                                                                                }
+                                                                            })
+                                                                            return reindexed
+                                                                        })
+                                                                        generateVariants()
+                                                                    }}
+                                                                >
+                                                                    <X className="h-4 w-4" />
+                                                                </Button>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Values Section - Nested Children */}
+                                                        <div className="p-3 bg-background space-y-2">
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                {currentValues.map((val: any, valueIndex: number) => (
+                                                                    <div
+                                                                        key={valueIndex}
+                                                                        className="inline-flex items-center gap-1.5 px-2 py-1 bg-muted border rounded hover:bg-muted/80 transition-colors"
+                                                                    >
+                                                                        <FormField
+                                                                            control={form.control}
+                                                                            name={`variationOptions.${optionIndex}.values.${valueIndex}.value`}
+                                                                            render={({ field }) => (
+                                                                                <FormItem className="m-0">
+                                                                                    <FormControl>
+                                                                                        <Input
+                                                                                            {...field}
+                                                                                            className="h-6 w-20 px-1 text-sm border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-offset-0 p-0"
+                                                                                            onBlur={() => generateVariants()}
+                                                                                        />
+                                                                                    </FormControl>
+                                                                                    <FormMessage />
+                                                                                </FormItem>
+                                                                            )}
+                                                                        />
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-5 w-5 hover:bg-destructive/10 hover:text-destructive"
+                                                                            onClick={() => {
+                                                                                const values = form.getValues(
+                                                                                    `variationOptions.${optionIndex}.values`
+                                                                                ) || []
+                                                                                values.splice(valueIndex, 1)
+                                                                                form.setValue(
+                                                                                    `variationOptions.${optionIndex}.values`,
+                                                                                    values
+                                                                                )
+                                                                                generateVariants()
+                                                                            }}
+                                                                        >
+                                                                            <X className="h-3.5 w-3.5" />
+                                                                        </Button>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                            
+                                                            {/* Add Value Input */}
+                                                            <div className="flex items-center gap-1.5 pt-1.5 border-t">
+                                                                <Input
+                                                                    placeholder="Type value and press Enter to add..."
+                                                                    value={newValue}
+                                                                    onChange={(e) => {
+                                                                        setNewValueInputs(prev => ({
+                                                                            ...prev,
+                                                                            [optionIndex]: e.target.value
+                                                                        }))
+                                                                    }}
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === "Enter" && newValue.trim()) {
+                                                                            e.preventDefault()
+                                                                            const values = form.getValues(
+                                                                                `variationOptions.${optionIndex}.values`
+                                                                            ) || []
+                                                                            form.setValue(
+                                                                                `variationOptions.${optionIndex}.values`,
+                                                                                [...values, { value: newValue.trim(), displayOrder: values.length }]
+                                                                            )
+                                                                            setNewValueInputs(prev => {
+                                                                                const updated = { ...prev }
+                                                                                delete updated[optionIndex]
+                                                                                return updated
+                                                                            })
+                                                                            generateVariants()
+                                                                        }
+                                                                    }}
+                                                                    className="h-8 text-sm"
+                                                                />
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => {
+                                                                        if (newValue.trim()) {
+                                                                            const values = form.getValues(
+                                                                                `variationOptions.${optionIndex}.values`
+                                                                            ) || []
+                                                                            form.setValue(
+                                                                                `variationOptions.${optionIndex}.values`,
+                                                                                [...values, { value: newValue.trim(), displayOrder: values.length }]
+                                                                            )
+                                                                            setNewValueInputs(prev => {
+                                                                                const updated = { ...prev }
+                                                                                delete updated[optionIndex]
+                                                                                return updated
+                                                                            })
+                                                                            generateVariants()
+                                                                        }
+                                                                    }}
+                                                                    className="h-9"
+                                                                >
+                                                                    <Plus className="h-4 w-4" />
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                            
+                                            {/* Add New Option Button */}
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                    variationOptionsFields.append({
+                                                        name: "",
+                                                        displayOrder: variationOptionsFields.fields.length,
+                                                        values: [],
+                                                    })
+                                                }}
+                                                className="w-full border-dashed"
+                                            >
+                                                <Plus className="h-4 w-4 mr-2" />
+                                                Add Variation Option
+                                            </Button>
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Product Variants Table */}
+                                    {productVariantsFields.fields.length > 0 && (
+                                        <Card className="border-0 shadow-sm">
+                                            <CardHeader className="pb-2 pt-3 px-4">
+                                                <CardTitle className="text-base font-medium">Product Variants</CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="pt-0 px-4 pb-3">
+                                                <div className="rounded border">
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                                <TableHead>Combination</TableHead>
+                                                                <TableHead>SKU</TableHead>
+                                                                <TableHead>Price</TableHead>
+                                                                <TableHead>Stock</TableHead>
+                                                                <TableHead>Status</TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {productVariantsFields.fields.map((field, variantIndex) => {
+                                                                const variant = form.watch(`productVariants.${variantIndex}`)
+                                                                const combination = variant?.variationValueKeys
+                                                                    ?.map((key: string) => {
+                                                                        const [optIdx, valIdx] = key.split(":").map(Number)
+                                                                        const option = form.getValues(
+                                                                            `variationOptions.${optIdx}`
+                                                                        )
+                                                                        return option?.values[valIdx]?.value || ""
+                                                                    })
+                                                                    .filter(Boolean)
+                                                                    .join(" / ") || ""
+
+                                                                return (
+                                                                    <TableRow key={field.id}>
+                                                                        <TableCell className="font-medium">
+                                                                            {combination}
+                                                                        </TableCell>
+                                                                        <TableCell>
+                                                                            <FormField
+                                                                                control={form.control}
+                                                                                name={`productVariants.${variantIndex}.sku`}
+                                                                                render={({ field }) => (
+                                                                                    <FormItem>
+                                                                                        <FormControl>
+                                                                                            <Input
+                                                                                                {...field}
+                                                                                                className="w-32"
+                                                                                                onChange={(e) => {
+                                                                                                    const value = e.target.value.replace(/[^A-Za-z0-9-]/g, '')
+                                                                                                    field.onChange(value)
+                                                                                                }}
+                                                                                            />
+                                                                                        </FormControl>
+                                                                                        <FormMessage />
+                                                                                    </FormItem>
+                                                                                )}
+                                                                            />
+                                                                        </TableCell>
+                                                                        <TableCell>
+                                                                            <FormField
+                                                                                control={form.control}
+                                                                                name={`productVariants.${variantIndex}.price`}
+                                                                                render={({ field }) => (
+                                                                                    <FormItem>
+                                                                                        <FormControl>
+                                                                                            <Input
+                                                                                                type="number"
+                                                                                                step="0.01"
+                                                                                                {...field}
+                                                                                                className="w-24"
+                                                                                                onChange={(e) =>
+                                                                                                    field.onChange(e.target.valueAsNumber || 0)
+                                                                                                }
+                                                                                            />
+                                                                                        </FormControl>
+                                                                                        <FormMessage />
+                                                                                    </FormItem>
+                                                                                )}
+                                                                            />
+                                                                        </TableCell>
+                                                                        <TableCell>
+                                                                            <FormField
+                                                                                control={form.control}
+                                                                                name={`productVariants.${variantIndex}.stock`}
+                                                                                render={({ field }) => (
+                                                                                    <FormItem>
+                                                                                        <FormControl>
+                                                                                            <Input
+                                                                                                type="number"
+                                                                                                {...field}
+                                                                                                className="w-20"
+                                                                                                onChange={(e) =>
+                                                                                                    field.onChange(e.target.valueAsNumber || 0)
+                                                                                                }
+                                                                                            />
+                                                                                        </FormControl>
+                                                                                        <FormMessage />
+                                                                                    </FormItem>
+                                                                                )}
+                                                                            />
+                                                                        </TableCell>
+                                                                        <TableCell>
+                                                                            <FormField
+                                                                                control={form.control}
+                                                                                name={`productVariants.${variantIndex}.isActive`}
+                                                                                render={({ field }) => (
+                                                                                    <FormItem>
+                                                                                        <FormControl>
+                                                                                            <Checkbox
+                                                                                                checked={field.value}
+                                                                                                onCheckedChange={field.onChange}
+                                                                                            />
+                                                                                        </FormControl>
+                                                                                        <FormMessage />
+                                                                                    </FormItem>
+                                                                                )}
+                                                                            />
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                )
+                                                            })}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    )}
+                                </>
+                            )}
                         </div>
 
                         {/* Right Column */}
-                        <div className="space-y-6">
+                        <div className="space-y-2">
                             {/* Pricing */}
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Pricing</CardTitle>
+                            <Card className="border-0 shadow-sm">
+                                <CardHeader className="pb-2 pt-3 px-4">
+                                    <CardTitle className="text-base font-medium">Pricing</CardTitle>
                                 </CardHeader>
-                                <CardContent className="space-y-4">
+                                <CardContent className="space-y-2 pt-0 px-4 pb-3">
                                     <FormField
                                         control={form.control}
                                         name="price"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Base Price</FormLabel>
+                                                <FormLabel>
+                                                    {hasVariations ? "Base Price (for variants)" : "Price *"}
+                                                </FormLabel>
                                                 <FormControl>
                                                     <Input
                                                         type="number"
@@ -479,164 +863,104 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                         }
                                                     />
                                                 </FormControl>
+                                                <FormDescription>
+                                                    {hasVariations
+                                                        ? "Default price for variants (can be overridden per variant)"
+                                                        : "Product price"}
+                                                </FormDescription>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
                                     />
-                                    <FormField
-                                        control={form.control}
-                                        name="discountedPrice"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Discounted Price</FormLabel>
-                                                <FormControl>
-                                                    <Input
-                                                        type="number"
-                                                        step="0.01"
-                                                        placeholder="0.00"
-                                                        {...field}
-                                                        onChange={(e) =>
-                                                            field.onChange(e.target.valueAsNumber || 0)
-                                                        }
-                                                    />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="chargeTax"
-                                        render={({ field }) => (
-                                            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                                <FormControl>
-                                                    <Checkbox
-                                                        checked={field.value}
-                                                        onCheckedChange={field.onChange}
-                                                    />
-                                                </FormControl>
-                                                <div className="space-y-1 leading-none">
-                                                    <FormLabel className="cursor-pointer">
-                                                        Charge tax on this product
-                                                    </FormLabel>
-                                                </div>
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="inStock"
-                                        render={({ field }) => (
-                                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                                                <div className="space-y-0.5">
-                                                    <FormLabel className="text-base">In stock</FormLabel>
-                                                </div>
-                                                <FormControl>
-                                                    <Switch
-                                                        checked={field.value}
-                                                        onCheckedChange={field.onChange}
-                                                    />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                </CardContent>
-                            </Card>
-
-                            {/* Status */}
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Status</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <FormField
-                                        control={form.control}
-                                        name="status"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <Select
-                                                    onValueChange={field.onChange}
-                                                    defaultValue={field.value}
-                                                >
+                                    {!hasVariations && (
+                                        <FormField
+                                            control={form.control}
+                                            name="stock"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Stock *</FormLabel>
                                                     <FormControl>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Select status" />
-                                                        </SelectTrigger>
+                                                        <Input
+                                                            type="number"
+                                                            placeholder="0"
+                                                            {...field}
+                                                            onChange={(e) =>
+                                                                field.onChange(e.target.valueAsNumber || 0)
+                                                            }
+                                                        />
                                                     </FormControl>
-                                                    <SelectContent>
-                                                        {STATUS_OPTIONS.map((status) => (
-                                                            <SelectItem key={status.value} value={status.value}>
-                                                                <div className="flex items-center gap-2">
-                                                                    <span
-                                                                        className={`h-2 w-2 rounded-full bg-${status.color}-500`}
-                                                                    />
-                                                                    {status.label}
-                                                                </div>
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                                <FormDescription>Set the product status.</FormDescription>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    )}
                                 </CardContent>
                             </Card>
 
                             {/* Categories */}
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Categories</CardTitle>
+                            <Card className="border-0 shadow-sm">
+                                <CardHeader className="pb-2 pt-3 px-4">
+                                    <CardTitle className="text-base font-medium">Categories</CardTitle>
                                 </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="flex gap-2">
-                                        <FormField
-                                            control={form.control}
-                                            name="categoryId"
-                                            render={({ field }) => (
-                                                <FormItem className="flex-1">
-                                                    <Select
-                                                        onValueChange={(value) =>
-                                                            field.onChange(Number(value))
-                                                        }
-                                                        value={field.value ? String(field.value) : ""}
-                                                    >
-                                                        <FormControl>
-                                                            <SelectTrigger>
-                                                                <SelectValue placeholder="Select a category" />
-                                                            </SelectTrigger>
-                                                        </FormControl>
-                                                        <SelectContent>
-                                                            {CATEGORIES.map((category) => (
+                                <CardContent className="space-y-2 pt-0 px-4 pb-3">
+                                    <FormField
+                                        control={form.control}
+                                        name="categoryId"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Category *</FormLabel>
+                                                <Select
+                                                    onValueChange={(value) => {
+                                                        field.onChange(Number(value))
+                                                        // Reset subcategory when category changes
+                                                        form.setValue("subCategoryId", undefined)
+                                                    }}
+                                                    value={field.value ? String(field.value) : ""}
+                                                    disabled={loadingCategories}
+                                                >
+                                                    <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select a category" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        {loadingCategories ? (
+                                                            <SelectItem value="loading" disabled>
+                                                                Loading categories...
+                                                            </SelectItem>
+                                                        ) : categories.length === 0 ? (
+                                                            <SelectItem value="no-categories" disabled>
+                                                                No categories available
+                                                            </SelectItem>
+                                                        ) : (
+                                                            categories.map((category) => (
                                                                 <SelectItem
                                                                     key={category.id}
                                                                     value={String(category.id)}
                                                                 >
                                                                     {category.title}
                                                                 </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <Button type="button" variant="outline" size="icon">
-                                            <Plus className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                    <div className="flex gap-2">
+                                                            ))
+                                                        )}
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    {selectedCategoryId && (
                                         <FormField
                                             control={form.control}
                                             name="subCategoryId"
                                             render={({ field }) => (
-                                                <FormItem className="flex-1">
+                                                <FormItem>
+                                                    <FormLabel>Sub Category</FormLabel>
                                                     <Select
                                                         onValueChange={(value) =>
                                                             field.onChange(Number(value))
                                                         }
                                                         value={field.value ? String(field.value) : ""}
+                                                        disabled={loadingCategories}
                                                     >
                                                         <FormControl>
                                                             <SelectTrigger>
@@ -644,24 +968,32 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                             </SelectTrigger>
                                                         </FormControl>
                                                         <SelectContent>
-                                                            {SUB_CATEGORIES.map((subCategory) => (
-                                                                <SelectItem
-                                                                    key={subCategory.id}
-                                                                    value={String(subCategory.id)}
-                                                                >
-                                                                    {subCategory.title}
+                                                            {filteredSubCategories.length === 0 ? (
+                                                                <SelectItem value="no-subcategories" disabled>
+                                                                    No subcategories available
                                                                 </SelectItem>
-                                                            ))}
+                                                            ) : (
+                                                                filteredSubCategories.map((subCategory) => (
+                                                                    <SelectItem
+                                                                        key={subCategory.id}
+                                                                        value={String(subCategory.id)}
+                                                                    >
+                                                                        {subCategory.title}
+                                                                    </SelectItem>
+                                                                ))
+                                                            )}
                                                         </SelectContent>
                                                     </Select>
+                                                    <FormDescription>
+                                                        {filteredSubCategories.length === 0
+                                                            ? "This category has no subcategories"
+                                                            : `${filteredSubCategories.length} subcategor${filteredSubCategories.length === 1 ? "y" : "ies"} available`}
+                                                    </FormDescription>
                                                     <FormMessage />
                                                 </FormItem>
                                             )}
                                         />
-                                        <Button type="button" variant="outline" size="icon">
-                                            <Plus className="h-4 w-4" />
-                                        </Button>
-                                    </div>
+                                    )}
                                 </CardContent>
                             </Card>
                         </div>

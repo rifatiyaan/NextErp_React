@@ -66,29 +66,71 @@ function toFormData(data: any): FormData {
 
         if (key === "metadata" && typeof value === "object") {
             // Flatten metadata object to dot notation: Metadata.Description, etc.
-            // Note: server expects "Metadata" (capitalized?) or standard binding. 
-            // Usually standard binding is case-insensitive, but nested keys need to match structure.
-            // Requirement was: "Flatten the metadata object into dot-notation keys (e.g., append Metadata.Description..."
             Object.keys(value).forEach((metaKey) => {
                 const metaValue = value[metaKey]
                 if (metaValue !== null && metaValue !== undefined) {
-                    // Start with 'Metadata' capitalized to be safe/follow request, though 'metadata' usually works too.
-                    // Request said: "append Metadata.Description"
                     formData.append(`Metadata.${capitalize(metaKey)}`, String(metaValue))
                 }
             })
         } else if (key === "imageUrl") {
-            // If it's a File, append as 'image' (per request: "Append the selected file to the 'image' key")
-            // If it's a string, we might just ignore it or send it if needed. 
-            // Request said: "Old Field: 'imageUrl' (string) is now handled automatically by the backend upon upload."
-            // So if we have a file, we send it as 'image'.
+            // Handle single file or array of files
             if (value instanceof File) {
                 formData.append("image", value)
+            } else if (Array.isArray(value) && value.length > 0) {
+                // If array, take first file
+                const firstFile = value.find((item) => item instanceof File)
+                if (firstFile) {
+                    formData.append("image", firstFile)
+                }
+            } else if (typeof value === "string" && value) {
+                // Existing URL
+                formData.append("imageUrl", value)
             }
-            // If it's a string, it's the existing URL. We probably don't need to send it if it's not changing, 
-            // or send it as 'imageUrl' if the backend still accepts it for some reason? 
-            // Request says "Old Field: 'imageUrl' (string) is now handled automatically...". 
-            // Assuming we only send 'image' if new file.
+        } else if (key === "variationOptions" && Array.isArray(value)) {
+            // Handle variation options array
+            value.forEach((option, optIndex) => {
+                if (option && typeof option === "object") {
+                    // Add option properties
+                    if (option.name) {
+                        formData.append(`VariationOptions[${optIndex}].Name`, String(option.name))
+                    }
+                    if (typeof option.displayOrder === "number") {
+                        formData.append(`VariationOptions[${optIndex}].DisplayOrder`, String(option.displayOrder))
+                    }
+                    // Add values
+                    if (Array.isArray(option.values)) {
+                        option.values.forEach((val, valIndex) => {
+                            if (val && typeof val === "object") {
+                                if (val.value) {
+                                    formData.append(`VariationOptions[${optIndex}].Values[${valIndex}].Value`, String(val.value))
+                                }
+                                if (typeof val.displayOrder === "number") {
+                                    formData.append(`VariationOptions[${optIndex}].Values[${valIndex}].DisplayOrder`, String(val.displayOrder))
+                                }
+                            }
+                        })
+                    }
+                }
+            })
+        } else if (key === "productVariants" && Array.isArray(value)) {
+            // Handle product variants array
+            value.forEach((variant, varIndex) => {
+                if (variant && typeof variant === "object") {
+                    Object.keys(variant).forEach((variantKey) => {
+                        const variantValue = variant[variantKey]
+                        if (variantValue !== null && variantValue !== undefined) {
+                            if (variantKey === "variationValueKeys" && Array.isArray(variantValue)) {
+                                // Handle array of keys
+                                variantValue.forEach((key, keyIndex) => {
+                                    formData.append(`ProductVariants[${varIndex}].VariationValueKeys[${keyIndex}]`, String(key))
+                                })
+                            } else {
+                                formData.append(`ProductVariants[${varIndex}].${capitalize(variantKey)}`, String(variantValue))
+                            }
+                        }
+                    })
+                }
+            })
         } else {
             formData.append(key, String(value))
         }
