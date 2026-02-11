@@ -30,7 +30,7 @@ export function Auth({
                         href="/"
                         className="flex text-foreground font-black z-50 items-center gap-2"
                     >
-                        <span className="text-xl">NextErp_React</span>
+                        <span className="text-xl">NextErp</span>
                     </Link>
                 </div>
                 <div className="max-w-[28rem] w-full m-auto px-6 py-12 space-y-6">

@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NextErp_React",
+  title: "NextErp",
   description: "Next Generation ERP Interface",
 };
 

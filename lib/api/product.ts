@@ -5,7 +5,14 @@ export const productAPI = {
     /**
      * Get paginated products
      */
-    async getProducts(pageIndex: number = 1, pageSize: number = 10, searchText?: string, sortBy?: string): Promise<ProductListResponse> {
+    async getProducts(
+        pageIndex: number = 1, 
+        pageSize: number = 10, 
+        searchText?: string, 
+        sortBy?: string,
+        categoryId?: number | null,
+        status?: string | null
+    ): Promise<ProductListResponse> {
         // Construct query string manually or use URLSearchParams
         const params = new URLSearchParams({
             pageIndex: pageIndex.toString(),
@@ -13,6 +20,8 @@ export const productAPI = {
         })
         if (searchText) params.append("searchText", searchText)
         if (sortBy) params.append("sortBy", sortBy)
+        if (categoryId && categoryId > 0) params.append("categoryId", categoryId.toString())
+        if (status && status !== "all") params.append("status", status)
 
         return fetchAPI<ProductListResponse>(`/api/Product?${params.toString()}`)
     },

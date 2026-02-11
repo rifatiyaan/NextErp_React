@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation"
 import { ProductFormValues, VariationOptionFormValues, ProductVariantFormValues } from "@/schemas/product"
 import { productAPI } from "@/lib/api/product"
 import { categoryAPI } from "@/lib/api/category"
+import { variationAPI, type BulkVariationOption } from "@/lib/api/variation"
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -27,6 +28,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FileDropzone } from "@/components/ui/file-dropzone"
 import { Switch } from "@/components/ui/switch"
@@ -61,6 +63,8 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
     const [loadingCategories, setLoadingCategories] = useState(true)
     const [newValueInputs, setNewValueInputs] = useState<Record<number, string>>({})
     const [originalVariationOptions, setOriginalVariationOptions] = useState<any[]>([])
+    const [bulkVariationOptions, setBulkVariationOptions] = useState<BulkVariationOption[]>([])
+    const [loadingBulkVariations, setLoadingBulkVariations] = useState(false)
 
     const form = useForm<ProductFormValues>({
         resolver: zodResolver(productSchema),
@@ -123,6 +127,22 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
             }
         }
         fetchCategories()
+    }, [])
+
+    // Fetch bulk variation options
+    useEffect(() => {
+        const fetchBulkVariations = async () => {
+            try {
+                setLoadingBulkVariations(true)
+                const options = await variationAPI.getBulkOptions()
+                setBulkVariationOptions(options)
+            } catch (error) {
+                console.error("Failed to fetch bulk variation options:", error)
+            } finally {
+                setLoadingBulkVariations(false)
+            }
+        }
+        fetchBulkVariations()
     }, [])
 
     // Auto-generate SKU on mount if not editing
@@ -633,48 +653,267 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                 </CardContent>
                             </Card>
 
-                            {/* Variation Options Management - Hierarchical Professional Layout */}
+                            {/* Variation Options Management - Compact Side-by-Side Column Layout */}
                             {hasVariations && (
                                 <>
                                     <Card className="border-0 shadow-sm">
                                         <CardHeader className="pb-2 pt-3 px-4">
                                             <CardTitle className="text-base font-medium">Variation Options</CardTitle>
                                         </CardHeader>
-                                        <CardContent className="space-y-2 pt-0 px-4 pb-3">
-                                            {variationOptionsFields.fields.map((field, optionIndex) => {
-                                                const currentValues = form.watch(`variationOptions.${optionIndex}.values`) || []
-                                                const newValue = newValueInputs[optionIndex] || ""
+                                        <CardContent className="pt-0 px-4 pb-3">
+                                            <div className="space-y-2">
+                                                {variationOptionsFields.fields.map((field, optionIndex) => {
+                                                    const currentValues = form.watch(`variationOptions.${optionIndex}.values`) || []
+                                                    const newValue = newValueInputs[optionIndex] || ""
+                                                    const selectedOptionName = form.watch(`variationOptions.${optionIndex}.name`)
+                                                    const availableValues = bulkVariationOptions.find(opt => opt.name === selectedOptionName)?.values || []
 
-                                                return (
-                                                    <div key={field.id} className="border rounded overflow-hidden">
-                                                        {/* Option Header - Parent */}
-                                                        <div className="bg-muted/30 px-3 py-2 border-b flex items-center justify-between">
-                                                            <div className="flex-1">
+                                                    return (
+                                                        <div key={field.id} className="grid grid-cols-[200px_1fr_auto] gap-2 items-start border-b pb-2 last:border-b-0">
+                                                            {/* Option Name Column */}
+                                                            <div className="flex items-center gap-1">
                                                                 <FormField
                                                                     control={form.control}
                                                                     name={`variationOptions.${optionIndex}.name`}
-                                                                    render={({ field }) => (
-                                                                        <FormItem>
-                                                                            <FormControl>
-                                                                                <Input
-                                                                                    placeholder="Option name (e.g., Size, Color, Material)"
-                                                                                    className="h-8 font-medium bg-background text-sm"
-                                                                                    disabled={isEdit}
-                                                                                    readOnly={isEdit}
-                                                                                    {...field}
-                                                                                />
-                                                                            </FormControl>
-                                                                            <FormMessage />
-                                                                        </FormItem>
-                                                                    )}
+                                                                    render={({ field }) => {
+                                                                        const isCustomOption = field.value && !bulkVariationOptions.some(opt => opt.name === field.value)
+                                                                        return (
+                                                                            <FormItem className="flex-1">
+                                                                                <FormControl>
+                                                                                    {!isEdit ? (
+                                                                                        <div className="flex gap-1">
+                                                                                            <Select
+                                                                                                value={isCustomOption ? "" : (field.value || "")}
+                                                                                                onValueChange={(value) => {
+                                                                                                    if (value === "") {
+                                                                                                        field.onChange("")
+                                                                                                        form.setValue(`variationOptions.${optionIndex}.values`, [])
+                                                                                                    } else {
+                                                                                                        field.onChange(value)
+                                                                                                        const bulkOption = bulkVariationOptions.find(opt => opt.name === value)
+                                                                                                        if (bulkOption && bulkOption.values.length > 0) {
+                                                                                                            form.setValue(
+                                                                                                                `variationOptions.${optionIndex}.values`,
+                                                                                                                bulkOption.values.map((val, idx) => ({
+                                                                                                                    value: val,
+                                                                                                                    displayOrder: idx
+                                                                                                                }))
+                                                                                                            )
+                                                                                                            generateVariants()
+                                                                                                        } else {
+                                                                                                            form.setValue(`variationOptions.${optionIndex}.values`, [])
+                                                                                                        }
+                                                                                                    }
+                                                                                                }}
+                                                                                            >
+                                                                                                <SelectTrigger className="h-8 text-sm">
+                                                                                                    <SelectValue placeholder="Select option..." />
+                                                                                                </SelectTrigger>
+                                                                                                <SelectContent>
+                                                                                                    <SelectItem value="">-- New Option --</SelectItem>
+                                                                                                    {bulkVariationOptions.map((opt) => (
+                                                                                                        <SelectItem key={opt.name} value={opt.name}>
+                                                                                                            {opt.name}
+                                                                                                        </SelectItem>
+                                                                                                    ))}
+                                                                                                </SelectContent>
+                                                                                            </Select>
+                                                                                            {(isCustomOption || field.value === "") && (
+                                                                                                <Input
+                                                                                                    placeholder="Type option..."
+                                                                                                    value={field.value || ""}
+                                                                                                    onChange={(e) => {
+                                                                                                        field.onChange(e.target.value)
+                                                                                                        if (!e.target.value) {
+                                                                                                            form.setValue(`variationOptions.${optionIndex}.values`, [])
+                                                                                                        }
+                                                                                                    }}
+                                                                                                    className="h-8 text-sm"
+                                                                                                />
+                                                                                            )}
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <Input
+                                                                                            value={field.value || ""}
+                                                                                            className="h-8 text-sm font-medium"
+                                                                                            readOnly
+                                                                                            disabled
+                                                                                        />
+                                                                                    )}
+                                                                                </FormControl>
+                                                                                <FormMessage />
+                                                                            </FormItem>
+                                                                        )
+                                                                    }}
                                                                 />
                                                             </div>
+
+                                                            {/* Values Column */}
+                                                            <div className="flex flex-wrap items-center gap-1 min-h-[32px]">
+                                                                {currentValues.map((val: any, valueIndex: number) => {
+                                                                    const originalOption = isEdit && originalVariationOptions.length > optionIndex 
+                                                                        ? originalVariationOptions[optionIndex] 
+                                                                        : null
+                                                                    const isOriginalValue = isEdit && originalOption 
+                                                                        ? originalOption.values.some((ov: any) => ov.value === val.value)
+                                                                        : false
+                                                                    
+                                                                    return (
+                                                                        <div
+                                                                            key={valueIndex}
+                                                                            className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-muted border rounded text-xs"
+                                                                        >
+                                                                            <FormField
+                                                                                control={form.control}
+                                                                                name={`variationOptions.${optionIndex}.values.${valueIndex}.value`}
+                                                                                render={({ field }) => (
+                                                                                    <FormItem className="m-0">
+                                                                                        <FormControl>
+                                                                                            <Input
+                                                                                                {...field}
+                                                                                                className="h-5 w-16 px-1 text-xs border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-offset-0 p-0"
+                                                                                                disabled={isEdit && isOriginalValue}
+                                                                                                readOnly={isEdit && isOriginalValue}
+                                                                                                onBlur={() => !isEdit && generateVariants()}
+                                                                                            />
+                                                                                        </FormControl>
+                                                                                        <FormMessage />
+                                                                                    </FormItem>
+                                                                                )}
+                                                                            />
+                                                                            {(!isEdit || !isOriginalValue) && (
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    className="h-4 w-4 hover:bg-destructive/10 hover:text-destructive"
+                                                                                    onClick={() => {
+                                                                                        const values = form.getValues(
+                                                                                            `variationOptions.${optionIndex}.values`
+                                                                                        ) || []
+                                                                                        values.splice(valueIndex, 1)
+                                                                                        form.setValue(
+                                                                                            `variationOptions.${optionIndex}.values`,
+                                                                                            values
+                                                                                        )
+                                                                                        generateVariants()
+                                                                                    }}
+                                                                                >
+                                                                                    <X className="h-3 w-3" />
+                                                                                </Button>
+                                                                            )}
+                                                                        </div>
+                                                                    )
+                                                                })}
+                                                                
+                                                                {/* Add Value Input */}
+                                                                {!isEdit && selectedOptionName && (
+                                                                    <div className="flex items-center gap-1">
+                                                                        {availableValues.length > 0 && (
+                                                                            <Select
+                                                                                value=""
+                                                                                onValueChange={(value) => {
+                                                                                    if (value && !currentValues.some((v: any) => v.value === value)) {
+                                                                                        const values = form.getValues(
+                                                                                            `variationOptions.${optionIndex}.values`
+                                                                                        ) || []
+                                                                                        form.setValue(
+                                                                                            `variationOptions.${optionIndex}.values`,
+                                                                                            [...values, { value, displayOrder: values.length }]
+                                                                                        )
+                                                                                        generateVariants()
+                                                                                    }
+                                                                                }}
+                                                                            >
+                                                                                <SelectTrigger className="h-7 text-xs w-24">
+                                                                                    <SelectValue placeholder="Select..." />
+                                                                                </SelectTrigger>
+                                                                                <SelectContent>
+                                                                                    {availableValues
+                                                                                        .filter(val => !currentValues.some((v: any) => v.value === val))
+                                                                                        .map((val) => (
+                                                                                            <SelectItem key={val} value={val}>
+                                                                                                {val}
+                                                                                            </SelectItem>
+                                                                                        ))}
+                                                                                </SelectContent>
+                                                                            </Select>
+                                                                        )}
+                                                                        <Input
+                                                                            placeholder="Type & Enter"
+                                                                            value={newValue}
+                                                                            onChange={(e) => {
+                                                                                setNewValueInputs(prev => ({
+                                                                                    ...prev,
+                                                                                    [optionIndex]: e.target.value
+                                                                                }))
+                                                                            }}
+                                                                            onKeyDown={(e) => {
+                                                                                if (e.key === "Enter" && newValue.trim()) {
+                                                                                    e.preventDefault()
+                                                                                    const values = form.getValues(
+                                                                                        `variationOptions.${optionIndex}.values`
+                                                                                    ) || []
+                                                                                    if (!values.some((v: any) => v.value === newValue.trim())) {
+                                                                                        form.setValue(
+                                                                                            `variationOptions.${optionIndex}.values`,
+                                                                                            [...values, { value: newValue.trim(), displayOrder: values.length }]
+                                                                                        )
+                                                                                        setNewValueInputs(prev => {
+                                                                                            const updated = { ...prev }
+                                                                                            delete updated[optionIndex]
+                                                                                            return updated
+                                                                                        })
+                                                                                        generateVariants()
+                                                                                    }
+                                                                                }
+                                                                            }}
+                                                                            className="h-7 text-xs w-24"
+                                                                        />
+                                                                    </div>
+                                                                )}
+                                                                {isEdit && (
+                                                                    <Input
+                                                                        placeholder="Type & Enter"
+                                                                        value={newValue}
+                                                                        onChange={(e) => {
+                                                                            setNewValueInputs(prev => ({
+                                                                                ...prev,
+                                                                                [optionIndex]: e.target.value
+                                                                            }))
+                                                                        }}
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === "Enter" && newValue.trim()) {
+                                                                                e.preventDefault()
+                                                                                const values = form.getValues(
+                                                                                    `variationOptions.${optionIndex}.values`
+                                                                                ) || []
+                                                                                if (!values.some((v: any) => v.value === newValue.trim())) {
+                                                                                    form.setValue(
+                                                                                        `variationOptions.${optionIndex}.values`,
+                                                                                        [...values, { value: newValue.trim(), displayOrder: values.length }]
+                                                                                    )
+                                                                                    setNewValueInputs(prev => {
+                                                                                        const updated = { ...prev }
+                                                                                        delete updated[optionIndex]
+                                                                                        return updated
+                                                                                    })
+                                                                                    generateVariants()
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                        className="h-7 text-xs w-24"
+                                                                    />
+                                                                )}
+                                                            </div>
+
+                                                            {/* Remove Button Column */}
                                                             {variationOptionsFields.fields.length > 1 && !isEdit && (
                                                                 <Button
                                                                     type="button"
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    className="ml-3 h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
                                                                     onClick={() => {
                                                                         variationOptionsFields.remove(optionIndex)
                                                                         setNewValueInputs(prev => {
@@ -698,148 +937,28 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                                 </Button>
                                                             )}
                                                         </div>
-
-                                                        {/* Values Section - Nested Children */}
-                                                        <div className="p-3 bg-background space-y-2">
-                                                            <div className="flex flex-wrap gap-1.5">
-                                                                {currentValues.map((val: any, valueIndex: number) => {
-                                                                    // Check if this value is from original data (in edit mode)
-                                                                    const originalOption = isEdit && originalVariationOptions.length > optionIndex 
-                                                                        ? originalVariationOptions[optionIndex] 
-                                                                        : null
-                                                                    const isOriginalValue = isEdit && originalOption 
-                                                                        ? originalOption.values.some((ov: any) => ov.value === val.value)
-                                                                        : false
-                                                                    
-                                                                    return (
-                                                                    <div
-                                                                        key={valueIndex}
-                                                                        className="inline-flex items-center gap-1.5 px-2 py-1 bg-muted border rounded hover:bg-muted/80 transition-colors"
-                                                                    >
-                                                                        <FormField
-                                                                            control={form.control}
-                                                                            name={`variationOptions.${optionIndex}.values.${valueIndex}.value`}
-                                                                            render={({ field }) => (
-                                                                                <FormItem className="m-0">
-                                                                                    <FormControl>
-                                                                                        <Input
-                                                                                            {...field}
-                                                                                            className="h-6 w-20 px-1 text-sm border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-offset-0 p-0"
-                                                                                            disabled={isEdit && isOriginalValue}
-                                                                                            readOnly={isEdit && isOriginalValue}
-                                                                                            onBlur={() => !isEdit && generateVariants()}
-                                                                                        />
-                                                                                    </FormControl>
-                                                                                    <FormMessage />
-                                                                                </FormItem>
-                                                                            )}
-                                                                        />
-                                                                        {(!isEdit || !isOriginalValue) && (
-                                                                        <Button
-                                                                            type="button"
-                                                                            variant="ghost"
-                                                                            size="icon"
-                                                                            className="h-5 w-5 hover:bg-destructive/10 hover:text-destructive"
-                                                                            onClick={() => {
-                                                                                const values = form.getValues(
-                                                                                    `variationOptions.${optionIndex}.values`
-                                                                                ) || []
-                                                                                values.splice(valueIndex, 1)
-                                                                                form.setValue(
-                                                                                    `variationOptions.${optionIndex}.values`,
-                                                                                    values
-                                                                                )
-                                                                                generateVariants()
-                                                                            }}
-                                                                        >
-                                                                            <X className="h-3.5 w-3.5" />
-                                                                        </Button>
-                                                                        )}
-                                                                    </div>
-                                                                    )
-                                                                })}
-                                                            </div>
-                                                            
-                                                            {/* Add Value Input - Allow adding new values in edit mode */}
-                                                            <div className="flex items-center gap-1.5 pt-1.5 border-t">
-                                                                <Input
-                                                                    placeholder="Type value and press Enter to add..."
-                                                                    value={newValue}
-                                                                    onChange={(e) => {
-                                                                        setNewValueInputs(prev => ({
-                                                                            ...prev,
-                                                                            [optionIndex]: e.target.value
-                                                                        }))
-                                                                    }}
-                                                                    onKeyDown={(e) => {
-                                                                        if (e.key === "Enter" && newValue.trim()) {
-                                                                            e.preventDefault()
-                                                                            const values = form.getValues(
-                                                                                `variationOptions.${optionIndex}.values`
-                                                                            ) || []
-                                                                            form.setValue(
-                                                                                `variationOptions.${optionIndex}.values`,
-                                                                                [...values, { value: newValue.trim(), displayOrder: values.length }]
-                                                                            )
-                                                                            setNewValueInputs(prev => {
-                                                                                const updated = { ...prev }
-                                                                                delete updated[optionIndex]
-                                                                                return updated
-                                                                            })
-                                                                            generateVariants()
-                                                                        }
-                                                                    }}
-                                                                    className="h-8 text-sm"
-                                                                />
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={() => {
-                                                                        if (newValue.trim()) {
-                                                                            const values = form.getValues(
-                                                                                `variationOptions.${optionIndex}.values`
-                                                                            ) || []
-                                                                            form.setValue(
-                                                                                `variationOptions.${optionIndex}.values`,
-                                                                                [...values, { value: newValue.trim(), displayOrder: values.length }]
-                                                                            )
-                                                                            setNewValueInputs(prev => {
-                                                                                const updated = { ...prev }
-                                                                                delete updated[optionIndex]
-                                                                                return updated
-                                                                            })
-                                                                            generateVariants()
-                                                                        }
-                                                                    }}
-                                                                    className="h-9"
-                                                                >
-                                                                    <Plus className="h-4 w-4" />
-                                                                </Button>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                )
-                                            })}
+                                                    )
+                                                })}
+                                            </div>
                                             
                                             {/* Add New Option Button */}
                                             {!isEdit && (
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => {
-                                                    variationOptionsFields.append({
-                                                        name: "",
-                                                        displayOrder: variationOptionsFields.fields.length,
-                                                        values: [],
-                                                    })
-                                                }}
-                                                className="w-full border-dashed"
-                                            >
-                                                <Plus className="h-4 w-4 mr-2" />
-                                                Add Variation Option
-                                            </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        variationOptionsFields.append({
+                                                            name: "",
+                                                            displayOrder: variationOptionsFields.fields.length,
+                                                            values: [],
+                                                        })
+                                                    }}
+                                                    className="w-full border-dashed mt-3"
+                                                >
+                                                    <Plus className="h-4 w-4 mr-2" />
+                                                    Add Variation Option
+                                                </Button>
                                             )}
                                         </CardContent>
                                     </Card>
@@ -1008,42 +1127,25 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                         render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Category *</FormLabel>
-                                                    <Select
+                                                <FormControl>
+                                                    <Combobox
+                                                        options={categories.map((cat) => ({
+                                                            value: String(cat.id),
+                                                            label: cat.title,
+                                                        }))}
+                                                        value={field.value && field.value > 0 ? String(field.value) : undefined}
                                                         onValueChange={(value) => {
-                                                            const numValue = Number(value)
-                                                            field.onChange(numValue > 0 ? numValue : undefined)
+                                                            const numValue = value ? Number(value) : undefined
+                                                            field.onChange(numValue && numValue > 0 ? numValue : undefined)
                                                             // Reset subcategory when category changes
                                                             form.setValue("subCategoryId", undefined)
                                                         }}
-                                                        value={field.value && field.value > 0 ? String(field.value) : ""}
+                                                        placeholder="Select a category"
+                                                        searchPlaceholder="Search categories..."
+                                                        emptyMessage="No categories found."
                                                         disabled={loadingCategories}
-                                                    >
-                                                    <FormControl>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Select a category" />
-                                                        </SelectTrigger>
-                                                    </FormControl>
-                                                    <SelectContent>
-                                                        {loadingCategories ? (
-                                                            <SelectItem value="loading" disabled>
-                                                                Loading categories...
-                                                            </SelectItem>
-                                                        ) : categories.length === 0 ? (
-                                                            <SelectItem value="no-categories" disabled>
-                                                                No categories available
-                                                            </SelectItem>
-                                                        ) : (
-                                                            categories.map((category) => (
-                                                                <SelectItem
-                                                                    key={category.id}
-                                                                    value={String(category.id)}
-                                                                >
-                                                                    {category.title}
-                                                                </SelectItem>
-                                                            ))
-                                                        )}
-                                                    </SelectContent>
-                                                </Select>
+                                                    />
+                                                </FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
@@ -1055,36 +1157,23 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>Sub Category</FormLabel>
-                                                    <Select
-                                                        onValueChange={(value) => {
-                                                            const numValue = Number(value)
-                                                            field.onChange(numValue > 0 ? numValue : undefined)
-                                                        }}
-                                                        value={field.value && field.value > 0 ? String(field.value) : ""}
-                                                        disabled={loadingCategories}
-                                                    >
-                                                        <FormControl>
-                                                            <SelectTrigger>
-                                                                <SelectValue placeholder="Select a sub category" />
-                                                            </SelectTrigger>
-                                                        </FormControl>
-                                                        <SelectContent>
-                                                            {filteredSubCategories.length === 0 ? (
-                                                                <SelectItem value="no-subcategories" disabled>
-                                                                    No subcategories available
-                                                                </SelectItem>
-                                                            ) : (
-                                                                filteredSubCategories.map((subCategory) => (
-                                                                    <SelectItem
-                                                                        key={subCategory.id}
-                                                                        value={String(subCategory.id)}
-                                                                    >
-                                                                        {subCategory.title}
-                                                                    </SelectItem>
-                                                                ))
-                                                            )}
-                                                        </SelectContent>
-                                                    </Select>
+                                                    <FormControl>
+                                                        <Combobox
+                                                            options={filteredSubCategories.map((cat) => ({
+                                                                value: String(cat.id),
+                                                                label: cat.title,
+                                                            }))}
+                                                            value={field.value && field.value > 0 ? String(field.value) : undefined}
+                                                            onValueChange={(value) => {
+                                                                const numValue = value ? Number(value) : undefined
+                                                                field.onChange(numValue && numValue > 0 ? numValue : undefined)
+                                                            }}
+                                                            placeholder="Select a sub category"
+                                                            searchPlaceholder="Search subcategories..."
+                                                            emptyMessage="No subcategories found."
+                                                            disabled={loadingCategories || filteredSubCategories.length === 0}
+                                                        />
+                                                    </FormControl>
                                                     <FormDescription>
                                                         {filteredSubCategories.length === 0
                                                             ? "This category has no subcategories"

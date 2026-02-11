@@ -316,7 +316,7 @@ export function Sidebar() {
                     className="w-fit flex text-foreground font-black p-2 pb-0 mb-2"
                     onClick={() => isMobile && setOpenMobile(!openMobile)}
                 >
-                    <span className="text-xl">NextErp_React</span>
+                    <span className="text-xl">NextErp</span>
                 </Link>
                 <CommandMenu buttonClassName="max-w-full" />
             </SidebarHeader>
