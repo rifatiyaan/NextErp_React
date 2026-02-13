@@ -43,6 +43,7 @@ interface DataTableProps<TData, TValue> {
     pageSize: number
     onPageChange: (pageIndex: number) => void
     onPageSizeChange: (pageSize: number) => void
+    onRowDoubleClick?: (row: TData) => void
 }
 
 export function DataTable<TData, TValue>({
@@ -53,6 +54,7 @@ export function DataTable<TData, TValue>({
     pageSize,
     onPageChange,
     onPageSizeChange,
+    onRowDoubleClick,
 }: DataTableProps<TData, TValue>) {
     const table = useReactTable({
         data,
@@ -140,6 +142,8 @@ export function DataTable<TData, TValue>({
                                     <TableRow
                                         key={row.id}
                                         data-state={row.getIsSelected() && "selected"}
+                                        onDoubleClick={() => onRowDoubleClick?.(row.original)}
+                                        className={onRowDoubleClick ? "cursor-pointer hover:bg-muted/50" : ""}
                                     >
                                         {row.getVisibleCells().map((cell) => (
                                             <TableCell key={cell.id}>

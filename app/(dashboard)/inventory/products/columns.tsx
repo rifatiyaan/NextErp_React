@@ -2,7 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 import { Product } from "@/types/product"
-import { MoreHorizontal, Pencil, Trash } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
     DropdownMenu,
@@ -34,7 +34,11 @@ const getProductStatus = (product: Product) => {
     return "active"
 }
 
-export const columns: ColumnDef<Product>[] = [
+interface ColumnsProps {
+    onViewDetails?: (product: Product) => void
+}
+
+export const createColumns = (props?: ColumnsProps): ColumnDef<Product>[] => [
     {
         accessorKey: "productName",
         header: "Product Name",
@@ -128,6 +132,7 @@ export const columns: ColumnDef<Product>[] = [
         enableHiding: false,
         cell: ({ row }) => {
             const product = row.original
+            const onViewDetails = props?.onViewDetails
 
             return (
                 <DropdownMenu>
@@ -139,6 +144,12 @@ export const columns: ColumnDef<Product>[] = [
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        {onViewDetails && (
+                            <DropdownMenuItem onClick={() => onViewDetails(product)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Details
+                            </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem asChild>
                             <Link href={`/inventory/products/${product.id}`}>
                                 <Pencil className="mr-2 h-4 w-4" />

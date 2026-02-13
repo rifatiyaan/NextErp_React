@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from "react"
 import { productAPI } from "@/lib/api/product"
 import { Product } from "@/types/product"
 import { DataTable } from "./data-table"
-import { columns } from "./columns"
+import { createColumns } from "./columns"
+import { ProductDetailModal } from "./_components/ProductDetailModal"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { Loader } from "@/components/ui/loader"
@@ -33,6 +34,8 @@ export default function ProductsPage() {
     const [categoryFilter, setCategoryFilter] = useState<string>("all")
     const [categories, setCategories] = useState<Category[]>([])
     const [isSearching, setIsSearching] = useState(false)
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+    const [isModalOpen, setIsModalOpen] = useState(false)
 
     // Debounce search query
     useEffect(() => {
@@ -117,6 +120,13 @@ export default function ProductsPage() {
 
     const pageCount = Math.ceil(total / pageSize) || 1
 
+    const handleViewDetails = (product: Product) => {
+        setSelectedProduct(product)
+        setIsModalOpen(true)
+    }
+
+    const columns = createColumns({ onViewDetails: handleViewDetails })
+
     return (
         <div className="space-y-3">
             {/* Header */}
@@ -194,9 +204,17 @@ export default function ProductsPage() {
                             setPageSize(size)
                             setPageIndex(1)
                         }}
+                        onRowDoubleClick={handleViewDetails}
                     />
                 </div>
             )}
+
+            {/* Product Detail Modal */}
+            <ProductDetailModal
+                product={selectedProduct}
+                open={isModalOpen}
+                onOpenChange={setIsModalOpen}
+            />
         </div>
     )
 }
