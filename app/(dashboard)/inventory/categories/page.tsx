@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { Loader } from "@/components/ui/loader"
 import Link from "next/link"
+import { TopBar } from "@/components/layout/TopBar"
 
 export default function CategoriesPage() {
     const [data, setData] = useState<Category[]>([])
@@ -50,15 +51,19 @@ export default function CategoriesPage() {
     const columns = createColumns({ pageIndex, pageSize })
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold tracking-tight">Categories</h1>
-                <Button asChild>
-                    <Link href="/inventory/categories/create">
-                        <Plus className="mr-2 h-4 w-4" /> Add Category
-                    </Link>
-                </Button>
-            </div>
+        <div className="space-y-3">
+            <TopBar
+                title="Categories"
+                actions={[
+                    {
+                        label: "Add New Category",
+                        icon: <Plus className="h-3.5 w-3.5" />,
+                        onClick: () => window.location.href = "/inventory/categories/create",
+                        variant: "default",
+                        size: "sm",
+                    },
+                ]}
+            />
 
             {loading ? (
                 <Loader text="Loading categories..." />

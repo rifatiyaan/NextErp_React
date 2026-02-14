@@ -91,7 +91,7 @@ export default function CategoryForm({ initialData, isEdit }: CategoryFormProps)
     }
 
     return (
-        <div className="space-y-6">
+        <div className="max-w-4xl mx-auto space-y-6">
             <div className="flex items-center gap-4">
                 <Button variant="outline" size="icon" onClick={() => router.back()}>
                     <ChevronLeft className="h-4 w-4" />

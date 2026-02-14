@@ -14,6 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import Image from "next/image"
+import { Checkbox } from "@/components/ui/checkbox"
 
 const getProductStatus = (product: Product) => {
     if (!product.isActive) return "closed for sale"
@@ -28,6 +29,28 @@ interface ColumnsProps {
 }
 
 export const createColumns = (props?: ColumnsProps): ColumnDef<Product>[] => [
+    {
+        id: "select",
+        header: ({ table }) => (
+            <Checkbox
+                checked={
+                    table.getIsAllPageRowsSelected() ||
+                    (table.getIsSomePageRowsSelected() && "indeterminate")
+                }
+                onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+                aria-label="Select all"
+            />
+        ),
+        cell: ({ row }) => (
+            <Checkbox
+                checked={row.getIsSelected()}
+                onCheckedChange={(value) => row.toggleSelected(!!value)}
+                aria-label="Select row"
+            />
+        ),
+        enableSorting: false,
+        enableHiding: false,
+    },
     {
         id: "rowNumber",
         header: "#",

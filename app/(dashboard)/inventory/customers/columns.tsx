@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface ColumnsProps {
     pageIndex?: number
@@ -20,6 +21,28 @@ interface ColumnsProps {
 }
 
 export const createColumns = (props?: ColumnsProps): ColumnDef<Customer>[] => [
+    {
+        id: "select",
+        header: ({ table }) => (
+            <Checkbox
+                checked={
+                    table.getIsAllPageRowsSelected() ||
+                    (table.getIsSomePageRowsSelected() && "indeterminate")
+                }
+                onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+                aria-label="Select all"
+            />
+        ),
+        cell: ({ row }) => (
+            <Checkbox
+                checked={row.getIsSelected()}
+                onCheckedChange={(value) => row.toggleSelected(!!value)}
+                aria-label="Select row"
+            />
+        ),
+        enableSorting: false,
+        enableHiding: false,
+    },
     {
         id: "rowNumber",
         header: "#",
@@ -29,7 +52,7 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Customer>[] => [
             const pageSize = props?.pageSize || 10
             const rowNumber = (pageIndex - 1) * pageSize + row.index + 1
             return (
-                <div className="w-12 text-center text-sm text-muted-foreground font-medium">
+                <div className="w-10 text-center text-xs text-muted-foreground font-medium">
                     {rowNumber}
                 </div>
             )

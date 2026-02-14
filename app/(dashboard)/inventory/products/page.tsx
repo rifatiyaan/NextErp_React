@@ -1,13 +1,12 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { productAPI } from "@/lib/api/product"
 import { Product } from "@/types/product"
 import { DataTable } from "./data-table"
 import { createColumns } from "./columns"
 import { ProductDetailModal } from "./_components/ProductDetailModal"
 import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
 import { Loader } from "@/components/ui/loader"
 import Link from "next/link"
 import {
@@ -18,9 +17,12 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { Search, Loader2 } from "lucide-react"
+import { Search, Loader2, Plus } from "lucide-react"
 import { Category } from "@/types/category"
 import { categoryAPI } from "@/lib/api/category"
+import { TopBar } from "@/components/layout/TopBar"
+import { ColumnVisibility } from "./_components/ColumnVisibility"
+import { Table } from "@tanstack/react-table"
 
 export default function ProductsPage() {
     const [data, setData] = useState<Product[]>([])
@@ -36,6 +38,7 @@ export default function ProductsPage() {
     const [isSearching, setIsSearching] = useState(false)
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const [table, setTable] = useState<Table<Product> | null>(null)
 
     // Debounce search query
     useEffect(() => {
@@ -133,59 +136,52 @@ export default function ProductsPage() {
 
     return (
         <div className="space-y-3">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-semibold tracking-tight">Products</h1>
-                <div className="flex items-center gap-2">
-                    <div className="relative w-[240px]">
-                        {isSearching ? (
-                            <Loader2 className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground animate-spin" />
-                        ) : (
-                            <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                        )}
-                        <Input
-                            placeholder="Search products..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-8 h-8 text-sm"
-                        />
-                    </div>
-                    <Button asChild size="sm" className="h-8">
-                        <Link href="/inventory/products/create">
-                            <Plus className="mr-1.5 h-3.5 w-3.5" />
-                            Add Product
-                        </Link>
-                    </Button>
-                </div>
-            </div>
-
-            {/* Filters */}
-            <div className="flex items-center gap-2">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[160px] h-8 text-sm">
-                        <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="out of stock">Out of Stock</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
-                    </SelectContent>
-                </Select>
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger className="w-[160px] h-8 text-sm">
-                        <SelectValue placeholder="Category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Categories</SelectItem>
-                        {categories.map((category) => (
-                            <SelectItem key={category.id} value={category.id.toString()}>
-                                {category.title}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
+            <TopBar
+                title="Products"
+                search={{
+                    placeholder: "Search products...",
+                    value: searchQuery,
+                    onChange: setSearchQuery,
+                }}
+                actions={[
+                    {
+                        label: "Add New Product",
+                        icon: <Plus className="h-3.5 w-3.5" />,
+                        onClick: () => window.location.href = "/inventory/products/create",
+                        variant: "default",
+                        size: "sm",
+                    },
+                ]}
+                filters={
+                    <>
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <SelectTrigger className="w-[160px] h-8 text-sm">
+                                <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Status</SelectItem>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="out of stock">Out of Stock</SelectItem>
+                                <SelectItem value="closed">Closed</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                            <SelectTrigger className="w-[160px] h-8 text-sm">
+                                <SelectValue placeholder="Category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Categories</SelectItem>
+                                {categories.map((category) => (
+                                    <SelectItem key={category.id} value={category.id.toString()}>
+                                        {category.title}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </>
+                }
+                columnVisibility={table ? <ColumnVisibility table={table} /> : null}
+            />
 
             {/* Data Table */}
             {loading ? (
@@ -209,6 +205,7 @@ export default function ProductsPage() {
                             setPageIndex(1)
                         }}
                         onRowDoubleClick={handleViewDetails}
+                        onTableReady={setTable}
                     />
                 </div>
             )}

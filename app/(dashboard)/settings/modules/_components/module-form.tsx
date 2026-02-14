@@ -165,10 +165,21 @@ export function ModuleForm({ moduleId }: ModuleFormProps) {
     const onSubmit = async (data: ModuleFormValues) => {
         setLoading(true)
         try {
+            // Explicitly construct payload to avoid sending any unwanted properties
             const payload: CreateModuleRequest = {
-                ...data,
-                // Ensure parentId is null for Module type
-                parentId: moduleType === ModuleType.Module ? null : data.parentId,
+                title: data.title,
+                icon: data.icon || null,
+                url: data.url || null,
+                parentId: moduleType === ModuleType.Module ? null : data.parentId || null,
+                type: data.type,
+                description: data.description || null,
+                version: data.version || null,
+                isInstalled: data.isInstalled,
+                isEnabled: data.isEnabled,
+                order: data.order,
+                isActive: data.isActive,
+                isExternal: data.isExternal,
+                metadata: data.metadata || undefined,
             }
 
             if (moduleId) {

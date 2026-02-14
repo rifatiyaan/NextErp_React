@@ -37,5 +37,9 @@ export default function EditCategoryPage() {
         return <div>Category not found</div>
     }
 
-    return <CategoryForm initialData={category} isEdit />
+    return (
+        <div className="max-w-4xl mx-auto">
+            <CategoryForm initialData={category} isEdit />
+        </div>
+    )
 }

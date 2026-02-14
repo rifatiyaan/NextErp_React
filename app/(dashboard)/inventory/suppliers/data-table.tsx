@@ -6,7 +6,9 @@ import {
     getCoreRowModel,
     useReactTable,
     getPaginationRowModel,
+    Table as TanStackTable,
 } from "@tanstack/react-table"
+import { useEffect } from "react"
 
 import {
     Table,
@@ -33,7 +35,6 @@ import {
     PaginationNext,
     PaginationPrevious,
 } from "@/components/ui/pagination"
-import { ColumnVisibility } from "./_components/ColumnVisibility"
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
@@ -43,6 +44,7 @@ interface DataTableProps<TData, TValue> {
     pageSize: number
     onPageChange: (pageIndex: number) => void
     onPageSizeChange: (pageSize: number) => void
+    onTableReady?: (table: TanStackTable<TData>) => void
 }
 
 export function DataTable<TData, TValue>({
@@ -53,6 +55,7 @@ export function DataTable<TData, TValue>({
     pageSize,
     onPageChange,
     onPageSizeChange,
+    onTableReady,
 }: DataTableProps<TData, TValue>) {
     const table = useReactTable({
         data,
@@ -63,11 +66,19 @@ export function DataTable<TData, TValue>({
                 pageIndex: pageIndex - 1,
                 pageSize: pageSize,
             },
+            rowSelection: {},
         },
+        enableRowSelection: true,
         manualPagination: true,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     })
+
+    useEffect(() => {
+        if (onTableReady) {
+            onTableReady(table)
+        }
+    }, [table, onTableReady])
 
     // Helper to generate page numbers
     const getPageNumbers = () => {
@@ -106,7 +117,7 @@ export function DataTable<TData, TValue>({
 
     return (
         <div className="space-y-3">
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
                 <Table>
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
@@ -179,7 +190,6 @@ export function DataTable<TData, TValue>({
                             ))}
                         </SelectContent>
                     </Select>
-                    <ColumnVisibility table={table} />
                 </div>
                 <Pagination>
                     <PaginationContent>

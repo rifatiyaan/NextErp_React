@@ -62,7 +62,9 @@ export function DataTable<TData, TValue>({
                 pageIndex: pageIndex - 1, // API is 1-based, table is 0-based
                 pageSize: pageSize,
             },
+            rowSelection: {},
         },
+        enableRowSelection: true,
         manualPagination: true,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
@@ -109,7 +111,7 @@ export function DataTable<TData, TValue>({
 
     return (
         <div className="space-y-4">
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
                 <Table>
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (

@@ -1,15 +1,15 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { Table } from "@tanstack/react-table"
 import { customerAPI } from "@/lib/api/customer"
 import { Customer } from "@/types/customer"
 import { DataTable } from "./data-table"
 import { createColumns } from "./columns"
 import { Button } from "@/components/ui/button"
-import { Plus, Search } from "lucide-react"
+import { Plus } from "lucide-react"
 import { Loader } from "@/components/ui/loader"
 import Link from "next/link"
-import { Input } from "@/components/ui/input"
 import {
     Select,
     SelectContent,
@@ -17,6 +17,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import { TopBar } from "@/components/layout/TopBar"
+import { ColumnVisibility } from "./_components/ColumnVisibility"
 
 export default function CustomersPage() {
     const [data, setData] = useState<Customer[]>([])
@@ -26,6 +28,7 @@ export default function CustomersPage() {
     const [total, setTotal] = useState(0)
     const [searchQuery, setSearchQuery] = useState("")
     const [statusFilter, setStatusFilter] = useState<string>("all")
+    const [table, setTable] = useState<Table<Customer> | null>(null)
 
     const fetchData = async (page: number, size: number) => {
         setLoading(true)
@@ -85,44 +88,39 @@ export default function CustomersPage() {
 
     return (
         <div className="space-y-3">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold tracking-tight">Customers</h1>
-                <div className="flex items-center gap-2">
-                    <div className="relative w-[280px]">
-                        <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Search by Customer Name..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-9 h-9"
-                        />
-                    </div>
-                    <Button asChild size="sm">
-                        <Link href="/inventory/customers/create">
-                            <Plus className="mr-1.5 h-4 w-4" />
-                            Add Customer
-                        </Link>
-                    </Button>
-                </div>
-            </div>
-
-            {/* Filters */}
-            <div className="flex items-center gap-2">
-                <Select
-                    value={statusFilter}
-                    onValueChange={setStatusFilter}
-                >
-                    <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="inactive">Inactive</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
+            <TopBar
+                title="Customers"
+                search={{
+                    placeholder: "Search by customer name...",
+                    value: searchQuery,
+                    onChange: setSearchQuery,
+                }}
+                actions={[
+                    {
+                        label: "Add New Customer",
+                        icon: <Plus className="h-3.5 w-3.5" />,
+                        onClick: () => window.location.href = "/inventory/customers/create",
+                        variant: "default",
+                        size: "sm",
+                    },
+                ]}
+                filters={
+                    <Select
+                        value={statusFilter}
+                        onValueChange={setStatusFilter}
+                    >
+                        <SelectTrigger className="w-[160px] h-8 text-sm">
+                            <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Status</SelectItem>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="inactive">Inactive</SelectItem>
+                        </SelectContent>
+                    </Select>
+                }
+                columnVisibility={table ? <ColumnVisibility table={table} /> : null}
+            />
 
             {/* Data Table */}
             {loading ? (
@@ -136,6 +134,7 @@ export default function CustomersPage() {
                     pageSize={pageSize}
                     onPageChange={setPageIndex}
                     onPageSizeChange={setPageSize}
+                    onTableReady={setTable}
                 />
             )}
         </div>

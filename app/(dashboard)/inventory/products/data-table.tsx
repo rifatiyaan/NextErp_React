@@ -1,11 +1,13 @@
 "use client"
 
+import { useEffect } from "react"
 import {
     ColumnDef,
     flexRender,
     getCoreRowModel,
     useReactTable,
     getPaginationRowModel,
+    Table as TanStackTable,
 } from "@tanstack/react-table"
 
 import {
@@ -33,7 +35,6 @@ import {
     PaginationNext,
     PaginationPrevious,
 } from "@/components/ui/pagination"
-import { ColumnVisibility } from "./_components/ColumnVisibility"
 import { cn } from "@/lib/utils"
 
 interface DataTableProps<TData, TValue> {
@@ -45,6 +46,7 @@ interface DataTableProps<TData, TValue> {
     onPageChange: (pageIndex: number) => void
     onPageSizeChange: (pageSize: number) => void
     onRowDoubleClick?: (row: TData) => void
+    onTableReady?: (table: TanStackTable<TData>) => void
 }
 
 export function DataTable<TData, TValue>({
@@ -56,6 +58,7 @@ export function DataTable<TData, TValue>({
     onPageChange,
     onPageSizeChange,
     onRowDoubleClick,
+    onTableReady,
 }: DataTableProps<TData, TValue>) {
     const table = useReactTable({
         data,
@@ -66,11 +69,20 @@ export function DataTable<TData, TValue>({
                 pageIndex: pageIndex - 1,
                 pageSize: pageSize,
             },
+            rowSelection: {},
         },
+        enableRowSelection: true,
         manualPagination: true,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     })
+
+    // Expose table instance to parent
+    useEffect(() => {
+        if (onTableReady) {
+            onTableReady(table)
+        }
+    }, [table, onTableReady])
 
     // Helper to generate page numbers
     const getPageNumbers = () => {
@@ -113,10 +125,7 @@ export function DataTable<TData, TValue>({
 
     return (
         <div className="space-y-2">
-            <div className="flex items-center justify-end px-3 pt-2">
-                <ColumnVisibility table={table} />
-            </div>
-            <div className="border-t">
+            <div className="border-t overflow-x-auto">
                 <Table>
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (

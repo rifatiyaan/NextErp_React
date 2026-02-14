@@ -14,6 +14,7 @@ import type { Category } from "@/types/category"
 import { toast } from "sonner"
 import Image from "next/image"
 import { Package } from "lucide-react"
+import { ResizablePanel } from "@/components/ui/resizable-panel"
 
 interface CartItem extends Product {
   quantity: number
@@ -248,7 +249,14 @@ export default function CreateSalesPage() {
       </div>
 
       {/* Shopping Cart Sidebar */}
-      <div className="w-96 border-l border-border/50 bg-background flex flex-col flex-shrink-0">
+      <ResizablePanel
+        defaultWidth={384}
+        minWidth={280}
+        maxWidth={600}
+        side="right"
+        storageKey="cart-panel-width"
+        className="border-l border-border/50 bg-background"
+      >
         <div className="p-4 border-b border-border/50">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <ShoppingCart className="h-5 w-5" />
@@ -353,7 +361,7 @@ export default function CreateSalesPage() {
             </div>
           </>
         )}
-      </div>
+      </ResizablePanel>
     </div>
   )
 }

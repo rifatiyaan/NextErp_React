@@ -93,7 +93,16 @@ export function Sidebar() {
                         setMenuItems(parentModules)
                     } else {
                         // Sidebar mode: Show all modules with children in collapsible format
-                        setMenuItems(tree.sort((a, b) => a.order - b.order))
+                        // Filter out Link items (type: 2) that don't have a parent - they should only be children
+                        const filteredTree = tree
+                            .filter((m) => {
+                                // Only show Module type items (type: 1) as top-level
+                                // Link items (type: 2) should only appear as children
+                                return m.type === ModuleType.Module
+                            })
+                            .sort((a, b) => a.order - b.order)
+                        
+                        setMenuItems(filteredTree)
                     }
                 })
                 .catch((error) => {
