@@ -63,22 +63,17 @@ export function ProductDetailModal({ product, open, onOpenChange }: ProductDetai
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-6xl w-[95vw] max-h-[95vh] p-0 overflow-hidden flex flex-col">
-                <DialogHeader className="px-6 py-4 border-b border-border/50 flex-shrink-0">
+            <DialogContent className="max-w-7xl w-[98vw] max-h-[95vh] p-0 overflow-hidden flex flex-col">
+                <DialogHeader className="px-4 py-3 border-b border-border/50 flex-shrink-0">
                     <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
-                            <DialogTitle className="text-xl font-semibold mb-2 truncate">
+                            <DialogTitle className="text-lg font-semibold mb-1.5 truncate">
                                 {displayProduct.title}
                             </DialogTitle>
-                            <div className="flex items-center gap-2.5 text-xs text-muted-foreground flex-wrap">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                                 <div className="flex items-center gap-1">
-                                    <span className="font-medium text-foreground">Seller:</span>
+                                    <span className="font-medium text-foreground">Category:</span>
                                     <span>{displayProduct.category?.title || "N/A"}</span>
-                                </div>
-                                <Separator orientation="vertical" className="h-3" />
-                                <div className="flex items-center gap-1">
-                                    <Calendar className="h-3 w-3" />
-                                    <span>Published: {format(new Date(), "dd MMM, yyyy")}</span>
                                 </div>
                                 <Separator orientation="vertical" className="h-3" />
                                 <div className="flex items-center gap-1">
@@ -87,7 +82,7 @@ export function ProductDetailModal({ product, open, onOpenChange }: ProductDetai
                                 </div>
                             </div>
                         </div>
-                        <Button asChild variant="outline" size="sm" className="h-8 ml-4 flex-shrink-0">
+                        <Button asChild variant="outline" size="sm" className="h-7 ml-3 flex-shrink-0 text-xs">
                             <Link href={`/inventory/products/${displayProduct.id}`}>
                                 <Edit className="mr-1.5 h-3.5 w-3.5" />
                                 Edit
@@ -101,10 +96,10 @@ export function ProductDetailModal({ product, open, onOpenChange }: ProductDetai
                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                     </div>
                 ) : (
-                <div className="overflow-y-auto flex-1">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 p-5">
+                <div className="overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
                     {/* Left Column - Images */}
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                         <div className="relative aspect-square w-full rounded-lg border border-border/50 overflow-hidden bg-muted/30">
                             {displayProduct.imageUrl ? (
                                 <Image
@@ -180,24 +175,16 @@ export function ProductDetailModal({ product, open, onOpenChange }: ProductDetai
                                     </Badge>
                                 </div>
 
-                                <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                                    <div className="flex items-center gap-2">
-                                        <Hash className="h-4 w-4 text-muted-foreground" />
-                                        <span className="text-xs text-muted-foreground">SKU</span>
-                                    </div>
-                                    <span className="text-xs font-mono font-medium">{displayProduct.code}</span>
-                                </div>
                             </div>
                         </Card>
                     </div>
 
                     {/* Right Column - Details */}
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                         {/* Price and Stats */}
                         <div className="space-y-3">
                             <div className="flex items-baseline gap-2.5">
                                 <span className="text-2xl font-bold">${displayProduct.price.toFixed(2)}</span>
-                                <Badge variant={status.variant} className="text-xs h-5">{status.label}</Badge>
                             </div>
 
                             <div className="grid grid-cols-3 gap-3 pt-3 border-t border-border/50">
@@ -277,12 +264,6 @@ export function ProductDetailModal({ product, open, onOpenChange }: ProductDetai
                                             <span>Warranty: {displayProduct.metadata.warranty}</span>
                                         </li>
                                     )}
-                                    {displayProduct.code && (
-                                        <li className="flex items-center gap-2 text-xs">
-                                            <span className="h-1 w-1 rounded-full bg-primary flex-shrink-0"></span>
-                                            <span>SKU: {displayProduct.code}</span>
-                                        </li>
-                                    )}
                                 </ul>
                             </div>
                         )}
@@ -293,10 +274,6 @@ export function ProductDetailModal({ product, open, onOpenChange }: ProductDetai
                         <div>
                             <h3 className="text-sm font-semibold mb-2">Product Information</h3>
                             <div className="space-y-1.5">
-                                <div className="flex justify-between py-1.5 border-b border-border/50">
-                                    <span className="text-xs text-muted-foreground">Category</span>
-                                    <span className="text-xs font-medium">{displayProduct.category?.title || "N/A"}</span>
-                                </div>
                                 {displayProduct.metadata?.color && (
                                     <div className="flex justify-between py-1.5 border-b border-border/50">
                                         <span className="text-xs text-muted-foreground">Color</span>

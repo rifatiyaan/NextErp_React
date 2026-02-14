@@ -12,21 +12,8 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
-import { Rating } from "./_components/Rating"
 import Link from "next/link"
 import Image from "next/image"
-
-// Mock rating and status for products (in real app, these would come from API)
-const getProductRating = (productId: number) => {
-    const ratings: Record<number, number> = {
-        1: 4.9,
-        2: 4.65,
-        3: 4.65,
-        4: 4.65,
-        5: 4.65,
-    }
-    return ratings[productId] || 4.5
-}
 
 const getProductStatus = (product: Product) => {
     if (!product.isActive) return "closed for sale"
@@ -36,9 +23,26 @@ const getProductStatus = (product: Product) => {
 
 interface ColumnsProps {
     onViewDetails?: (product: Product) => void
+    pageIndex?: number
+    pageSize?: number
 }
 
 export const createColumns = (props?: ColumnsProps): ColumnDef<Product>[] => [
+    {
+        id: "rowNumber",
+        header: "#",
+        enableHiding: false,
+        cell: ({ row, table }) => {
+            const pageIndex = props?.pageIndex || 1
+            const pageSize = props?.pageSize || 10
+            const rowNumber = (pageIndex - 1) * pageSize + row.index + 1
+            return (
+                <div className="w-10 text-center text-xs text-muted-foreground font-medium">
+                    {rowNumber}
+                </div>
+            )
+        },
+    },
     {
         accessorKey: "productName",
         header: "Product Name",
@@ -47,8 +51,8 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Product>[] => [
             const product = row.original
             const imageUrl = product.imageUrl || "/placeholder-product.png"
             return (
-                <div className="flex items-center gap-3">
-                    <div className="relative h-12 w-12 overflow-hidden rounded-md border bg-muted flex-shrink-0">
+                <div className="flex items-center gap-2">
+                    <div className="relative h-8 w-8 overflow-hidden rounded border bg-muted flex-shrink-0">
                         {product.imageUrl ? (
                             <Image
                                 src={imageUrl}
@@ -59,12 +63,12 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Product>[] => [
                             />
                         ) : (
                             <div className="flex items-center justify-center h-full w-full bg-muted">
-                                <span className="text-xs text-muted-foreground">No Image</span>
+                                <span className="text-[10px] text-muted-foreground">No Img</span>
                             </div>
                         )}
                     </div>
-                    <div className="flex flex-col">
-                        <span className="font-medium">{product.title}</span>
+                    <div className="flex flex-col min-w-0">
+                        <span className="font-medium text-sm truncate">{product.title}</span>
                     </div>
                 </div>
             )
@@ -79,7 +83,7 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Product>[] => [
                 style: "currency",
                 currency: "USD",
             }).format(price)
-            return <div className="font-medium">{formatted}</div>
+            return <div className="font-medium text-sm">{formatted}</div>
         },
     },
     {
@@ -88,7 +92,7 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Product>[] => [
         cell: ({ row }) => {
             const category = row.original.category
             return (
-                <span className="text-sm text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                     {category?.title || "-"}
                 </span>
             )
@@ -98,15 +102,7 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Product>[] => [
         accessorKey: "code",
         header: "SKU",
         cell: ({ row }) => {
-            return <span className="text-sm text-muted-foreground">{row.getValue("code")}</span>
-        },
-    },
-    {
-        accessorKey: "rating",
-        header: "Rating",
-        cell: ({ row }) => {
-            const rating = getProductRating(row.original.id)
-            return <Rating value={rating} />
+            return <span className="text-xs text-muted-foreground font-mono">{row.getValue("code")}</span>
         },
     },
     {
@@ -123,7 +119,7 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Product>[] => [
                 "closed for sale": { label: "closed for sale", variant: "outline" },
             }
             const config = statusConfig[status] || statusConfig.active
-            return <Badge variant={config.variant}>{config.label}</Badge>
+            return <Badge variant={config.variant} className="text-xs h-5">{config.label}</Badge>
         },
     },
     {
@@ -137,9 +133,9 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Product>[] => [
             return (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
+                        <Button variant="ghost" className="h-7 w-7 p-0">
                             <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
+                            <MoreHorizontal className="h-3.5 w-3.5" />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">

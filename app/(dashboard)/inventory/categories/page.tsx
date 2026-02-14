@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { categoryAPI } from "@/lib/api/category"
 import { Category, CategoryListResponse } from "@/types/category"
 import { DataTable } from "./data-table"
-import { columns } from "./columns"
+import { createColumns } from "./columns"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { Loader } from "@/components/ui/loader"
@@ -47,6 +47,7 @@ export default function CategoriesPage() {
     }, [pageIndex, pageSize])
 
     const pageCount = Math.ceil(total / pageSize) || 1
+    const columns = createColumns({ pageIndex, pageSize })
 
     return (
         <div className="space-y-6">

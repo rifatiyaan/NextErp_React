@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { customerAPI } from "@/lib/api/customer"
 import { Customer } from "@/types/customer"
 import { DataTable } from "./data-table"
-import { columns } from "./columns"
+import { createColumns } from "./columns"
 import { Button } from "@/components/ui/button"
 import { Plus, Search } from "lucide-react"
 import { Loader } from "@/components/ui/loader"
@@ -81,6 +81,7 @@ export default function CustomersPage() {
     }, [statusFilter])
 
     const pageCount = Math.ceil(total / pageSize)
+    const columns = createColumns({ pageIndex, pageSize })
 
     return (
         <div className="space-y-3">

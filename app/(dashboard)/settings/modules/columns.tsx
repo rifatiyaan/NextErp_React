@@ -18,6 +18,18 @@ import { moduleAPI } from "@/lib/api/module"
 
 export const columns: ColumnDef<Module>[] = [
     {
+        id: "rowNumber",
+        header: "#",
+        enableHiding: false,
+        cell: ({ row }) => {
+            return (
+                <div className="w-12 text-center text-sm text-muted-foreground font-medium">
+                    {row.index + 1}
+                </div>
+            )
+        },
+    },
+    {
         accessorKey: "title",
         header: "Title",
         cell: ({ row }) => {

@@ -14,7 +14,27 @@ import {
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 
-export const columns: ColumnDef<Supplier>[] = [
+interface ColumnsProps {
+    pageIndex?: number
+    pageSize?: number
+}
+
+export const createColumns = (props?: ColumnsProps): ColumnDef<Supplier>[] => [
+    {
+        id: "rowNumber",
+        header: "#",
+        enableHiding: false,
+        cell: ({ row }) => {
+            const pageIndex = props?.pageIndex || 1
+            const pageSize = props?.pageSize || 10
+            const rowNumber = (pageIndex - 1) * pageSize + row.index + 1
+            return (
+                <div className="w-12 text-center text-sm text-muted-foreground font-medium">
+                    {rowNumber}
+                </div>
+            )
+        },
+    },
     {
         accessorKey: "title",
         header: "Supplier Name",
@@ -139,4 +159,6 @@ export const columns: ColumnDef<Supplier>[] = [
         },
     },
 ]
+
+export const columns = createColumns()
 

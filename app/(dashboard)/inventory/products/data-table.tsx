@@ -34,6 +34,7 @@ import {
     PaginationPrevious,
 } from "@/components/ui/pagination"
 import { ColumnVisibility } from "./_components/ColumnVisibility"
+import { cn } from "@/lib/utils"
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
@@ -111,18 +112,18 @@ export function DataTable<TData, TValue>({
     }
 
     return (
-        <div className="space-y-3">
-            <div className="flex items-center justify-end">
+        <div className="space-y-2">
+            <div className="flex items-center justify-end px-3 pt-2">
                 <ColumnVisibility table={table} />
             </div>
-            <div className="rounded-md border">
+            <div className="border-t">
                 <Table>
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
                             <TableRow key={headerGroup.id}>
                                 {headerGroup.headers.map((header) => {
                                     return (
-                                        <TableHead key={header.id}>
+                                        <TableHead key={header.id} className="h-8 px-2 text-xs">
                                             {header.isPlaceholder
                                                 ? null
                                                 : flexRender(
@@ -143,10 +144,13 @@ export function DataTable<TData, TValue>({
                                         key={row.id}
                                         data-state={row.getIsSelected() && "selected"}
                                         onDoubleClick={() => onRowDoubleClick?.(row.original)}
-                                        className={onRowDoubleClick ? "cursor-pointer hover:bg-muted/50" : ""}
+                                        className={cn(
+                                            onRowDoubleClick ? "cursor-pointer hover:bg-muted/50" : "",
+                                            "h-10"
+                                        )}
                                     >
                                         {row.getVisibleCells().map((cell) => (
-                                            <TableCell key={cell.id}>
+                                            <TableCell key={cell.id} className="px-2 py-1.5">
                                                 {flexRender(
                                                     cell.column.columnDef.cell,
                                                     cell.getContext()
@@ -156,7 +160,7 @@ export function DataTable<TData, TValue>({
                                     </TableRow>
                                 ))}
                                 {Array.from({ length: pageSize - table.getRowModel().rows.length }).map((_, index) => (
-                                    <TableRow key={`empty-${index}`} className="h-12">
+                                    <TableRow key={`empty-${index}`} className="h-10">
                                         <TableCell colSpan={columns.length}>
                                             &nbsp;
                                         </TableCell>
@@ -177,16 +181,16 @@ export function DataTable<TData, TValue>({
                 </Table>
             </div>
 
-            <div className="flex items-center justify-between px-2">
+            <div className="flex items-center justify-between px-3 py-2 border-t bg-muted/30">
                 <div className="flex items-center space-x-2">
-                    <p className="text-sm font-medium">Rows per page</p>
+                    <p className="text-xs text-muted-foreground">Rows per page</p>
                     <Select
                         value={`${pageSize}`}
                         onValueChange={(value) => {
                             onPageSizeChange(Number(value))
                         }}
                     >
-                        <SelectTrigger className="h-8 w-[70px]">
+                        <SelectTrigger className="h-7 w-[65px] text-xs">
                             <SelectValue placeholder={pageSize} />
                         </SelectTrigger>
                         <SelectContent side="top">

@@ -125,30 +125,34 @@ export default function ProductsPage() {
         setIsModalOpen(true)
     }
 
-    const columns = createColumns({ onViewDetails: handleViewDetails })
+    const columns = createColumns({ 
+        onViewDetails: handleViewDetails,
+        pageIndex,
+        pageSize
+    })
 
     return (
         <div className="space-y-3">
             {/* Header */}
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold tracking-tight">Products</h1>
+                <h1 className="text-2xl font-semibold tracking-tight">Products</h1>
                 <div className="flex items-center gap-2">
-                    <div className="relative w-[280px]">
+                    <div className="relative w-[240px]">
                         {isSearching ? (
-                            <Loader2 className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground animate-spin" />
+                            <Loader2 className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground animate-spin" />
                         ) : (
-                            <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                         )}
                         <Input
-                            placeholder="Search by Product Name..."
+                            placeholder="Search products..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-9 h-9"
+                            className="pl-8 h-8 text-sm"
                         />
                     </div>
-                    <Button asChild size="sm">
+                    <Button asChild size="sm" className="h-8">
                         <Link href="/inventory/products/create">
-                            <Plus className="mr-1.5 h-4 w-4" />
+                            <Plus className="mr-1.5 h-3.5 w-3.5" />
                             Add Product
                         </Link>
                     </Button>
@@ -158,7 +162,7 @@ export default function ProductsPage() {
             {/* Filters */}
             <div className="flex items-center gap-2">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-[160px] h-8 text-sm">
                         <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -169,7 +173,7 @@ export default function ProductsPage() {
                     </SelectContent>
                 </Select>
                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-[160px] h-8 text-sm">
                         <SelectValue placeholder="Category" />
                     </SelectTrigger>
                     <SelectContent>
@@ -187,9 +191,9 @@ export default function ProductsPage() {
             {loading ? (
                 <Loader text="Loading products..." />
             ) : (
-                <div className="relative">
+                <div className="relative border rounded-lg bg-card">
                     {isSearching && (
-                        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-[1px] rounded-md">
+                        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
                             <Loader2 className="h-5 w-5 animate-spin text-primary" />
                         </div>
                     )}

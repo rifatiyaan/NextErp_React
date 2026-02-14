@@ -14,11 +14,26 @@ import {
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 
-export const columns: ColumnDef<Category>[] = [
+interface ColumnsProps {
+    pageIndex?: number
+    pageSize?: number
+}
+
+export const createColumns = (props?: ColumnsProps): ColumnDef<Category>[] => [
     {
-        accessorKey: "id",
-        header: "ID",
-        cell: ({ row }) => <div className="w-[50px]">{row.getValue("id")}</div>,
+        id: "rowNumber",
+        header: "#",
+        enableHiding: false,
+        cell: ({ row }) => {
+            const pageIndex = props?.pageIndex || 1
+            const pageSize = props?.pageSize || 10
+            const rowNumber = (pageIndex - 1) * pageSize + row.index + 1
+            return (
+                <div className="w-12 text-center text-sm text-muted-foreground font-medium">
+                    {rowNumber}
+                </div>
+            )
+        },
     },
     {
         accessorKey: "title",
@@ -71,3 +86,5 @@ export const columns: ColumnDef<Category>[] = [
         },
     },
 ]
+
+export const columns = createColumns()
