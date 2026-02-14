@@ -1123,7 +1123,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                         </div>
 
                         {/* Right Column - Sticky to stay visible while scrolling */}
-                        <div className="lg:col-span-1 lg:sticky lg:top-4 lg:self-start">
+                        <div className="lg:col-span-1 lg:sticky lg:self-start" style={{ top: '80px' }}>
                             <div className="space-y-4">
                             {/* Pricing */}
                             <Card className="border border-border/50">

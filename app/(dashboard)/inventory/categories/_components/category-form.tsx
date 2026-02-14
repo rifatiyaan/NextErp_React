@@ -31,6 +31,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
 import { ChevronLeft } from "lucide-react"
+import { FileDropzone } from "@/components/ui/file-dropzone"
 
 interface CategoryFormProps {
     initialData?: Category
@@ -41,6 +42,7 @@ export default function CategoryForm({ initialData, isEdit }: CategoryFormProps)
     const router = useRouter()
     const [isLoading, setIsLoading] = useState(false)
     const [categories, setCategories] = useState<Category[]>([])
+    const [images, setImages] = useState<(File | string)[]>([])
 
     const form = useForm<CategoryFormValues>({
         resolver: zodResolver(categorySchema),
@@ -48,10 +50,18 @@ export default function CategoryForm({ initialData, isEdit }: CategoryFormProps)
             title: initialData?.title || "",
             description: initialData?.description || "",
             parentId: initialData?.parentId || undefined,
-            isActive: initialData?.isActive ?? true,
             metadata: initialData?.metadata || {},
+            images: [],
         },
     })
+
+    // Load existing images from initialData
+    useEffect(() => {
+        if (isEdit && initialData?.assets && initialData.assets.length > 0) {
+            const imageUrls = initialData.assets.map(asset => asset.url)
+            setImages(imageUrls)
+        }
+    }, [isEdit, initialData])
 
     useEffect(() => {
         // Fetch categories for parent selection
@@ -70,14 +80,25 @@ export default function CategoryForm({ initialData, isEdit }: CategoryFormProps)
         fetchCategories()
     }, [isEdit, initialData])
 
-    const onSubmit = async (data: any) => {
+    const onSubmit = async (data: CategoryFormValues) => {
         setIsLoading(true)
         try {
+            // Get files from images state
+            const fileImages = images.filter((img): img is File => img instanceof File)
+            
+            const payload: CreateCategoryRequest = {
+                title: data.title,
+                description: data.description || null,
+                parentId: data.parentId || null,
+                metadata: data.metadata || {},
+                images: fileImages.length > 0 ? fileImages : undefined,
+            }
+
             if (isEdit && initialData?.id) {
-                await categoryAPI.updateCategory(initialData.id, data)
+                await categoryAPI.updateCategory(initialData.id, payload)
                 toast.success("Category updated successfully")
             } else {
-                await categoryAPI.createCategory(data)
+                await categoryAPI.createCategory(payload)
                 toast.success("Category created successfully")
             }
             router.push("/inventory/categories")
@@ -90,8 +111,23 @@ export default function CategoryForm({ initialData, isEdit }: CategoryFormProps)
         }
     }
 
+    const handleImagesChange = (files: File[]) => {
+        const existingUrls = images.filter((img): img is string => typeof img === "string")
+        const newImages = [...existingUrls, ...files]
+        setImages(newImages)
+        const fileImages = newImages.filter((img): img is File => img instanceof File)
+        form.setValue("images", fileImages.length > 0 ? fileImages : undefined)
+    }
+
+    const handleImageRemove = (url: string) => {
+        const newImages = images.filter(img => img !== url)
+        setImages(newImages)
+        const fileImages = newImages.filter((img): img is File => img instanceof File)
+        form.setValue("images", fileImages.length > 0 ? fileImages : undefined)
+    }
+
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="space-y-6">
             <div className="flex items-center gap-4">
                 <Button variant="outline" size="icon" onClick={() => router.back()}>
                     <ChevronLeft className="h-4 w-4" />
@@ -177,21 +213,19 @@ export default function CategoryForm({ initialData, isEdit }: CategoryFormProps)
 
                             <FormField
                                 control={form.control}
-                                name="isActive"
+                                name="images"
                                 render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                                        <div className="space-y-0.5">
-                                            <FormLabel className="text-base">Active Status</FormLabel>
-                                            <FormDescription>
-                                                Visible in store
-                                            </FormDescription>
-                                        </div>
+                                    <FormItem>
+                                        <FormLabel>Category Images</FormLabel>
                                         <FormControl>
-                                            <Switch
-                                                checked={field.value}
-                                                onCheckedChange={field.onChange}
+                                            <FileDropzone
+                                                value={images}
+                                                onChange={handleImagesChange}
+                                                onUrlRemove={handleImageRemove}
+                                                maxFiles={10}
                                             />
                                         </FormControl>
+                                        <FormMessage />
                                     </FormItem>
                                 )}
                             />

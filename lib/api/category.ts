@@ -1,6 +1,30 @@
 import { fetchAPI } from "@/lib/api/client"
 import type { Category, CategoryListResponse, CreateCategoryRequest } from "@/types/category"
 
+function toFormData(data: CreateCategoryRequest): FormData {
+    const formData = new FormData()
+    
+    formData.append("Title", data.title)
+    if (data.description) {
+        formData.append("Description", data.description)
+    }
+    if (data.parentId) {
+        formData.append("ParentId", data.parentId.toString())
+    }
+    if (data.metadata) {
+        formData.append("Metadata", JSON.stringify(data.metadata))
+    }
+    
+    // Handle images array
+    if (data.images && data.images.length > 0) {
+        data.images.forEach((image, index) => {
+            formData.append(`Images`, image)
+        })
+    }
+    
+    return formData
+}
+
 export const categoryAPI = {
     /**
      * Get paginated categories
@@ -27,9 +51,10 @@ export const categoryAPI = {
      * Create new category
      */
     async createCategory(data: CreateCategoryRequest): Promise<Category> {
+        const formData = toFormData(data)
         return fetchAPI<Category>("/api/Category", {
             method: "POST",
-            body: JSON.stringify(data),
+            body: formData,
         })
     },
 
@@ -37,9 +62,10 @@ export const categoryAPI = {
      * Update existing category
      */
     async updateCategory(id: number | string, data: CreateCategoryRequest): Promise<Category> {
+        const formData = toFormData(data)
         return fetchAPI<Category>(`/api/Category/${id}`, {
             method: "PUT",
-            body: JSON.stringify(data),
+            body: formData,
         })
     },
 

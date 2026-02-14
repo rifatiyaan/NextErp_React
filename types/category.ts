@@ -1,12 +1,20 @@
+export interface CategoryAsset {
+    filename: string
+    url: string
+    type?: string
+    size?: number | null
+    uploadedAt?: string
+}
+
 export interface Category {
     id: number
     title: string
     description?: string | null
     metadata?: any
-    isActive: boolean
     parentId?: number | null
     parent?: Category | null
     children?: Category[]
+    assets?: CategoryAsset[]
 }
 
 export interface CategoryListResponse {
@@ -19,6 +27,6 @@ export interface CreateCategoryRequest {
     title: string
     description?: string | null
     metadata?: any
-    isActive: boolean
     parentId?: number | null
+    images?: File[]
 }
