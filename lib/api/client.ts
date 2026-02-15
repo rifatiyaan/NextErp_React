@@ -46,8 +46,20 @@ export async function fetchAPI<T = any>(
         if (!response.ok) {
             const errorData = isJSON ? await response.json() : await response.text()
             console.error(`API Error ${response.status} at ${url}:`, errorData)
+            
+            let errorMessage = "Request failed"
+            if (isJSON && errorData) {
+                if (typeof errorData === "object" && errorData.message) {
+                    errorMessage = errorData.message
+                } else if (typeof errorData === "string") {
+                    errorMessage = errorData
+                }
+            } else if (typeof errorData === "string") {
+                errorMessage = errorData
+            }
+            
             throw new APIError(
-                errorData?.message || errorData || "Request failed",
+                errorMessage,
                 response.status,
                 errorData
             )

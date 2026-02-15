@@ -751,11 +751,17 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                                                                 </SelectTrigger>
                                                                                                 <SelectContent>
                                                                                                     <SelectItem value="__new_option__">-- New Option --</SelectItem>
-                                                                                                    {bulkVariationOptions.map((opt) => (
-                                                                                                        <SelectItem key={opt.name} value={opt.name}>
-                                                                                                            {opt.name}
+                                                                                                    {bulkVariationOptions && bulkVariationOptions.length > 0 ? (
+                                                                                                        bulkVariationOptions.map((opt) => (
+                                                                                                            <SelectItem key={opt.name} value={opt.name}>
+                                                                                                                {opt.name}
+                                                                                                            </SelectItem>
+                                                                                                        ))
+                                                                                                    ) : (
+                                                                                                        <SelectItem value="__no_options__" disabled>
+                                                                                                            No options available. Type to create custom.
                                                                                                         </SelectItem>
-                                                                                                    ))}
+                                                                                                    )}
                                                                                                 </SelectContent>
                                                                                             </Select>
                                                                                             {(isCustomOption || field.value === "") && (

@@ -107,12 +107,30 @@ export default function CreateSalesPage() {
 
   // Add product to cart
   const addToCart = (product: Product) => {
+    // Check stock availability
+    const availableStock = product.stock ?? 0
+    
+    if (availableStock <= 0) {
+      toast.error(`${product.title} is out of stock. Please purchase stock first.`, {
+        duration: 5000,
+      })
+      return
+    }
+
     setCart((prevCart) => {
       const existingItem = prevCart.find((item) => item.id === product.id)
       if (existingItem) {
+        const newQuantity = existingItem.quantity + 1
+        if (newQuantity > availableStock) {
+          toast.error(
+            `Insufficient stock for ${product.title}. Available: ${availableStock}, Requested: ${newQuantity}`,
+            { duration: 5000 }
+          )
+          return prevCart
+        }
         return prevCart.map((item) =>
           item.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...item, quantity: newQuantity }
             : item
         )
       }
@@ -130,6 +148,15 @@ export default function CreateSalesPage() {
       const newQuantity = item.quantity + delta
       if (newQuantity <= 0) {
         return prevCart.filter((item) => item.id !== productId)
+      }
+
+      const availableStock = item.stock ?? 0
+      if (newQuantity > availableStock) {
+        toast.error(
+          `Insufficient stock for ${item.title}. Available: ${availableStock}, Requested: ${newQuantity}`,
+          { duration: 5000 }
+        )
+        return prevCart
       }
 
       return prevCart.map((item) =>
@@ -191,9 +218,25 @@ export default function CreateSalesPage() {
       setCart([])
       setDiscount(0)
       setIsDrawerOpen(false)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to create sale:", error)
-      toast.error("Failed to create sale. Please try again.")
+      
+      // Extract error message
+      let errorMessage = "Failed to create sale. Please try again."
+      if (error?.message) {
+        errorMessage = error.message
+      } else if (typeof error === "string") {
+        errorMessage = error
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message
+      }
+      
+      // Check for stock-related errors
+      if (errorMessage.toLowerCase().includes("insufficient stock")) {
+        toast.error(errorMessage, { duration: 5000 })
+      } else {
+        toast.error(errorMessage)
+      }
     } finally {
       setIsCreatingSale(false)
     }
@@ -269,190 +312,266 @@ export default function CreateSalesPage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 p-1">
-              {products.map((product) => (
-                <Card
-                  key={product.id}
-                  className="overflow-hidden cursor-pointer group border border-border/50 hover:border-primary/50 transition-colors"
-                >
-                  <div className="relative aspect-square bg-muted/30 flex items-center justify-center overflow-hidden">
-                    {product.imageUrl ? (
-                      <Image
-                        src={product.imageUrl}
-                        alt={product.title}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform"
-                      />
-                    ) : (
-                      <div className="text-4xl text-muted-foreground">
-                        <Package className="h-12 w-12" />
-                      </div>
-                    )}
-                    <Button
-                      size="icon"
-                      className="absolute bottom-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity bg-primary hover:bg-primary/90"
-                      onClick={() => addToCart(product)}
-                    >
-                      <ShoppingCart className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <CardContent className="p-3">
-                    <h3 className="font-semibold text-sm mb-1 truncate">{product.title}</h3>
-                    <p className="text-base font-bold text-primary">
-                      ${product.price.toFixed(2)}
-                    </p>
-                    {product.stock !== undefined && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Stock: {product.stock}
+              {products.map((product) => {
+                const isOutOfStock = (product.stock ?? 0) <= 0
+                return (
+                  <Card
+                    key={product.id}
+                    className="overflow-hidden group border cursor-pointer border-border/50 hover:border-primary/50 transition-colors"
+                  >
+                    <div className="relative aspect-square bg-muted/30 flex items-center justify-center overflow-hidden">
+                      {product.imageUrl ? (
+                        <Image
+                          src={product.imageUrl}
+                          alt={product.title}
+                          fill
+                          className="object-cover transition-transform group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="text-4xl text-muted-foreground">
+                          <Package className="h-12 w-12" />
+                        </div>
+                      )}
+                      <Button
+                        size="icon"
+                        className="absolute bottom-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity bg-primary hover:bg-primary/90"
+                        onClick={() => addToCart(product)}
+                      >
+                        <ShoppingCart className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <CardContent className="p-3">
+                      <h3 className="font-semibold text-sm mb-1 truncate">{product.title}</h3>
+                      <p className="text-base font-bold text-primary">
+                        ${product.price.toFixed(2)}
                       </p>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+                      <p className="text-xs mt-1 text-muted-foreground">
+                        Stock: {product.stock ?? 0}
+                      </p>
+                    </CardContent>
+                  </Card>
+                )
+              })}
             </div>
           )}
         </ScrollArea>
       </div>
 
-      {/* Cart Button - Fixed position */}
-      {cart.length > 0 && (
-        <div className="fixed bottom-6 right-6 z-50">
-          <Button
-            size="lg"
-            className="h-14 px-6 shadow-lg"
-            onClick={handleCreateOrderClick}
-          >
-            <ShoppingCart className="h-5 w-5 mr-2" />
-            Create Order ({cart.length})
-            <span className="ml-2 font-bold">${finalAmount.toFixed(2)}</span>
-          </Button>
-        </div>
-      )}
+      {/* Right Side Cart Panel */}
+      <ResizablePanel
+        defaultWidth={400}
+        minWidth={300}
+        maxWidth={600}
+        side="right"
+        className="flex flex-col border-l bg-background h-full"
+        storageKey="pos-cart-width"
+      >
+        <div className="flex flex-col h-full overflow-hidden">
+          <div className="p-4 border-b">
+            <h2 className="text-lg font-semibold">Cart</h2>
+            <p className="text-sm text-muted-foreground">
+              {cart.length} item{cart.length !== 1 ? "s" : ""}
+            </p>
+          </div>
 
-      {/* Left Side Drawer */}
-      <Sheet open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
-        <SheetContent side="left" className="w-full sm:max-w-md">
-          <SheetHeader>
-            <SheetTitle>Your Cart</SheetTitle>
-            <SheetDescription>
-              Review your order before confirming
-            </SheetDescription>
-          </SheetHeader>
-
-          <div className="flex flex-col h-[calc(100vh-8rem)]">
-            {/* Cart Items */}
-            <ScrollArea className="flex-1 mt-4">
-              {cart.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-                  <ShoppingCart className="h-12 w-12 text-muted-foreground mb-3" />
-                  <p className="text-muted-foreground">Your cart is empty.</p>
-                </div>
-              ) : (
-                <div className="space-y-3 pr-4">
-                  {cart.map((item) => (
-                    <div key={item.id} className="flex gap-3 items-start p-3 rounded-lg border border-border/50 bg-muted/20">
-                      <div className="relative w-14 h-14 rounded-md bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
-                        {item.imageUrl ? (
-                          <Image
-                            src={item.imageUrl}
-                            alt={item.title}
-                            fill
-                            className="object-cover"
-                          />
-                        ) : (
-                          <Package className="h-6 w-6 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-sm truncate">{item.title}</h3>
-                        <p className="text-xs text-muted-foreground">
-                          ${item.price.toFixed(2)} each
-                        </p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="h-7 w-7"
-                            onClick={() => updateQuantity(item.id, -1)}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-8 text-center text-sm font-medium">
-                            {item.quantity}
-                          </span>
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="h-7 w-7"
-                            onClick={() => updateQuantity(item.id, 1)}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-sm">
-                          ${(item.price * item.quantity).toFixed(2)}
-                        </p>
+          <ScrollArea className="flex-1">
+            {cart.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+                <ShoppingCart className="h-12 w-12 text-muted-foreground mb-3" />
+                <p className="text-muted-foreground">Your cart is empty.</p>
+              </div>
+            ) : (
+              <div className="space-y-3 p-4">
+                {cart.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex gap-3 items-start p-3 rounded-lg border border-border/50 bg-muted/20"
+                  >
+                    <div className="relative w-14 h-14 rounded-md bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      {item.imageUrl ? (
+                        <Image
+                          src={item.imageUrl}
+                          alt={item.title}
+                          fill
+                          className="object-cover"
+                        />
+                      ) : (
+                        <Package className="h-6 w-6 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-sm truncate">
+                        {item.title}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        ${item.price.toFixed(2)} each
+                      </p>
+                      <div className="flex items-center gap-2 mt-2">
                         <Button
                           size="icon"
-                          variant="ghost"
-                          className="h-6 w-6 mt-1 text-destructive"
-                          onClick={() => removeFromCart(item.id)}
+                          variant="outline"
+                          className="h-7 w-7"
+                          onClick={() => updateQuantity(item.id, -1)}
                         >
-                          <X className="h-4 w-4" />
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="w-8 text-center text-sm font-medium">
+                          {item.quantity}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-7 w-7"
+                          onClick={() => updateQuantity(item.id, 1)}
+                        >
+                          <Plus className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
-
-            {/* Order Summary */}
-            {cart.length > 0 && (
-              <div className="border-t pt-4 space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Subtotal:</span>
-                    <span className="font-medium">${subtotal.toFixed(2)}</span>
+                    <div className="text-right">
+                      <p className="font-semibold text-sm">
+                        ${(item.price * item.quantity).toFixed(2)}
+                      </p>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6 mt-1 text-destructive"
+                        onClick={() => removeFromCart(item.id)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Tax (5%):</span>
-                    <span className="font-medium">${tax.toFixed(2)}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Discount:</span>
-                    <Input
-                      type="number"
-                      value={discount}
-                      onChange={(e) => setDiscount(Number(e.target.value) || 0)}
-                      className="h-8 w-24"
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between text-lg font-bold">
-                    <span>Final Amount:</span>
-                    <span>${finalAmount.toFixed(2)}</span>
-                  </div>
-                </div>
-                <Button
-                  className="w-full"
-                  size="lg"
-                  onClick={() => setIsConfirmModalOpen(true)}
-                  disabled={cart.length === 0 || isCreatingSale}
-                >
-                  {isCreatingSale ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    "Confirm Order"
-                  )}
-                </Button>
+                ))}
               </div>
+            )}
+          </ScrollArea>
+
+          {cart.length > 0 && (
+            <div className="border-t p-4 space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal:</span>
+                  <span className="font-medium">${subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Tax (5%):</span>
+                  <span className="font-medium">${tax.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Discount:</span>
+                  <Input
+                    type="number"
+                    value={discount}
+                    onChange={(e) => setDiscount(Number(e.target.value) || 0)}
+                    className="h-8 w-24"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                <Separator />
+                <div className="flex justify-between text-lg font-bold">
+                  <span>Final Amount:</span>
+                  <span>${finalAmount.toFixed(2)}</span>
+                </div>
+              </div>
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={handleCreateOrderClick}
+                disabled={cart.length === 0}
+              >
+                <ShoppingCart className="mr-2 h-4 w-4" />
+                Create Order
+              </Button>
+            </div>
+          )}
+        </div>
+      </ResizablePanel>
+
+      {/* Right Side Drawer - Order Confirmation */}
+      <Sheet open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Confirm Order</SheetTitle>
+            <SheetDescription>
+              Review your order summary before confirming
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="flex flex-col h-[calc(100vh-8rem)] mt-6">
+            {cart.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+                <ShoppingCart className="h-12 w-12 text-muted-foreground mb-3" />
+                <p className="text-muted-foreground">Your cart is empty.</p>
+              </div>
+            ) : (
+              <>
+                <ScrollArea className="flex-1">
+                  <div className="space-y-4 pr-4">
+                    <div>
+                      <h3 className="font-semibold mb-3">Order Items ({cart.length})</h3>
+                      <div className="space-y-2">
+                        {cart.map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex justify-between items-center p-2 rounded border border-border/50 bg-muted/20"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">
+                                {item.title}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {item.quantity} × ${item.price.toFixed(2)}
+                              </p>
+                            </div>
+                            <p className="font-semibold text-sm ml-2">
+                              ${(item.price * item.quantity).toFixed(2)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </ScrollArea>
+
+                <div className="border-t pt-4 space-y-4 mt-auto">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Subtotal:</span>
+                      <span className="font-medium">${subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Tax (5%):</span>
+                      <span className="font-medium">${tax.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Discount:</span>
+                      <span className="font-medium">${discount.toFixed(2)}</span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between text-lg font-bold">
+                      <span>Final Amount:</span>
+                      <span>${finalAmount.toFixed(2)}</span>
+                    </div>
+                  </div>
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    onClick={() => setIsConfirmModalOpen(true)}
+                    disabled={cart.length === 0 || isCreatingSale}
+                  >
+                    {isCreatingSale ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      "Confirm Order"
+                    )}
+                  </Button>
+                </div>
+              </>
             )}
           </div>
         </SheetContent>
