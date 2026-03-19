@@ -7,7 +7,6 @@ import type { Module } from "@/types/module"
 import { useSidebarView } from "@/contexts/sidebar-view-context"
 import { DynamicIcon } from "@/components/dynamic-icon"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-
 export default function ModuleDashboard({ params }: { params: Promise<{ module: string }> }) {
     // Next.js 15+ convention: params is a promise
     const { module: moduleSlug } = use(params)
@@ -64,13 +63,6 @@ export default function ModuleDashboard({ params }: { params: Promise<{ module: 
 
     return (
         <div className="space-y-3">
-            {/* Breadcrumb / Header */}
-            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                <Link href="/" className="hover:text-foreground">Home</Link>
-                <span>&gt;</span>
-                <span className="font-medium text-foreground">{currentModule.title}</span>
-            </div>
-
             {/* Grid of Child Modules/Links - Only show in grid mode */}
             {mode === "grid" && (
                 <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">

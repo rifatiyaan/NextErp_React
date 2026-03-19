@@ -6,7 +6,6 @@ import ProductForm from "../_components/product-form"
 import { productAPI } from "@/lib/api/product"
 import { Product } from "@/types/product"
 import { Loader } from "@/components/ui/loader"
-
 export default function EditProductPage() {
     const params = useParams()
     const [product, setProduct] = useState<Product | null>(null)
@@ -38,7 +37,7 @@ export default function EditProductPage() {
     }
 
     return (
-        <div className="w-full max-w-[1920px] mx-auto">
+        <div className="w-full max-w-[1920px] mx-auto space-y-4">
             <ProductForm initialData={product} isEdit />
         </div>
     )

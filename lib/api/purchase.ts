@@ -2,9 +2,6 @@ import { fetchAPI } from "@/lib/api/client"
 import type { Purchase, PurchaseListResponse, CreatePurchaseRequest } from "@/types/purchase"
 
 export const purchaseAPI = {
-    /**
-     * Get paginated purchases
-     */
     async getPurchases(
         pageIndex: number = 1,
         pageSize: number = 10,
@@ -21,16 +18,10 @@ export const purchaseAPI = {
         return fetchAPI<PurchaseListResponse>(`/api/Purchase?${params.toString()}`)
     },
 
-    /**
-     * Get single purchase by ID
-     */
     async getPurchaseById(id: string): Promise<Purchase> {
         return fetchAPI<Purchase>(`/api/Purchase/${id}`)
     },
 
-    /**
-     * Create new purchase
-     */
     async createPurchase(data: CreatePurchaseRequest): Promise<Purchase> {
         return fetchAPI<Purchase>("/api/Purchase", {
             method: "POST",

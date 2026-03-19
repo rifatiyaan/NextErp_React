@@ -1,10 +1,25 @@
 import { fetchAPI } from "@/lib/api/client"
 import type { Product, ProductListResponse, CreateProductRequest } from "@/types/product"
 
+function normalizeProduct(p: Record<string, unknown>): Product {
+    return {
+        id: Number(p.id ?? p.Id ?? 0),
+        title: String(p.title ?? p.Title ?? ""),
+        code: String(p.code ?? p.Code ?? ""),
+        price: Number(p.price ?? p.Price ?? 0),
+        stock: Number(p.stock ?? p.Stock ?? 0),
+        categoryId: Number(p.categoryId ?? p.CategoryId ?? 0),
+        imageUrl: (p.imageUrl ?? p.ImageUrl) as string | null | undefined,
+        metadata: (p.metadata ?? p.Metadata) as Product["metadata"],
+        category: (p.category ?? p.Category) as Product["category"],
+        isActive: Boolean(p.isActive ?? p.IsActive ?? true),
+        hasVariations: p.hasVariations ?? p.HasVariations,
+        variationOptions: (p.variationOptions ?? p.VariationOptions) as Product["variationOptions"],
+        productVariants: (p.productVariants ?? p.ProductVariants) as Product["productVariants"],
+    }
+}
+
 export const productAPI = {
-    /**
-     * Get paginated products
-     */
     async getProducts(
         pageIndex: number = 1, 
         pageSize: number = 10, 
@@ -13,7 +28,6 @@ export const productAPI = {
         categoryId?: number | null,
         status?: string | null
     ): Promise<ProductListResponse> {
-        // Construct query string manually or use URLSearchParams
         const params = new URLSearchParams({
             pageIndex: pageIndex.toString(),
             pageSize: pageSize.toString(),
@@ -23,22 +37,19 @@ export const productAPI = {
         if (categoryId && categoryId > 0) params.append("categoryId", categoryId.toString())
         if (status && status !== "all") params.append("status", status)
 
-        return fetchAPI<ProductListResponse>(`/api/Product?${params.toString()}`)
+        const raw = await fetchAPI<Record<string, unknown>>(`/api/Product?${params.toString()}`)
+        const dataArray = raw?.data ?? raw?.Data
+        const data = Array.isArray(dataArray) ? dataArray.map((p: Record<string, unknown>) => normalizeProduct(p)) : []
+        const total = Number(raw?.total ?? raw?.Total ?? 0)
+        const totalDisplay = Number(raw?.totalDisplay ?? raw?.TotalDisplay ?? raw?.total ?? raw?.Total ?? 0)
+        return { data, total, totalDisplay }
     },
 
-    /**
-     * Get single product by ID
-     */
     async getProduct(id: number | string): Promise<Product> {
-        return fetchAPI<Product>(`/api/Product/${id}`)
+        const raw = await fetchAPI<Record<string, unknown>>(`/api/Product/${id}`)
+        return raw ? normalizeProduct(raw) : (null as unknown as Product)
     },
 
-    /**
-     * Create new product
-     */
-    /**
-     * Create new product
-     */
     async createProduct(data: CreateProductRequest): Promise<Product> {
         return fetchAPI<Product>("/api/Product", {
             method: "POST",
@@ -46,23 +57,44 @@ export const productAPI = {
         })
     },
 
-    /**
-     * Update existing product
-     */
     async updateProduct(id: number | string, data: CreateProductRequest): Promise<Product> {
+        const formData = toFormData(data)
+        formData.append("Id", String(id))
         return fetchAPI<Product>(`/api/Product/${id}`, {
             method: "PUT",
-            body: toFormData(data),
+            body: formData,
         })
     },
 
-    /**
-     * Delete product
-     */
-    async deleteProduct(id: number | string): Promise<void> {
-        return fetchAPI<void>(`/api/Product/${id}`, {
-            method: "DELETE",
-        })
+    async deactivateProduct(id: number | string): Promise<void> {
+        const numericId = Number(id)
+        if (!Number.isInteger(numericId) || numericId <= 0) return
+        const product = await this.getProduct(numericId)
+        const payload: CreateProductRequest = {
+            title: product.title,
+            code: product.code,
+            price: product.price,
+            stock: product.stock,
+            categoryId: product.categoryId,
+            imageUrl: product.imageUrl ?? undefined,
+            metadata: product.metadata ?? undefined,
+            isActive: false,
+            parentId: (product as { parentId?: number }).parentId,
+        }
+        if (product.hasVariations && product.variationOptions?.length && product.productVariants?.length) {
+            Object.assign(payload, {
+                hasVariations: true,
+                variationOptions: product.variationOptions,
+                productVariants: product.productVariants.map((v) => ({
+                    sku: v.sku,
+                    price: v.price,
+                    stock: v.stock,
+                    isActive: v.isActive,
+                    variationValueKeys: v.variationValues?.map((vv) => vv.value) ?? [],
+                })),
+            })
+        }
+        await this.updateProduct(id, payload as CreateProductRequest)
     },
 }
 

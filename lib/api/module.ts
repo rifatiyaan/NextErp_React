@@ -28,39 +28,24 @@ export interface CreateModuleRequest {
 }
 
 export const moduleAPI = {
-    /**
-     * Get menu items for the current authenticated user based on their roles
-     */
     async getUserMenu(): Promise<Module[]> {
         return fetchAPI<Module[]>("/api/Module/user-menu")
     },
 
-    /**
-     * Get all modules (admin only)
-     */
     async getAllModules(tenantId?: string): Promise<Module[]> {
         const params = tenantId ? `?tenantId=${tenantId}` : ""
         return fetchAPI<Module[]>(`/api/Module${params}`)
     },
 
-    /**
-     * Get modules by type
-     */
     async getModulesByType(type: number, tenantId?: string): Promise<Module[]> {
         const params = tenantId ? `?tenantId=${tenantId}` : ""
         return fetchAPI<Module[]>(`/api/Module/by-type/${type}${params}`)
     },
 
-    /**
-     * Get a specific module by ID
-     */
     async getModuleById(id: number): Promise<Module> {
         return fetchAPI<Module>(`/api/Module/${id}`)
     },
 
-    /**
-     * Create a new module
-     */
     async createModule(data: CreateModuleRequest): Promise<Module> {
         return fetchAPI<Module>("/api/Module", {
             method: "POST",
@@ -68,9 +53,6 @@ export const moduleAPI = {
         })
     },
 
-    /**
-     * Update an existing module
-     */
     async updateModule(id: number, data: CreateModuleRequest): Promise<Module> {
         return fetchAPI<Module>(`/api/Module/${id}`, {
             method: "PUT",
@@ -78,9 +60,6 @@ export const moduleAPI = {
         })
     },
 
-    /**
-     * Delete a module
-     */
     async deleteModule(id: number): Promise<void> {
         return fetchAPI<void>(`/api/Module/${id}`, {
             method: "DELETE",
@@ -88,9 +67,6 @@ export const moduleAPI = {
     },
 }
 
-/**
- * Transform backend Module[] to hierarchical menu structure
- */
 export function buildMenuTree(modules: Module[]): MenuItem[] {
     // Helper to map a single module to item
     const mapToMenuItem = (m: Module): MenuItem => ({

@@ -6,7 +6,6 @@ import CategoryForm from "../_components/category-form"
 import { categoryAPI } from "@/lib/api/category"
 import { Category } from "@/types/category"
 import { Loader } from "@/components/ui/loader"
-
 export default function EditCategoryPage() {
     const params = useParams()
     const [category, setCategory] = useState<Category | null>(null)
@@ -38,7 +37,7 @@ export default function EditCategoryPage() {
     }
 
     return (
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto space-y-6">
             <CategoryForm initialData={category} isEdit />
         </div>
     )

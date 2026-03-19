@@ -92,10 +92,9 @@ export const supplierAPI = {
         })
     },
 
-    async deleteSupplier(id: number): Promise<void> {
-        await fetchAPI(`/api/Supplier/${id}`, {
-            method: "DELETE",
-        })
+    async deactivateSupplier(id: number): Promise<void> {
+        const supplier = await this.getSupplierById(id)
+        await this.updateSupplier(id, { ...supplier, isActive: false })
     },
 }
 

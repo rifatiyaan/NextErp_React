@@ -24,6 +24,7 @@ const getProductStatus = (product: Product) => {
 
 interface ColumnsProps {
     onViewDetails?: (product: Product) => void
+    onDelete?: (productId: number, productTitle: string) => void
     pageIndex?: number
     pageSize?: number
 }
@@ -151,7 +152,9 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Product>[] => [
         enableHiding: false,
         cell: ({ row }) => {
             const product = row.original
+            const productId = Number((product as { id?: number; Id?: number }).Id ?? (product as { id?: number; Id?: number }).id ?? 0)
             const onViewDetails = props?.onViewDetails
+            const onDelete = props?.onDelete
 
             return (
                 <DropdownMenu>
@@ -170,15 +173,26 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Product>[] => [
                             </DropdownMenuItem>
                         )}
                         <DropdownMenuItem asChild>
-                            <Link href={`/inventory/products/${product.id}`}>
+                            <Link href={productId > 0 ? `/inventory/products/${productId}` : "#"}>
                                 <Pencil className="mr-2 h-4 w-4" />
                                 Edit
                             </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
-                            <Trash className="mr-2 h-4 w-4" />
-                            Delete
-                        </DropdownMenuItem>
+                        {onDelete && (() => {
+                            const productTitle = String((product as { title?: string; Title?: string }).Title ?? (product as { title?: string; Title?: string }).title ?? "")
+                            return (
+                                <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={(e) => {
+                                        e.preventDefault()
+                                        if (productId > 0) onDelete(productId, productTitle)
+                                    }}
+                                >
+                                    <Trash className="mr-2 h-4 w-4" />
+                                    Delete
+                                </DropdownMenuItem>
+                            )
+                        })()}
                     </DropdownMenuContent>
                 </DropdownMenu>
             )

@@ -6,7 +6,6 @@ import { SupplierForm } from "../_components/supplier-form"
 import { supplierAPI } from "@/lib/api/supplier"
 import { Supplier } from "@/types/supplier"
 import { Loader } from "@/components/ui/loader"
-
 export default function EditSupplierPage({
     params,
 }: {

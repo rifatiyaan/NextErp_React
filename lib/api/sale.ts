@@ -37,9 +37,6 @@ export interface Sale {
 }
 
 export const saleAPI = {
-  /**
-   * Create a new sale
-   */
   async createSale(data: CreateSaleRequest): Promise<Sale> {
     return fetchAPI<Sale>("/api/Sale", {
       method: "POST",
@@ -47,16 +44,10 @@ export const saleAPI = {
     })
   },
 
-  /**
-   * Get sale by ID
-   */
   async getSale(id: string): Promise<Sale> {
     return fetchAPI<Sale>(`/api/Sale/${id}`)
   },
 
-  /**
-   * Get paginated sales
-   */
   async getSales(
     pageIndex: number = 1,
     pageSize: number = 10,

@@ -8,7 +8,6 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { mockProducts, categories, type Product, type CartItem } from "@/data/pos-mock-data"
-
 export default function POSPage() {
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
@@ -80,7 +79,8 @@ export default function POSPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] gap-4">
+    <div className="flex flex-col gap-4">
+      <div className="flex h-[calc(100vh-8rem)] gap-4">
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
@@ -244,6 +244,7 @@ export default function POSPage() {
             </div>
           </>
         )}
+      </div>
       </div>
     </div>
   )

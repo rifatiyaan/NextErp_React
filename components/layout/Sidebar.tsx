@@ -1,13 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ChevronDown } from "lucide-react"
 
 import type { MenuItem } from "@/types/module"
-import { moduleAPI } from "@/lib/api/module"
-import { useAuth } from "@/contexts/auth-context"
+import { useMenu } from "@/contexts/menu-context"
 import { useSidebarView } from "@/contexts/sidebar-view-context"
 import { ModuleType } from "@/types/module"
 
@@ -36,95 +35,20 @@ import { cn } from "@/lib/utils"
 export function Sidebar() {
     const pathname = usePathname()
     const { openMobile, setOpenMobile, isMobile } = useSidebar()
-    const { user } = useAuth()
+    const { menuTree, isLoading } = useMenu()
     const { mode } = useSidebarView()
-    const [menuItems, setMenuItems] = useState<MenuItem[]>([])
-    const [isLoading, setIsLoading] = useState(true)
     const [openItems, setOpenItems] = useState<Set<number>>(new Set())
 
-    // Fetch menu items when user is authenticated
-    useEffect(() => {
-        if (user) {
-            moduleAPI
-                .getUserMenu()
-                .then((modules) => {
-                    // Convert Module[] to MenuItem[] (the API already returns hierarchical structure)
-                    const tree: MenuItem[] = modules.map((m) => ({
-                        id: m.id,
-                        title: m.title,
-                        icon: m.icon,
-                        url: m.url,
-                        parentId: m.parentId,
-                        children: m.children
-                            ? m.children
-                                  .sort((a, b) => a.order - b.order)
-                                  .map((child) => ({
-                                      id: child.id,
-                                      title: child.title,
-                                      icon: child.icon,
-                                      url: child.url,
-                                      parentId: child.parentId,
-                                      children: [],
-                                      type: child.type,
-                                      order: child.order,
-                                      isExternal: child.isExternal,
-                                      badgeText: child.metadata?.badgeText,
-                                      openInNewTab: child.metadata?.openInNewTab,
-                                  }))
-                            : [],
-                        type: m.type,
-                        order: m.order,
-                        isExternal: m.isExternal,
-                        badgeText: m.metadata?.badgeText,
-                        openInNewTab: m.metadata?.openInNewTab,
-                    }))
-                    
-                    if (mode === "grid") {
-                        // Grid mode: Only show parent modules (type = 1, Module) in the sidebar
-                        // Children will be displayed on the module's page
-                        const parentModules = tree
-                            .filter((m) => m.type === ModuleType.Module)
-                            .map((m) => ({
-                                ...m,
-                                children: [], // Don't render children in sidebar
-                            }))
-                            .sort((a, b) => a.order - b.order)
-                        
-                        setMenuItems(parentModules)
-                    } else {
-                        // Sidebar mode: Show all modules with children in collapsible format
-                        // Filter out Link items (type: 2) that don't have a parent - they should only be children
-                        const filteredTree = tree
-                            .filter((m) => {
-                                // Only show Module type items (type: 1) as top-level
-                                // Link items (type: 2) should only appear as children
-                                return m.type === ModuleType.Module
-                            })
-                            .sort((a, b) => a.order - b.order)
-                        
-                        setMenuItems(filteredTree)
-                    }
-                })
-                .catch((error) => {
-                    console.error("Failed to load menu:", error)
-                    // Set empty menu items on error to prevent infinite loading
-                    setMenuItems([])
-                    // Show user-friendly error message
-                    if (error.message?.includes("Network error") || error.message?.includes("Failed to fetch")) {
-                        console.warn("⚠️ API connection failed. Please ensure:")
-                        console.warn("1. Backend is running on https://localhost:7245")
-                        console.warn("2. You have accepted the SSL certificate (visit https://localhost:7245/index.html first)")
-                        console.warn("3. CORS is properly configured")
-                    }
-                })
-                .finally(() => {
-                    setIsLoading(false)
-                })
-        } else {
-            setMenuItems([])
-            setIsLoading(false)
+    // Derive sidebar items from menu tree (same filtering as before, from context)
+    const menuItems = useMemo(() => {
+        const filtered = menuTree
+            .filter((m) => m.type === ModuleType.Module)
+            .sort((a, b) => a.order - b.order)
+        if (mode === "grid") {
+            return filtered.map((m) => ({ ...m, children: [] }))
         }
-    }, [user, mode])
+        return filtered
+    }, [menuTree, mode])
 
     // Component for collapsible menu items with children
     const CollapsibleItem = ({

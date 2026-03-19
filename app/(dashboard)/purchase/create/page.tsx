@@ -27,7 +27,6 @@ import type { Category } from "@/types/category"
 import type { PurchaseItemRequest, PurchaseItemMetadata } from "@/types/purchase"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-
 interface PurchaseItemRow extends PurchaseItemRequest {
     id: string
     productTitle?: string

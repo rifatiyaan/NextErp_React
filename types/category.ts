@@ -10,6 +10,7 @@ export interface Category {
     id: number
     title: string
     description?: string | null
+    isActive?: boolean
     metadata?: any
     parentId?: number | null
     parent?: Category | null
@@ -26,6 +27,7 @@ export interface CategoryListResponse {
 export interface CreateCategoryRequest {
     title: string
     description?: string | null
+    isActive?: boolean
     metadata?: any
     parentId?: number | null
     images?: File[]

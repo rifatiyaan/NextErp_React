@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { productAPI } from "@/lib/api/product"
 import { Product } from "@/types/product"
 import { DataTable } from "./data-table"
@@ -18,12 +18,13 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Search, Loader2, Plus } from "lucide-react"
+import { toast } from "sonner"
 import { Category } from "@/types/category"
 import { categoryAPI } from "@/lib/api/category"
 import { TopBar } from "@/components/layout/TopBar"
 import { ColumnVisibility } from "./_components/ColumnVisibility"
 import { Table } from "@tanstack/react-table"
-
+import { ConfirmModal } from "@/components/ConfirmModal"
 export default function ProductsPage() {
     const [data, setData] = useState<Product[]>([])
     const [loading, setLoading] = useState(true)
@@ -39,6 +40,7 @@ export default function ProductsPage() {
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [table, setTable] = useState<Table<Product> | null>(null)
+    const [productToDelete, setProductToDelete] = useState<{ id: number; title: string } | null>(null)
 
     // Debounce search query
     useEffect(() => {
@@ -128,8 +130,35 @@ export default function ProductsPage() {
         setIsModalOpen(true)
     }
 
+    const handleDeleteProduct = useCallback((productId: number, productTitle: string) => {
+        if (!productId || productId <= 0) return
+        setProductToDelete({ id: productId, title: productTitle })
+    }, [])
+
+    const handleConfirmDelete = useCallback(async () => {
+        if (!productToDelete || productToDelete.id <= 0) return
+        const id = productToDelete.id
+        try {
+            await productAPI.deactivateProduct(id)
+            setProductToDelete(null)
+            toast.success("Product removed")
+            const categoryId = categoryFilter !== "all" ? parseInt(categoryFilter) : null
+            await fetchData(
+                pageIndex,
+                pageSize,
+                debouncedSearchQuery || undefined,
+                statusFilter !== "all" ? statusFilter : null,
+                categoryId && categoryId > 0 ? categoryId : null
+            )
+        } catch (error) {
+            console.error("Failed to delete product:", error)
+            toast.error("Failed to remove product")
+        }
+    }, [productToDelete, pageIndex, pageSize, debouncedSearchQuery, statusFilter, categoryFilter, fetchData])
+
     const columns = createColumns({ 
         onViewDetails: handleViewDetails,
+        onDelete: handleDeleteProduct,
         pageIndex,
         pageSize
     })
@@ -215,6 +244,21 @@ export default function ProductsPage() {
                 product={selectedProduct}
                 open={isModalOpen}
                 onOpenChange={setIsModalOpen}
+            />
+
+            {/* Delete confirmation modal — only product id is sent to backend */}
+            <ConfirmModal
+                open={!!productToDelete}
+                onOpenChange={(open) => !open && setProductToDelete(null)}
+                title="Delete product?"
+                description={
+                    productToDelete
+                        ? `Are you sure you want to delete "${productToDelete.title}"? This product will be marked inactive.`
+                        : ""
+                }
+                confirmLabel="Yes, delete"
+                cancelLabel="No"
+                onConfirm={handleConfirmDelete}
             />
         </div>
     )

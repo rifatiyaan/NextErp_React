@@ -9,6 +9,7 @@ import { ProductFormValues, VariationOptionFormValues, ProductVariantFormValues 
 import { productAPI } from "@/lib/api/product"
 import { categoryAPI } from "@/lib/api/category"
 import { variationAPI, type BulkVariationOption } from "@/lib/api/variation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -44,14 +45,14 @@ interface ProductFormProps {
     isEdit?: boolean
 }
 
-// Auto-generate SKU (alphanumeric)
-const generateSKU = (): string => {
+// Auto-generate barcode / product code (alphanumeric, few digits)
+const generateBarcode = (): string => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    let sku = ""
-    for (let i = 0; i < 8; i++) {
-        sku += chars.charAt(Math.floor(Math.random() * chars.length))
+    let code = ""
+    for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length))
     }
-    return sku
+    return code
 }
 
 export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
@@ -70,7 +71,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
         resolver: zodResolver(productSchema),
         defaultValues: {
             title: "",
-            code: generateSKU(),
+            code: generateBarcode(),
             price: 0,
             stock: 0,
             categoryId: 0,
@@ -129,7 +130,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
         fetchCategories()
     }, [])
 
-    // Fetch bulk variation options
+    // Fetch global variation options (for dropdown when building product variations)
     useEffect(() => {
         const fetchBulkVariations = async () => {
             try {
@@ -137,7 +138,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                 const options = await variationAPI.getBulkOptions()
                 setBulkVariationOptions(options)
             } catch (error) {
-                console.error("Failed to fetch bulk variation options:", error)
+                console.error("Failed to fetch variation options:", error)
             } finally {
                 setLoadingBulkVariations(false)
             }
@@ -148,7 +149,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
     // Auto-generate SKU on mount if not editing
     useEffect(() => {
         if (!isEdit && !initialData?.code) {
-            form.setValue("code", generateSKU())
+            form.setValue("code", generateBarcode())
         }
     }, [isEdit, initialData, form])
 
@@ -158,7 +159,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
             // Reset form with initial data
             const formData: any = {
                 title: initialData.title || "",
-                code: initialData.code || generateSKU(),
+                code: initialData.code || generateBarcode(),
                 price: initialData.price || 0,
                 stock: initialData.stock || 0,
                 categoryId: initialData.categoryId && initialData.categoryId > 0 ? initialData.categoryId : undefined,
@@ -541,15 +542,14 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                         name="code"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel className="text-sm font-medium">SKU Code *</FormLabel>
+                                                <FormLabel className="text-sm font-medium">Product Code *</FormLabel>
                                                 <FormControl>
                                                     <div className="flex gap-2">
                                                         <Input 
-                                                            placeholder="Enter or generate SKU" 
+                                                            placeholder="Alphanumeric code or generate" 
                                                             {...field}
                                                             onChange={(e) => {
-                                                                // Only allow alphanumeric characters
-                                                                const value = e.target.value.replace(/[^A-Za-z0-9]/g, '')
+                                                                const value = e.target.value.replace(/[^A-Za-z0-9]/g, "")
                                                                 field.onChange(value)
                                                             }}
                                                             className="h-9"
@@ -559,8 +559,8 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                             variant="outline"
                                                             size="sm"
                                                             onClick={() => {
-                                                                const newSKU = generateSKU()
-                                                                field.onChange(newSKU)
+                                                                const newCode = generateBarcode()
+                                                                field.onChange(newCode)
                                                             }}
                                                             className="h-9 px-3"
                                                         >
@@ -570,7 +570,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                     </div>
                                                 </FormControl>
                                                 <FormDescription className="text-xs text-muted-foreground">
-                                                    Unique product identifier. Click Generate to auto-create a new SKU.
+                                                    Alphanumeric product code. Click Generate for auto barcode.
                                                 </FormDescription>
                                                 <FormMessage />
                                             </FormItem>
@@ -660,7 +660,14 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                         Enable Product Variations
                                                     </FormLabel>
                                                     <FormDescription className="text-xs text-muted-foreground">
-                                                        {isEdit ? "Variations cannot be edited after product creation" : "Add variation options like Size, Color, or Material to create multiple product variants"}
+                                                        {isEdit ? "Variations cannot be edited after product creation" : "Add variation options like Size, Color, or Material to create multiple product variants. "}
+                                                        {!isEdit && (
+                                                            <>
+                                                                <Link href="/inventory/variations?returnTo=/inventory/products/create" className="text-primary underline underline-offset-2 hover:no-underline">
+                                                                    Manage variation options
+                                                                </Link>
+                                                            </>
+                                                        )}
                                                     </FormDescription>
                                                 </div>
                                                 <FormControl>
@@ -693,11 +700,20 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                 <>
                                     <Card className="border border-border/50">
                                         <CardHeader className="pb-2.5 pt-3 px-4 border-b border-border/50">
-                                            <div className="flex items-center gap-2">
-                                                <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
-                                                    <Layers className="h-3.5 w-3.5 text-primary" />
+                                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
+                                                        <Layers className="h-3.5 w-3.5 text-primary" />
+                                                    </div>
+                                                    <CardTitle className="text-base font-semibold">Variation Options</CardTitle>
                                                 </div>
-                                                <CardTitle className="text-base font-semibold">Variation Options</CardTitle>
+                                                {!isEdit && (
+                                                    <Button variant="outline" size="sm" asChild>
+                                                        <Link href="/inventory/variations?returnTo=/inventory/products/create">
+                                                            Add variation options
+                                                        </Link>
+                                                    </Button>
+                                                )}
                                             </div>
                                         </CardHeader>
                                         <CardContent className="pt-3 px-4 pb-4">

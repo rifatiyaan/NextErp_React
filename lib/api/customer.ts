@@ -84,10 +84,9 @@ export const customerAPI = {
         })
     },
 
-    async deleteCustomer(id: string): Promise<void> {
-        await fetchAPI(`/api/Customer/${id}`, {
-            method: "DELETE",
-        })
+    async deactivateCustomer(id: string): Promise<void> {
+        const customer = await this.getCustomerById(id)
+        await this.updateCustomer(id, { ...customer, isActive: false })
     },
 }
 

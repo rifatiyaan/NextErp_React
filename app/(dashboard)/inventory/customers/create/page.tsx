@@ -4,7 +4,6 @@ import { CustomerForm } from "../_components/customer-form"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft } from "lucide-react"
 import Link from "next/link"
-
 export default function CreateCustomerPage() {
     return (
         <div className="max-w-4xl mx-auto space-y-6">

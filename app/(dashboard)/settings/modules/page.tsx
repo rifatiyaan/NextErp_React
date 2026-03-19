@@ -10,7 +10,6 @@ import { Plus } from "lucide-react"
 import { Loader } from "@/components/ui/loader"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-
 export default function ModulesPage() {
     const [data, setData] = useState<Module[]>([])
     const [loading, setLoading] = useState(true)

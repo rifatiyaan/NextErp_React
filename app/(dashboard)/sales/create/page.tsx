@@ -31,7 +31,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Loader2 } from "lucide-react"
-
 interface CartItem extends Product {
   quantity: number
 }

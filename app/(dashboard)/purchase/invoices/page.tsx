@@ -19,7 +19,6 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import { format } from "date-fns"
-
 export default function PurchaseListPage() {
     const [data, setData] = useState<Purchase[]>([])
     const [loading, setLoading] = useState(true)

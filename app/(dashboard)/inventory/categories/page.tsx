@@ -10,7 +10,6 @@ import { Plus } from "lucide-react"
 import { Loader } from "@/components/ui/loader"
 import Link from "next/link"
 import { TopBar } from "@/components/layout/TopBar"
-
 export default function CategoriesPage() {
     const [data, setData] = useState<Category[]>([])
     const [loading, setLoading] = useState(true)

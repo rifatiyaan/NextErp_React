@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/select"
 import { TopBar } from "@/components/layout/TopBar"
 import { ColumnVisibility } from "./_components/ColumnVisibility"
-
 export default function CustomersPage() {
     const [data, setData] = useState<Customer[]>([])
     const [loading, setLoading] = useState(true)

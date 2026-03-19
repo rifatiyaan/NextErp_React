@@ -5,8 +5,10 @@ import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 
 import type { ReactNode } from "react"
+import { MenuProvider } from "@/contexts/menu-context"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
+import { DynamicBreadcrumb } from "@/components/layout/DynamicBreadcrumb"
 import { getDictionary } from "@/lib/get-dictionary"
 // import { Footer } from "@/components/layout/footer" // Not implemented yet
 
@@ -46,15 +48,18 @@ export function MainLayout({ children }: { children: ReactNode }) {
     }
 
     return (
-        <div className="flex h-full min-h-screen bg-background text-foreground">
-            <Sidebar />
-            <div className="flex flex-col flex-1 min-w-0 transition-[margin] duration-300 ease-in-out bg-background">
-                <Header dictionary={dictionary} />
-                <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-y-auto bg-background">
-                    {children}
-                </main>
+        <MenuProvider>
+            <div className="flex h-full min-h-screen bg-background text-foreground">
+                <Sidebar />
+                <div className="flex flex-col flex-1 min-w-0 transition-[margin] duration-300 ease-in-out bg-background">
+                    <Header dictionary={dictionary} />
+                    <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-y-auto bg-background">
+                        <DynamicBreadcrumb />
+                        {children}
+                    </main>
                 {/* <Footer /> */}
+                </div>
             </div>
-        </div>
+        </MenuProvider>
     )
 }

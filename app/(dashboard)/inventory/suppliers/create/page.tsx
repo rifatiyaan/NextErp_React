@@ -1,5 +1,6 @@
-import { SupplierForm } from "../_components/supplier-form"
+"use client"
 
+import { SupplierForm } from "../_components/supplier-form"
 export default function CreateSupplierPage() {
     return (
         <div className="max-w-4xl mx-auto space-y-6">

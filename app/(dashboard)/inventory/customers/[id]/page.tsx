@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button"
 import { ChevronLeft } from "lucide-react"
 import { Loader } from "@/components/ui/loader"
 import Link from "next/link"
-
 export default function EditCustomerPage({
     params,
 }: {

@@ -4,7 +4,6 @@ import { ModuleForm } from "../_components/module-form"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
-
 export default function CreateModulePage() {
     return (
         <div className="max-w-4xl mx-auto space-y-6">
