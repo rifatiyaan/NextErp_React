@@ -25,6 +25,7 @@ import type { Supplier } from "@/lib/api/supplier"
 import type { Product } from "@/types/product"
 import type { Category } from "@/types/category"
 import type { PurchaseItemRequest, PurchaseItemMetadata } from "@/types/purchase"
+import { pickPrimaryVariant } from "@/lib/product-variant"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 interface PurchaseItemRow extends PurchaseItemRequest {
@@ -127,19 +128,28 @@ export default function CreatePurchasePage() {
 
     // Add product to items list
     const addProductToItems = useCallback((product: Product) => {
-        // Check if product already exists in items
-        const existingItem = items.find(item => item.productId === product.id)
+        const variant = pickPrimaryVariant(product)
+        if (!variant) {
+            toast.error(`${product.title} has no purchasable SKU.`)
+            return
+        }
+
+        const existingItem = items.find((item) => item.productVariantId === variant.id)
         if (existingItem) {
             toast.info(`${product.title} is already in the list`)
             return
         }
 
+        const lineTitle = product.hasVariations
+            ? `${product.title} (${variant.title})`
+            : product.title
+
         const newItem: PurchaseItemRow = {
             id: `temp-${Date.now()}`,
-            title: product.title,
-            productId: product.id,
+            title: lineTitle,
+            productVariantId: variant.id,
             quantity: 1,
-            unitCost: product.price,
+            unitCost: variant.price,
             productTitle: product.title,
             productCode: product.code,
             measureUnit: "pc",
@@ -148,7 +158,7 @@ export default function CreatePurchasePage() {
         setItems([...items, newItem])
         setProductSearchQuery("")
         setSearchOpen(false)
-        toast.success(`${product.title} added to list`)
+        toast.success(`${lineTitle} added to list`)
     }, [items])
 
     // Handle Enter key in search
@@ -218,7 +228,7 @@ export default function CreatePurchasePage() {
         }
 
         const invalidItems = items.filter(
-            (item) => !item.productId || item.quantity <= 0 || item.unitCost < 0
+            (item) => !item.productVariantId || item.quantity <= 0 || item.unitCost < 0
         )
         if (invalidItems.length > 0) {
             toast.error("Please fill all item fields correctly")
@@ -235,7 +245,7 @@ export default function CreatePurchasePage() {
                 discount,
                 items: items.map((item) => ({
                     title: item.title,
-                    productId: item.productId,
+                    productVariantId: item.productVariantId,
                     quantity: item.quantity,
                     unitCost: item.unitCost,
                     metadata: item.metadata || undefined,

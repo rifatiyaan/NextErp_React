@@ -1,7 +1,7 @@
 import { fetchAPI } from "@/lib/api/client"
 
 export interface SaleItemRequest {
-  productId: number
+  productVariantId: number
   quantity: number
   price: number
   subtotal: number
@@ -28,8 +28,10 @@ export interface Sale {
   createdAt: string
   items: Array<{
     id: string
-    productId: number
+    productVariantId: number
     productTitle: string
+    variantSku?: string
+    variantTitle?: string
     quantity: number
     price: number
     subtotal: number
@@ -68,4 +70,3 @@ export const saleAPI = {
     }>(`/api/Sale?${params.toString()}`)
   },
 }
-

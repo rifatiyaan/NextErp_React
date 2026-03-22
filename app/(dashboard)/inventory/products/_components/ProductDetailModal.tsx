@@ -1,22 +1,23 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { Product } from "@/types/product"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import Image from "next/image"
-import { Package, Edit, Calendar, Hash, Loader2, Box, DollarSign, TrendingUp, CheckCircle2 } from "lucide-react"
-import { Card } from "@/components/ui/card"
-import Link from "next/link"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Loader2 } from "lucide-react"
 import { format } from "date-fns"
 import { productAPI } from "@/lib/api/product"
+import { ProductHeader } from "./product-detail/ProductHeader"
+import { ProductStats } from "./product-detail/ProductStats"
+import { ProductVariants } from "./product-detail/ProductVariants"
+import { ProductInfo } from "./product-detail/ProductInfo"
+import { ProductMedia } from "./product-detail/ProductMedia"
+import {
+    sortByDisplayOrder,
+    selectionFromVariant,
+    findVariantForSelection,
+    defaultVariant,
+} from "./product-detail/variant-utils"
+import { cn } from "@/lib/utils"
 
 interface ProductDetailModalProps {
     product: Product | null
@@ -24,11 +25,22 @@ interface ProductDetailModalProps {
     onOpenChange: (open: boolean) => void
 }
 
+function formatMoney(amount: number): string {
+    return `$${amount.toFixed(2)}`
+}
+
+function formatCreatedAt(iso?: string | null): string {
+    if (!iso) return "—"
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return "—"
+    return format(d, "MMM d, yyyy")
+}
+
 export function ProductDetailModal({ product, open, onOpenChange }: ProductDetailModalProps) {
     const [fullProduct, setFullProduct] = useState<Product | null>(null)
     const [loading, setLoading] = useState(false)
+    const [variantSelection, setVariantSelection] = useState<Record<number, number>>({})
 
-    // Fetch full product details when modal opens
     useEffect(() => {
         if (open && product?.id) {
             const fetchFullProduct = async () => {
@@ -38,308 +50,211 @@ export function ProductDetailModal({ product, open, onOpenChange }: ProductDetai
                     setFullProduct(data)
                 } catch (error) {
                     console.error("Failed to fetch product details:", error)
-                    setFullProduct(product) // Fallback to passed product
+                    setFullProduct(product)
                 } finally {
                     setLoading(false)
                 }
             }
-            fetchFullProduct()
+            void fetchFullProduct()
         } else {
             setFullProduct(product)
         }
     }, [open, product])
 
-    if (!product) return null
+    const displayProduct = fullProduct ?? product
 
-    const displayProduct = fullProduct || product
+    const sortedVariationOptions = useMemo(() => {
+        if (!displayProduct) return []
+        return sortByDisplayOrder(displayProduct.variationOptions ?? [])
+    }, [displayProduct])
 
-    const getProductStatus = (product: Product) => {
-        if (!product.isActive) return { label: "Closed", variant: "outline" as const }
-        if (product.stock === 0) return { label: "Out of Stock", variant: "secondary" as const }
-        return { label: "Active", variant: "default" as const }
-    }
+    useEffect(() => {
+        if (!open || !displayProduct) return
+        const variants = displayProduct.productVariants
+        if (variants?.length && sortedVariationOptions.length) {
+            const def = defaultVariant(variants)
+            if (def) setVariantSelection(selectionFromVariant(def, sortedVariationOptions))
+        } else {
+            setVariantSelection({})
+        }
+    }, [open, displayProduct, sortedVariationOptions])
 
-    const status = getProductStatus(displayProduct)
+    const selectedVariant = useMemo(() => {
+        if (!displayProduct) return null
+        const variants = displayProduct.productVariants
+        if (!variants?.length || !sortedVariationOptions.length) return null
+        return (
+            findVariantForSelection(variants, sortedVariationOptions, variantSelection) ??
+            defaultVariant(variants)
+        )
+    }, [displayProduct, sortedVariationOptions, variantSelection])
+
+    const displayPrice = useMemo(() => {
+        if (!displayProduct) return 0
+        if (selectedVariant) {
+            const p = selectedVariant.price
+            return p > 0 ? p : displayProduct.price
+        }
+        return displayProduct.price
+    }, [selectedVariant, displayProduct])
+
+    const displayStock =
+        displayProduct && selectedVariant ? selectedVariant.stock : (displayProduct?.stock ?? 0)
+    const inStock = displayStock > 0
+
+    const displaySku = selectedVariant?.sku || displayProduct?.code || ""
+
+    const galleryUrls = useMemo(() => {
+        if (!displayProduct?.imageUrl) return []
+        return [displayProduct.imageUrl]
+    }, [displayProduct?.imageUrl])
+
+    const descriptionText = displayProduct?.metadata?.description?.trim() ?? ""
+
+    const featureItems = useMemo(() => {
+        const m = displayProduct?.metadata
+        if (!m) return []
+        const items: string[] = []
+        if (m.color?.trim()) items.push(`Color: ${m.color.trim()}`)
+        if (m.warranty?.trim()) items.push(`Warranty: ${m.warranty.trim()}`)
+        return items
+    }, [displayProduct?.metadata])
+
+    const handleSelectVariation = useCallback(
+        (_optionId: number, _valueId: number, valueLabel: string) => {
+            if (!displayProduct) return
+            const variants = displayProduct.productVariants ?? []
+            const options = sortedVariationOptions
+            if (!variants.length || !options.length) return
+
+            const matching = variants.filter((v) =>
+                (v.variationValues ?? []).some((x) => x.value === valueLabel)
+            )
+            const pick = matching.find((v) => v.isActive) ?? matching[0]
+            if (pick) setVariantSelection(selectionFromVariant(pick, options))
+        },
+        [displayProduct, sortedVariationOptions]
+    )
+
+    const showVariations =
+        Boolean(displayProduct?.hasVariations) &&
+        sortedVariationOptions.length > 0 &&
+        (displayProduct?.productVariants?.length ?? 0) > 0
+
+    let sectionNum = 1
+    const descSection = descriptionText ? sectionNum++ : null
+    const varSection = showVariations ? sectionNum++ : null
+    const featSection = featureItems.length > 0 ? sectionNum++ : null
+    const infoSection = sectionNum
+
+    const infoRows =
+        displayProduct != null
+            ? [
+                  { label: "Stock", value: String(displayStock) },
+                  { label: "SKU", value: displaySku },
+                  { label: "Created date", value: formatCreatedAt(displayProduct.createdAt) },
+              ]
+            : []
+
+    if (!product || !displayProduct) return null
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-7xl w-[98vw] max-h-[95vh] p-0 overflow-hidden flex flex-col">
-                <DialogHeader className="px-4 py-3 border-b border-border/50 flex-shrink-0">
-                    <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                            <DialogTitle className="text-lg font-semibold mb-1.5 truncate">
-                                {displayProduct.title}
-                            </DialogTitle>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                                <div className="flex items-center gap-1">
-                                    <span className="font-medium text-foreground">Category:</span>
-                                    <span>{displayProduct.category?.title || "N/A"}</span>
-                                </div>
-                                <Separator orientation="vertical" className="h-3" />
-                                <div className="flex items-center gap-1">
-                                    <Hash className="h-3 w-3" />
-                                    <span>SKU: {displayProduct.code}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <Button asChild variant="outline" size="sm" className="h-7 ml-3 flex-shrink-0 text-xs">
-                            <Link href={`/inventory/products/${displayProduct.id}`}>
-                                <Edit className="mr-1.5 h-3.5 w-3.5" />
-                                Edit
-                            </Link>
-                        </Button>
-                    </div>
+            <DialogContent
+                className={cn(
+                    "flex max-h-[82vh] w-[min(92vw,56rem)] max-w-4xl flex-col gap-0 overflow-hidden rounded-xl border-border/50 p-0 shadow-lg",
+                    "bg-card"
+                )}
+            >
+                <DialogHeader className="sr-only">
+                    <DialogTitle>{displayProduct.title}</DialogTitle>
                 </DialogHeader>
 
                 {loading ? (
-                    <div className="flex items-center justify-center p-12 flex-1">
+                    <div className="flex flex-1 items-center justify-center p-10">
                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                     </div>
                 ) : (
-                <div className="overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
-                    {/* Left Column - Images */}
-                    <div className="space-y-2">
-                        <div className="relative aspect-square w-full rounded-lg border border-border/50 overflow-hidden bg-muted/30">
-                            {displayProduct.imageUrl ? (
-                                <Image
-                                    src={displayProduct.imageUrl}
-                                    alt={displayProduct.title}
-                                    fill
-                                    className="object-cover"
-                                    unoptimized
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                        <div className="grid min-h-0 flex-1 grid-cols-1 gap-0 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.05fr)]">
+                            <div className="border-b border-border/30 p-4 sm:p-4 lg:border-b-0 lg:border-e lg:pe-5">
+                                <ProductMedia
+                                    key={displayProduct.id}
+                                    title={displayProduct.title}
+                                    imageUrls={galleryUrls}
                                 />
-                            ) : (
-                                <div className="flex items-center justify-center h-full">
-                                    <Package className="h-12 w-12 text-muted-foreground" />
-                                </div>
-                            )}
-                        </div>
-                        {/* Additional images grid if available */}
-                        {displayProduct.imageUrl && (
-                            <div className="grid grid-cols-4 gap-2">
-                                {[1, 2, 3, 4].map((i) => (
-                                    <div
-                                        key={i}
-                                        className="relative aspect-square rounded-md border border-border/50 overflow-hidden bg-muted/30 cursor-pointer hover:border-primary/50 transition-colors"
-                                    >
-                                        {displayProduct.imageUrl ? (
-                                            <Image
-                                                src={displayProduct.imageUrl}
-                                                alt={`${displayProduct.title} ${i}`}
-                                                fill
-                                                className="object-cover"
-                                                unoptimized
-                                            />
-                                        ) : (
-                                            <div className="flex items-center justify-center h-full">
-                                                <Package className="h-5 w-5 text-muted-foreground" />
+                            </div>
+
+                            <div
+                                className="min-h-0 overflow-y-auto p-4 sm:p-4 lg:ps-5"
+                                style={{ scrollbarGutter: "stable" }}
+                            >
+                                <div className="mx-auto flex max-w-xl flex-col gap-4 lg:max-w-none">
+                                    <ProductHeader
+                                        title={displayProduct.title}
+                                        sku={displayProduct.code}
+                                        categoryLabel={displayProduct.category?.title ?? "—"}
+                                        priceFormatted={formatMoney(displayPrice)}
+                                        inStock={inStock}
+                                        editHref={`/inventory/products/${displayProduct.id}`}
+                                    />
+
+                                    <div className="h-px w-full bg-border/40" aria-hidden />
+
+                                    <ProductStats
+                                        ordersDisplay="—"
+                                        stockDisplay={displayStock.toLocaleString()}
+                                        revenueDisplay="—"
+                                    />
+
+                                    {descriptionText && descSection != null && (
+                                        <section className="space-y-2">
+                                            <h3 className="text-xs font-medium text-foreground">
+                                                <span className="text-muted-foreground">{descSection}. </span>
+                                                Description
+                                            </h3>
+                                            <div className="rounded-xl border border-border/40 bg-muted/15 p-3 sm:p-3.5">
+                                                <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                                                    {descriptionText}
+                                                </p>
                                             </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        {/* Quick Info Card */}
-                        <Card className="p-4 border border-border/50 bg-muted/20">
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <Box className="h-4 w-4 text-muted-foreground" />
-                                        <span className="text-xs text-muted-foreground">Stock Status</span>
-                                    </div>
-                                    <Badge 
-                                        variant={displayProduct.stock > 0 ? "default" : "secondary"}
-                                        className="text-xs h-5"
-                                    >
-                                        {displayProduct.stock > 0 ? "In Stock" : "Out of Stock"}
-                                    </Badge>
-                                </div>
-                                
-                                <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                                    <div className="flex items-center gap-2">
-                                        <DollarSign className="h-4 w-4 text-muted-foreground" />
-                                        <span className="text-xs text-muted-foreground">Price</span>
-                                    </div>
-                                    <span className="text-sm font-semibold">${displayProduct.price.toFixed(2)}</span>
-                                </div>
-
-                                <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                                    <div className="flex items-center gap-2">
-                                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                                        <span className="text-xs text-muted-foreground">Status</span>
-                                    </div>
-                                    <Badge variant={status.variant} className="text-xs h-5">
-                                        {status.label}
-                                    </Badge>
-                                </div>
-
-                            </div>
-                        </Card>
-                    </div>
-
-                    {/* Right Column - Details */}
-                    <div className="space-y-3">
-                        {/* Price and Stats */}
-                        <div className="space-y-3">
-                            <div className="flex items-baseline gap-2.5">
-                                <span className="text-2xl font-bold">${displayProduct.price.toFixed(2)}</span>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-3 pt-3 border-t border-border/50">
-                                <div>
-                                    <p className="text-xs text-muted-foreground mb-0.5">No. of Orders</p>
-                                    <p className="text-sm font-semibold">-</p>
-                                </div>
-                                <div>
-                                    <p className="text-xs text-muted-foreground mb-0.5">Available Stocks</p>
-                                    <p className="text-sm font-semibold">{displayProduct.stock.toLocaleString()}</p>
-                                </div>
-                                <div>
-                                    <p className="text-xs text-muted-foreground mb-0.5">Total Revenue</p>
-                                    <p className="text-sm font-semibold">-</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <Separator className="my-4" />
-
-                        {/* Description */}
-                        <div>
-                            <h3 className="text-sm font-semibold mb-1.5">Description:</h3>
-                            <p className="text-xs text-muted-foreground leading-relaxed">
-                                {displayProduct.metadata?.description || "No description available."}
-                            </p>
-                        </div>
-
-                        <Separator className="my-4" />
-
-                        {/* Variation Options */}
-                        {displayProduct.hasVariations && displayProduct.variationOptions && displayProduct.variationOptions.length > 0 && (
-                            <>
-                                <div>
-                                    <h3 className="text-sm font-semibold mb-2">Variation Options</h3>
-                                    <div className="space-y-2.5">
-                                        {displayProduct.variationOptions.map((option, optIndex) => (
-                                            <div key={optIndex} className="space-y-1.5">
-                                                <p className="text-xs font-medium text-foreground">{option.name}:</p>
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {option.values && option.values.length > 0 ? (
-                                                        option.values.map((value, valIndex) => (
-                                                            <Badge
-                                                                key={valIndex}
-                                                                variant="outline"
-                                                                className="text-xs h-5 px-2"
-                                                            >
-                                                                {value.value}
-                                                            </Badge>
-                                                        ))
-                                                    ) : (
-                                                        <span className="text-xs text-muted-foreground">No values</span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                                <Separator className="my-4" />
-                            </>
-                        )}
-
-                        {/* Key Features */}
-                        {displayProduct.metadata && (
-                            <div>
-                                <h3 className="text-sm font-semibold mb-2">Key Features:</h3>
-                                <ul className="space-y-1.5">
-                                    {displayProduct.metadata.color && (
-                                        <li className="flex items-center gap-2 text-xs">
-                                            <span className="h-1 w-1 rounded-full bg-primary flex-shrink-0"></span>
-                                            <span>Color: {displayProduct.metadata.color}</span>
-                                        </li>
+                                        </section>
                                     )}
-                                    {displayProduct.metadata.warranty && (
-                                        <li className="flex items-center gap-2 text-xs">
-                                            <span className="h-1 w-1 rounded-full bg-primary flex-shrink-0"></span>
-                                            <span>Warranty: {displayProduct.metadata.warranty}</span>
-                                        </li>
+
+                                    {showVariations && varSection != null && (
+                                        <ProductVariants
+                                            options={sortedVariationOptions}
+                                            selection={variantSelection}
+                                            onSelectValue={handleSelectVariation}
+                                            sectionIndex={varSection}
+                                        />
                                     )}
-                                </ul>
-                            </div>
-                        )}
 
-                        <Separator className="my-4" />
-
-                        {/* Product Information Table */}
-                        <div>
-                            <h3 className="text-sm font-semibold mb-2">Product Information</h3>
-                            <div className="space-y-1.5">
-                                {displayProduct.metadata?.color && (
-                                    <div className="flex justify-between py-1.5 border-b border-border/50">
-                                        <span className="text-xs text-muted-foreground">Color</span>
-                                        <span className="text-xs font-medium">{displayProduct.metadata.color}</span>
-                                    </div>
-                                )}
-                                {displayProduct.metadata?.warranty && (
-                                    <div className="flex justify-between py-1.5 border-b border-border/50">
-                                        <span className="text-xs text-muted-foreground">Warranty</span>
-                                        <span className="text-xs font-medium">{displayProduct.metadata.warranty}</span>
-                                    </div>
-                                )}
-                                <div className="flex justify-between py-1.5">
-                                    <span className="text-xs text-muted-foreground">Stock</span>
-                                    <span className="text-xs font-medium">{displayProduct.stock}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-                    </div>
-
-                    {/* Product Variants - Full Width */}
-                    {displayProduct.hasVariations && displayProduct.productVariants && displayProduct.productVariants.length > 0 && (
-                        <div className="px-5 pb-5">
-                            <Separator className="mb-4" />
-                            <div>
-                                <h3 className="text-sm font-semibold mb-2">Available Variants</h3>
-                                <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
-                                    {displayProduct.productVariants.map((variant) => {
-                                        // Build variant title from variation values
-                                        const variantTitle = variant.variationValues
-                                            ?.map((vv) => vv.value)
-                                            .filter(Boolean)
-                                            .join(" / ") || variant.title || "Variant"
-                                        
-                                        return (
-                                            <div
-                                                key={variant.id}
-                                                className="flex items-center justify-between p-2 rounded-md border border-border/50 bg-muted/20 hover:bg-muted/30 transition-colors"
-                                            >
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-xs font-medium truncate">{variantTitle}</p>
-                                                    <p className="text-xs text-muted-foreground mt-0.5">SKU: {variant.sku}</p>
-                                                </div>
-                                                <div className="text-right ml-3 flex-shrink-0">
-                                                    <p className="text-xs font-semibold">${variant.price.toFixed(2)}</p>
-                                                    <p className="text-xs text-muted-foreground">Stock: {variant.stock}</p>
-                                                    <Badge 
-                                                        variant={variant.isActive ? "default" : "secondary"} 
-                                                        className="text-xs h-4 px-1.5 mt-0.5"
-                                                    >
-                                                        {variant.isActive ? "Active" : "Inactive"}
-                                                    </Badge>
-                                                </div>
+                                    {featureItems.length > 0 && featSection != null && (
+                                        <section className="space-y-2">
+                                            <h3 className="text-xs font-medium text-foreground">
+                                                <span className="text-muted-foreground">{featSection}. </span>
+                                                Key features
+                                            </h3>
+                                            <div className="rounded-xl border border-border/40 bg-muted/15 p-3 sm:p-3.5">
+                                                <ul className="list-disc space-y-1.5 ps-3.5 text-xs text-foreground/90 sm:text-sm">
+                                                    {featureItems.map((item) => (
+                                                        <li key={item} className="leading-relaxed">
+                                                            {item}
+                                                        </li>
+                                                    ))}
+                                                </ul>
                                             </div>
-                                        )
-                                    })}
+                                        </section>
+                                    )}
+
+                                    <ProductInfo rows={infoRows} sectionIndex={infoSection} />
                                 </div>
                             </div>
                         </div>
-                    )}
-                </div>
+                    </div>
                 )}
             </DialogContent>
         </Dialog>
     )
 }
-

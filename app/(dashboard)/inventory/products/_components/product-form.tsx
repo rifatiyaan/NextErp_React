@@ -106,18 +106,18 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                 setLoadingCategories(true)
                 // Fetch all categories from the real backend API
                 const allCategories = await categoryAPI.getAllCategories()
-                
+
                 // Filter to only show active categories
                 // Parent categories: categories without a parentId (null or undefined)
                 const parentCategories = allCategories.filter(
                     (cat) => !cat.parentId && cat.isActive
                 )
-                
+
                 // Subcategories: categories with a parentId
                 const childCategories = allCategories.filter(
                     (cat) => cat.parentId != null && cat.isActive
                 )
-                
+
                 setCategories(parentCategories)
                 setSubCategories(childCategories)
             } catch (error) {
@@ -222,14 +222,14 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
 
             // Reset form with all data
             form.reset(formData)
-            
+
             // Set images state for FileDropzone (support both File and string URLs)
             if (initialData.imageUrl) {
                 setImages([initialData.imageUrl])
             } else {
                 setImages([])
             }
-            
+
             // Ensure field arrays are properly initialized after reset
             // This is needed because form.reset() might not immediately update useFieldArray
             if (formData.hasVariations && formData.variationOptions.length > 0) {
@@ -286,7 +286,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
             const existing = existingVariants.find(
                 (v) => JSON.stringify(v.variationValueKeys.sort()) === JSON.stringify(keys.sort())
             )
-            
+
             if (existing) {
                 return existing
             }
@@ -326,7 +326,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
     // Watch for changes in variation options and regenerate variants
     const watchedVariationOptions = form.watch("variationOptions")
     const hasVariations = form.watch("hasVariations")
-    
+
     // Use refs to track previous values and prevent infinite loops
     const isGeneratingRef = useRef(false)
     const previousOptionsRef = useRef<string>("")
@@ -377,7 +377,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
         const allOptionsValid = watchedVariationOptions.every(
             (opt) => opt && opt.values && opt.values.length > 0
         )
-        
+
         if (allOptionsValid && watchedVariationOptions.length > 0) {
             isGeneratingRef.current = true
             previousOptionsRef.current = optionsKey
@@ -408,7 +408,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                 submitData.hasVariations = true
                 submitData.variationOptions = (data.variationOptions || []).filter((opt: any) => opt.name && opt.values && opt.values.length > 0)
                 submitData.productVariants = (data.productVariants || []).filter((v: any) => v.sku && v.variationValueKeys && v.variationValueKeys.length > 0)
-                
+
                 // Validate that we have valid variation data
                 if (submitData.variationOptions.length === 0 || submitData.productVariants.length === 0) {
                     toast.error("Please add at least one variation option with values and ensure variants are generated")
@@ -420,7 +420,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                 submitData.variationOptions = []
                 submitData.productVariants = []
             }
-            
+
             // Debug logging (remove in production)
             console.log("Submitting product data:", {
                 hasVariations: submitData.hasVariations,
@@ -464,9 +464,9 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
             {/* Modern Header */}
             <div className="flex items-center justify-between pb-2 border-b border-border/40">
                 <div className="flex items-center gap-2.5">
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
+                    <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => router.back()}
                         className="h-8 w-8 hover:bg-muted/50"
                     >
@@ -527,9 +527,9 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                             <FormItem>
                                                 <FormLabel className="text-sm font-medium">Product Name *</FormLabel>
                                                 <FormControl>
-                                                    <Input 
-                                                        placeholder="Enter product name" 
-                                                        {...field} 
+                                                    <Input
+                                                        placeholder="Enter product name"
+                                                        {...field}
                                                         className="h-9"
                                                     />
                                                 </FormControl>
@@ -545,8 +545,8 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                 <FormLabel className="text-sm font-medium">Product Code *</FormLabel>
                                                 <FormControl>
                                                     <div className="flex gap-2">
-                                                        <Input 
-                                                            placeholder="Alphanumeric code or generate" 
+                                                        <Input
+                                                            placeholder="Alphanumeric code or generate"
                                                             {...field}
                                                             onChange={(e) => {
                                                                 const value = e.target.value.replace(/[^A-Za-z0-9]/g, "")
@@ -782,7 +782,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                                                             </Select>
                                                                                             {(isCustomOption || field.value === "") && (
                                                                                                 <Input
-                                                                                                   
+
                                                                                                     {...field}
                                                                                                     value={field.value || ""}
                                                                                                     onChange={(e) => {
@@ -814,13 +814,13 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                             {/* Values Column */}
                                                             <div className="flex flex-wrap items-center gap-1 min-h-[32px]">
                                                                 {currentValues.map((val: any, valueIndex: number) => {
-                                                                    const originalOption = isEdit && originalVariationOptions.length > optionIndex 
-                                                                        ? originalVariationOptions[optionIndex] 
+                                                                    const originalOption = isEdit && originalVariationOptions.length > optionIndex
+                                                                        ? originalVariationOptions[optionIndex]
                                                                         : null
-                                                                    const isOriginalValue = isEdit && originalOption 
+                                                                    const isOriginalValue = isEdit && originalOption
                                                                         ? originalOption.values.some((ov: any) => ov.value === val.value)
                                                                         : false
-                                                                    
+
                                                                     return (
                                                                         <div
                                                                             key={valueIndex}
@@ -868,9 +868,9 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                                         </div>
                                                                     )
                                                                 })}
-                                                                
+
                                                                 {/* Add Value Input */}
-                                                                {!isEdit && selectedOptionName && (
+                                                                {/* {!isEdit && selectedOptionName && (
                                                                     <div className="flex items-center gap-1">
                                                                         {availableValues.length > 0 && (
                                                                             <Select
@@ -934,7 +934,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                                             className="h-7 text-xs w-24"
                                                                         />
                                                                     </div>
-                                                                )}
+                                                                )} */}
                                                                 {isEdit && (
                                                                     <Input
                                                                         placeholder="Type & Enter"
@@ -1003,7 +1003,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                     )
                                                 })}
                                             </div>
-                                            
+
                                             {/* Add New Option Button */}
                                             {!isEdit && (
                                                 <Button
@@ -1147,102 +1147,71 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                         {/* Right Column - Sticky to stay visible while scrolling */}
                         <div className="lg:col-span-1 lg:sticky lg:self-start" style={{ top: '80px' }}>
                             <div className="space-y-4">
-                            {/* Pricing */}
-                            <Card className="border border-border/50">
-                                <CardHeader className="pb-2.5 pt-3 px-4 border-b border-border/50">
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
-                                            <DollarSign className="h-3.5 w-3.5 text-primary" />
+                                {/* Pricing */}
+                                <Card className="border border-border/50">
+                                    <CardHeader className="pb-2.5 pt-3 px-4 border-b border-border/50">
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
+                                                <DollarSign className="h-3.5 w-3.5 text-primary" />
+                                            </div>
+                                            <CardTitle className="text-base font-semibold">Pricing</CardTitle>
                                         </div>
-                                        <CardTitle className="text-base font-semibold">Pricing</CardTitle>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="space-y-3 pt-3 px-4 pb-4">
-                                    <FormField
-                                        control={form.control}
-                                        name="price"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="text-sm font-medium">
-                                                    {hasVariations ? "Base Price" : "Product Price *"}
-                                                </FormLabel>
-                                                <FormControl>
-                                                    <div className="relative">
-                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                                                        <Input
-                                                            type="number"
-                                                            step="0.01"
-                                                            placeholder="0.00"
-                                                            {...field}
-                                                            onChange={(e) =>
-                                                                field.onChange(e.target.valueAsNumber || 0)
-                                                            }
-                                                            className="h-9 pl-7"
-                                                        />
-                                                    </div>
-                                                </FormControl>
-                                                <FormDescription className="text-xs text-muted-foreground">
-                                                    {hasVariations
-                                                        ? "Default price for all variants. Can be overridden per variant."
-                                                        : "Set the selling price for this product"}
-                                                </FormDescription>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                </CardContent>
-                            </Card>
-
-                            {/* Categories */}
-                            <Card className="border border-border/50">
-                                <CardHeader className="pb-2.5 pt-3 px-4 border-b border-border/50">
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
-                                            <FolderTree className="h-3.5 w-3.5 text-primary" />
-                                        </div>
-                                        <CardTitle className="text-base font-semibold">Categories</CardTitle>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="space-y-3 pt-3 px-4 pb-4">
-                                    <FormField
-                                        control={form.control}
-                                        name="categoryId"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="text-sm font-medium">Category *</FormLabel>
-                                                <FormControl>
-                                                    <Combobox
-                                                        options={categories.map((cat) => ({
-                                                            value: String(cat.id),
-                                                            label: cat.title,
-                                                        }))}
-                                                        value={field.value && field.value > 0 ? String(field.value) : undefined}
-                                                        onValueChange={(value) => {
-                                                            const numValue = value ? Number(value) : undefined
-                                                            field.onChange(numValue && numValue > 0 ? numValue : undefined)
-                                                            // Reset subcategory when category changes
-                                                            form.setValue("subCategoryId", undefined)
-                                                        }}
-                                                        placeholder="Select a category"
-                                                        searchPlaceholder="Search categories..."
-                                                        emptyMessage="No categories found."
-                                                        disabled={loadingCategories}
-                                                    />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    {selectedCategoryId && selectedCategoryId > 0 && (
+                                    </CardHeader>
+                                    <CardContent className="space-y-3 pt-3 px-4 pb-4">
                                         <FormField
                                             control={form.control}
-                                            name="subCategoryId"
+                                            name="price"
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel className="text-sm font-medium">Sub Category</FormLabel>
+                                                    <FormLabel className="text-sm font-medium">
+                                                        {hasVariations ? "Base Price" : "Product Price *"}
+                                                    </FormLabel>
+                                                    <FormControl>
+                                                        <div className="relative">
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                placeholder="0.00"
+                                                                {...field}
+                                                                onChange={(e) =>
+                                                                    field.onChange(e.target.valueAsNumber || 0)
+                                                                }
+                                                                className="h-9 pl-7"
+                                                            />
+                                                        </div>
+                                                    </FormControl>
+                                                    <FormDescription className="text-xs text-muted-foreground">
+                                                        {hasVariations
+                                                            ? "Default price for all variants. Can be overridden per variant."
+                                                            : "Set the selling price for this product"}
+                                                    </FormDescription>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </CardContent>
+                                </Card>
+
+                                {/* Categories */}
+                                <Card className="border border-border/50">
+                                    <CardHeader className="pb-2.5 pt-3 px-4 border-b border-border/50">
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
+                                                <FolderTree className="h-3.5 w-3.5 text-primary" />
+                                            </div>
+                                            <CardTitle className="text-base font-semibold">Categories</CardTitle>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3 pt-3 px-4 pb-4">
+                                        <FormField
+                                            control={form.control}
+                                            name="categoryId"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-sm font-medium">Category *</FormLabel>
                                                     <FormControl>
                                                         <Combobox
-                                                            options={filteredSubCategories.map((cat) => ({
+                                                            options={categories.map((cat) => ({
                                                                 value: String(cat.id),
                                                                 label: cat.title,
                                                             }))}
@@ -1250,25 +1219,55 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                             onValueChange={(value) => {
                                                                 const numValue = value ? Number(value) : undefined
                                                                 field.onChange(numValue && numValue > 0 ? numValue : undefined)
+                                                                // Reset subcategory when category changes
+                                                                form.setValue("subCategoryId", undefined)
                                                             }}
-                                                            placeholder="Select a sub category"
-                                                            searchPlaceholder="Search subcategories..."
-                                                            emptyMessage="No subcategories found."
-                                                            disabled={loadingCategories || filteredSubCategories.length === 0}
+                                                            placeholder="Select a category"
+                                                            searchPlaceholder="Search categories..."
+                                                            emptyMessage="No categories found."
+                                                            disabled={loadingCategories}
                                                         />
                                                     </FormControl>
-                                                    <FormDescription className="text-xs text-muted-foreground">
-                                                        {filteredSubCategories.length === 0
-                                                            ? "This category has no subcategories"
-                                                            : `${filteredSubCategories.length} subcategor${filteredSubCategories.length === 1 ? "y" : "ies"} available`}
-                                                    </FormDescription>
                                                     <FormMessage />
                                                 </FormItem>
                                             )}
                                         />
-                                    )}
-                                </CardContent>
-                            </Card>
+                                        {selectedCategoryId > 0 && (
+                                            <FormField
+                                                control={form.control}
+                                                name="subCategoryId"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="text-sm font-medium">Sub Category</FormLabel>
+                                                        <FormControl>
+                                                            <Combobox
+                                                                options={filteredSubCategories.map((cat) => ({
+                                                                    value: String(cat.id),
+                                                                    label: cat.title,
+                                                                }))}
+                                                                value={field.value && field.value > 0 ? String(field.value) : undefined}
+                                                                onValueChange={(value) => {
+                                                                    const numValue = value ? Number(value) : undefined
+                                                                    field.onChange(numValue && numValue > 0 ? numValue : undefined)
+                                                                }}
+                                                                placeholder="Select a sub category"
+                                                                searchPlaceholder="Search subcategories..."
+                                                                emptyMessage="No subcategories found."
+                                                                disabled={loadingCategories || filteredSubCategories.length === 0}
+                                                            />
+                                                        </FormControl>
+                                                        <FormDescription className="text-xs text-muted-foreground">
+                                                            {filteredSubCategories.length === 0
+                                                                ? "This category has no subcategories"
+                                                                : `${filteredSubCategories.length} subcategor${filteredSubCategories.length === 1 ? "y" : "ies"} available`}
+                                                        </FormDescription>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        )}
+                                    </CardContent>
+                                </Card>
                             </div>
                         </div>
                     </div>

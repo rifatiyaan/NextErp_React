@@ -9,6 +9,7 @@ function normalizeProduct(p: Record<string, unknown>): Product {
         price: Number(p.price ?? p.Price ?? 0),
         stock: Number(p.stock ?? p.Stock ?? 0),
         categoryId: Number(p.categoryId ?? p.CategoryId ?? 0),
+        createdAt: (p.createdAt ?? p.CreatedAt) as string | null | undefined,
         imageUrl: (p.imageUrl ?? p.ImageUrl) as string | null | undefined,
         metadata: (p.metadata ?? p.Metadata) as Product["metadata"],
         category: (p.category ?? p.Category) as Product["category"],

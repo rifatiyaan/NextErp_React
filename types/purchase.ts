@@ -1,7 +1,7 @@
 export interface PurchaseItem {
     id?: string
     title: string
-    productId: number
+    productVariantId: number
     productTitle?: string
     quantity: number
     unitCost: number
@@ -53,7 +53,7 @@ export interface PurchaseItemMetadata {
 
 export interface PurchaseItemRequest {
     title: string
-    productId: number
+    productVariantId: number
     quantity: number
     unitCost: number
     metadata?: PurchaseItemMetadata

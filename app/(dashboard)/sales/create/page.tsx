@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { productAPI } from "@/lib/api/product"
 import { categoryAPI } from "@/lib/api/category"
+import { pickPrimaryVariant } from "@/lib/product-variant"
 import type { Product } from "@/types/product"
 import type { Category } from "@/types/category"
 import { toast } from "sonner"
@@ -31,14 +32,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Loader2 } from "lucide-react"
-interface CartItem extends Product {
+interface CartLine {
+  productVariantId: number
+  productId: number
+  title: string
+  price: number
+  stock: number
+  imageUrl?: string | null
   quantity: number
 }
 
 export default function CreateSalesPage() {
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
-  const [cart, setCart] = useState<CartItem[]>([])
+  const [cart, setCart] = useState<CartLine[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
@@ -104,11 +111,14 @@ export default function CreateSalesPage() {
     return () => clearTimeout(timer)
   }, [fetchProducts])
 
-  // Add product to cart
   const addToCart = (product: Product) => {
-    // Check stock availability
-    const availableStock = product.stock ?? 0
-    
+    const variant = pickPrimaryVariant(product)
+    if (!variant) {
+      toast.error(`${product.title} has no sellable SKU.`)
+      return
+    }
+
+    const availableStock = variant.stock ?? 0
     if (availableStock <= 0) {
       toast.error(`${product.title} is out of stock. Please purchase stock first.`, {
         duration: 5000,
@@ -116,37 +126,52 @@ export default function CreateSalesPage() {
       return
     }
 
+    const lineTitle = product.hasVariations
+      ? `${product.title} (${variant.title})`
+      : product.title
+
     setCart((prevCart) => {
-      const existingItem = prevCart.find((item) => item.id === product.id)
+      const existingItem = prevCart.find((item) => item.productVariantId === variant.id)
       if (existingItem) {
         const newQuantity = existingItem.quantity + 1
         if (newQuantity > availableStock) {
           toast.error(
-            `Insufficient stock for ${product.title}. Available: ${availableStock}, Requested: ${newQuantity}`,
+            `Insufficient stock for ${lineTitle}. Available: ${availableStock}, Requested: ${newQuantity}`,
             { duration: 5000 }
           )
           return prevCart
         }
         return prevCart.map((item) =>
-          item.id === product.id
+          item.productVariantId === variant.id
             ? { ...item, quantity: newQuantity }
             : item
         )
       }
-      return [...prevCart, { ...product, quantity: 1 }]
+      return [
+        ...prevCart,
+        {
+          productVariantId: variant.id,
+          productId: product.id,
+          title: lineTitle,
+          price: variant.price,
+          stock: variant.stock,
+          imageUrl: product.imageUrl,
+          quantity: 1,
+        },
+      ]
     })
-    toast.success(`${product.title} added to cart`)
+    toast.success(`${lineTitle} added to cart`)
   }
 
   // Update cart item quantity
-  const updateQuantity = (productId: number, delta: number) => {
+  const updateQuantity = (productVariantId: number, delta: number) => {
     setCart((prevCart) => {
-      const item = prevCart.find((item) => item.id === productId)
+      const item = prevCart.find((i) => i.productVariantId === productVariantId)
       if (!item) return prevCart
 
       const newQuantity = item.quantity + delta
       if (newQuantity <= 0) {
-        return prevCart.filter((item) => item.id !== productId)
+        return prevCart.filter((i) => i.productVariantId !== productVariantId)
       }
 
       const availableStock = item.stock ?? 0
@@ -158,17 +183,14 @@ export default function CreateSalesPage() {
         return prevCart
       }
 
-      return prevCart.map((item) =>
-        item.id === productId
-          ? { ...item, quantity: newQuantity }
-          : item
+      return prevCart.map((i) =>
+        i.productVariantId === productVariantId ? { ...i, quantity: newQuantity } : i
       )
     })
   }
 
-  // Remove item from cart
-  const removeFromCart = (productId: number) => {
-    setCart((prevCart) => prevCart.filter((item) => item.id !== productId))
+  const removeFromCart = (productVariantId: number) => {
+    setCart((prevCart) => prevCart.filter((i) => i.productVariantId !== productVariantId))
   }
 
   // Calculate totals
@@ -204,8 +226,8 @@ export default function CreateSalesPage() {
         tax: tax,
         finalAmount: finalAmount,
         paymentMethod: paymentMethod,
-        items: cart.map(item => ({
-          productId: item.id,
+        items: cart.map((item) => ({
+          productVariantId: item.productVariantId,
           quantity: item.quantity,
           price: item.price,
           subtotal: item.price * item.quantity,
@@ -312,7 +334,10 @@ export default function CreateSalesPage() {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 p-1">
               {products.map((product) => {
-                const isOutOfStock = (product.stock ?? 0) <= 0
+                const primary = pickPrimaryVariant(product)
+                const isOutOfStock = (primary?.stock ?? 0) <= 0
+                const displayPrice = primary?.price ?? product.price
+                const displayStock = primary?.stock ?? product.stock ?? 0
                 return (
                   <Card
                     key={product.id}
@@ -342,10 +367,10 @@ export default function CreateSalesPage() {
                     <CardContent className="p-3">
                       <h3 className="font-semibold text-sm mb-1 truncate">{product.title}</h3>
                       <p className="text-base font-bold text-primary">
-                        ${product.price.toFixed(2)}
+                        ${displayPrice.toFixed(2)}
                       </p>
                       <p className="text-xs mt-1 text-muted-foreground">
-                        Stock: {product.stock ?? 0}
+                        Stock: {displayStock}
                       </p>
                     </CardContent>
                   </Card>
@@ -383,7 +408,7 @@ export default function CreateSalesPage() {
               <div className="space-y-3 p-4">
                 {cart.map((item) => (
                   <div
-                    key={item.id}
+                    key={item.productVariantId}
                     className="flex gap-3 items-start p-3 rounded-lg border border-border/50 bg-muted/20"
                   >
                     <div className="relative w-14 h-14 rounded-md bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
@@ -410,7 +435,7 @@ export default function CreateSalesPage() {
                           size="icon"
                           variant="outline"
                           className="h-7 w-7"
-                          onClick={() => updateQuantity(item.id, -1)}
+                          onClick={() => updateQuantity(item.productVariantId, -1)}
                         >
                           <Minus className="h-3 w-3" />
                         </Button>
@@ -421,7 +446,7 @@ export default function CreateSalesPage() {
                           size="icon"
                           variant="outline"
                           className="h-7 w-7"
-                          onClick={() => updateQuantity(item.id, 1)}
+                          onClick={() => updateQuantity(item.productVariantId, 1)}
                         >
                           <Plus className="h-3 w-3" />
                         </Button>
@@ -435,7 +460,7 @@ export default function CreateSalesPage() {
                         size="icon"
                         variant="ghost"
                         className="h-6 w-6 mt-1 text-destructive"
-                        onClick={() => removeFromCart(item.id)}
+                        onClick={() => removeFromCart(item.productVariantId)}
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -513,7 +538,7 @@ export default function CreateSalesPage() {
                       <div className="space-y-2">
                         {cart.map((item) => (
                           <div
-                            key={item.id}
+                            key={item.productVariantId}
                             className="flex justify-between items-center p-2 rounded border border-border/50 bg-muted/20"
                           >
                             <div className="flex-1 min-w-0">

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { moduleAPI } from "@/lib/api/module"
-import { Module, ModuleType } from "@/types/module"
+import { Module, ModuleType, coerceModuleType } from "@/types/module"
 import { DataTable } from "./data-table"
 import { columns } from "./columns"
 import { Button } from "@/components/ui/button"
@@ -67,7 +67,7 @@ export default function ModulesPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">
-                            {data.filter((m) => m.type === ModuleType.Link).length}
+                            {data.filter((m) => coerceModuleType(m.type) === ModuleType.Link).length}
                         </div>
                         <p className="text-xs text-muted-foreground">Submodules/Links</p>
                     </CardContent>

@@ -1,5 +1,6 @@
 import { fetchAPI } from "@/lib/api/client"
 import type { Module, MenuItem } from "@/types/module"
+import { coerceModuleType } from "@/types/module"
 
 export interface CreateModuleRequest {
     title: string
@@ -76,7 +77,7 @@ export function buildMenuTree(modules: Module[]): MenuItem[] {
         url: m.url,
         parentId: m.parentId,
         children: m.children ? m.children.sort((a, b) => a.order - b.order).map(mapToMenuItem) : [],
-        type: m.type,
+        type: coerceModuleType(m.type),
         order: m.order,
         isExternal: m.isExternal,
         badgeText: m.metadata?.badgeText,

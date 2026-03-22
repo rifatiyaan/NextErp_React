@@ -18,7 +18,7 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { moduleAPI, CreateModuleRequest } from "@/lib/api/module"
-import { Module, ModuleType } from "@/types/module"
+import { Module, ModuleType, coerceModuleType } from "@/types/module"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { Loader } from "@/components/ui/loader"
@@ -125,7 +125,7 @@ export function ModuleForm({ moduleId }: ModuleFormProps) {
                     setValue("icon", module.icon || null)
                     setValue("url", module.url || null)
                     setValue("parentId", module.parentId || null)
-                    setValue("type", module.type)
+                    setValue("type", coerceModuleType(module.type))
                     setValue("description", module.description || null)
                     setValue("version", module.version || null)
                     setValue("isInstalled", module.isInstalled)

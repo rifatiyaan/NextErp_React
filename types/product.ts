@@ -37,6 +37,8 @@ export interface Product {
     price: number
     stock: number
     categoryId: number
+    /** ISO date from API when present */
+    createdAt?: string | null
     imageUrl?: string | null
     metadata?: ProductMetadata
     category?: Category | null

@@ -8,7 +8,7 @@ import { ChevronDown } from "lucide-react"
 import type { MenuItem } from "@/types/module"
 import { useMenu } from "@/contexts/menu-context"
 import { useSidebarView } from "@/contexts/sidebar-view-context"
-import { ModuleType } from "@/types/module"
+import { ModuleType, coerceModuleType } from "@/types/module"
 
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -42,7 +42,7 @@ export function Sidebar() {
     // Derive sidebar items from menu tree (same filtering as before, from context)
     const menuItems = useMemo(() => {
         const filtered = menuTree
-            .filter((m) => m.type === ModuleType.Module)
+            .filter((m) => coerceModuleType(m.type) === ModuleType.Module)
             .sort((a, b) => a.order - b.order)
         if (mode === "grid") {
             return filtered.map((m) => ({ ...m, children: [] }))

@@ -1,7 +1,7 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { Module, ModuleType } from "@/types/module"
+import { Module, ModuleType, coerceModuleType } from "@/types/module"
 import { MoreHorizontal, Pencil, Trash } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -71,7 +71,7 @@ export const columns: ColumnDef<Module>[] = [
         accessorKey: "type",
         header: "Type",
         cell: ({ row }) => {
-            const type = row.getValue("type") as ModuleType
+            const type = coerceModuleType(row.getValue("type"))
             return (
                 <Badge variant={type === ModuleType.Module ? "default" : "secondary"}>
                     {type === ModuleType.Module ? "Module" : "Link"}

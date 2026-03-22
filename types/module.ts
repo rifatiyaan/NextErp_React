@@ -5,6 +5,17 @@ export enum ModuleType {
     Link = 2,
 }
 
+/** Normalize API values: numeric enum, string names (JsonStringEnumConverter), or string digits. */
+export function coerceModuleType(type: unknown): ModuleType {
+    if (type === ModuleType.Module || type === 1 || type === "1" || type === "Module") {
+        return ModuleType.Module
+    }
+    if (type === ModuleType.Link || type === 2 || type === "2" || type === "Link") {
+        return ModuleType.Link
+    }
+    return ModuleType.Link
+}
+
 export interface ModuleMetadata {
     // From metadata object in JSON
     roles?: string[]
