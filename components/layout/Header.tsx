@@ -15,7 +15,7 @@ export function Header({
 }) {
     return (
         <header className="sticky top-0 z-50 w-full bg-background border-b border-sidebar-border">
-            <div className="container flex h-14 justify-between items-center gap-4">
+            <div className="container flex h-12 justify-between items-center gap-3">
                 <ToggleMobileSidebar />
                 <div className="grow flex justify-end gap-2">
                     <SidebarTrigger className="hidden lg:flex lg:me-auto" />

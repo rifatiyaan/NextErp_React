@@ -53,7 +53,7 @@ export function MainLayout({ children }: { children: ReactNode }) {
                 <Sidebar />
                 <div className="flex flex-col flex-1 min-w-0 transition-[margin] duration-300 ease-in-out bg-background">
                     <Header dictionary={dictionary} />
-                    <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-y-auto bg-background">
+                    <main className="flex-1 overflow-y-auto bg-background p-2 sm:p-3 lg:p-4">
                         <DynamicBreadcrumb />
                         {children}
                     </main>

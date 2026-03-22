@@ -25,7 +25,7 @@ export function CardHeader({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="card-header"
-      className={cn("flex flex-col space-y-1.5 p-4", className)}
+      className={cn("flex flex-col space-y-1.5 p-3", className)}
       {...props}
     />
   )
@@ -74,7 +74,7 @@ export function CardFooter({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="card-content"
-      className={cn("flex items-center p-4 pt-0", className)}
+      className={cn("flex items-center p-3 pt-0", className)}
       {...props}
     />
   )

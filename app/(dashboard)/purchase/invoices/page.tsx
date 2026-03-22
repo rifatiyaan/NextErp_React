@@ -1,16 +1,13 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
-import { purchaseAPI } from "@/lib/api/purchase"
+import { useEffect, useState, useCallback, useMemo } from "react"
+import { purchaseAPI, type PurchaseListFilters } from "@/lib/api/purchase"
+import { supplierAPI } from "@/lib/api/supplier"
+import type { Supplier } from "@/lib/api/supplier"
 import { Purchase } from "@/types/purchase"
 import { DataTable } from "@/app/(dashboard)/inventory/products/data-table"
 import { createColumns } from "./columns"
-import { Button } from "@/components/ui/button"
 import { Loader } from "@/components/ui/loader"
-import Link from "next/link"
-import { Input } from "@/components/ui/input"
-import { Search, Loader2, Plus } from "lucide-react"
-import { TopBar } from "@/components/layout/TopBar"
 import {
     Dialog,
     DialogContent,
@@ -19,6 +16,20 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import { format } from "date-fns"
+import { Loader2, Plus } from "lucide-react"
+import { TopBar } from "@/components/layout/TopBar"
+import {
+    FilterBar,
+    type FilterBarFieldConfig,
+    type FilterBarValues,
+} from "@/components/shared/filter-bar"
+import { cn } from "@/lib/utils"
+
+const STATUS_OPTIONS = [
+    { value: "active", label: "Active" },
+    { value: "inactive", label: "Inactive" },
+] as const
+
 export default function PurchaseListPage() {
     const [data, setData] = useState<Purchase[]>([])
     const [loading, setLoading] = useState(true)
@@ -30,60 +41,89 @@ export default function PurchaseListPage() {
     const [isSearching, setIsSearching] = useState(false)
     const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const [suppliers, setSuppliers] = useState<Supplier[]>([])
+    const [appliedFilters, setAppliedFilters] = useState<FilterBarValues>({})
 
-    // Debounce search query
+    const filtersConfig = useMemo<FilterBarFieldConfig[]>(() => {
+        const supplierOptions = suppliers
+            .filter((s) => s.isActive)
+            .map((s) => ({ value: String(s.id), label: s.title }))
+        return [
+            {
+                key: "status",
+                label: "Status",
+                options: [...STATUS_OPTIONS],
+            },
+            {
+                key: "supplier",
+                label: "Supplier",
+                options: supplierOptions,
+            },
+        ]
+    }, [suppliers])
+
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const res = await supplierAPI.getSuppliers(1, 1000)
+                setSuppliers(res.data ?? [])
+            } catch {
+                setSuppliers([])
+            }
+        }
+        void load()
+    }, [])
+
     useEffect(() => {
         if (searchQuery !== debouncedSearchQuery) {
             setIsSearching(true)
         }
-
         const timer = setTimeout(() => {
             setDebouncedSearchQuery(searchQuery)
             setIsSearching(false)
         }, 500)
-
         return () => clearTimeout(timer)
     }, [searchQuery, debouncedSearchQuery])
 
-    const fetchData = useCallback(async (
-        page: number,
-        size: number,
-        search?: string
-    ) => {
-        setLoading(true)
-        try {
-            const response = await purchaseAPI.getPurchases(
-                page,
-                size,
-                search || undefined
-            )
-            if (response && response.data) {
-                setData(response.data)
-                setTotal(response.total)
-            } else {
+    const fetchData = useCallback(
+        async (page: number, size: number, search?: string, filters?: PurchaseListFilters) => {
+            setLoading(true)
+            try {
+                const response = await purchaseAPI.getPurchases(
+                    page,
+                    size,
+                    search || undefined,
+                    undefined,
+                    filters
+                )
+                if (response?.data) {
+                    setData(response.data)
+                    setTotal(response.total)
+                } else {
+                    setData([])
+                    setTotal(0)
+                }
+            } catch {
                 setData([])
                 setTotal(0)
+            } finally {
+                setLoading(false)
             }
-        } catch (error) {
-            console.error("Failed to fetch purchases:", error)
-            setData([])
-            setTotal(0)
-        } finally {
-            setLoading(false)
-        }
-    }, [])
+        },
+        []
+    )
 
     useEffect(() => {
         setPageIndex(1)
     }, [debouncedSearchQuery])
 
     useEffect(() => {
-        fetchData(
-            pageIndex,
-            pageSize,
-            debouncedSearchQuery || undefined
-        )
-    }, [pageIndex, pageSize, debouncedSearchQuery, fetchData])
+        const apiFilters: PurchaseListFilters = {
+            status: appliedFilters.status ?? [],
+            supplier: appliedFilters.supplier ?? [],
+        }
+        void fetchData(pageIndex, pageSize, debouncedSearchQuery || undefined, apiFilters)
+    }, [pageIndex, pageSize, debouncedSearchQuery, appliedFilters, fetchData])
 
     const pageCount = Math.ceil(total / pageSize) || 1
 
@@ -92,26 +132,45 @@ export default function PurchaseListPage() {
         setIsModalOpen(true)
     }
 
+    const handleApplyFilters = useCallback((next: FilterBarValues) => {
+        setAppliedFilters(next)
+        setPageIndex(1)
+    }, [])
+
     const columns = createColumns({
         onViewDetails: handleViewDetails,
         pageIndex,
-        pageSize
+        pageSize,
     })
 
     return (
         <div className="space-y-3">
             <TopBar
-                title="Purchase Invoices"
+                title="Purchase invoices"
+                actionButtonClassName="rounded-sm"
                 search={{
-                    placeholder: "Search purchases...",
+                    placeholder: "Search purchases…",
                     value: searchQuery,
                     onChange: setSearchQuery,
+                    inputClassName: "rounded-sm",
                 }}
+                filters={
+                    <div className="min-w-0 flex-1 basis-full sm:basis-[min(100%,28rem)]">
+                        <FilterBar
+                            fields={filtersConfig}
+                            applied={appliedFilters}
+                            onApply={handleApplyFilters}
+                            className="rounded-sm"
+                        />
+                    </div>
+                }
                 actions={[
                     {
-                        label: "New Purchase",
+                        label: "New purchase",
                         icon: <Plus className="h-3.5 w-3.5" />,
-                        onClick: () => window.location.href = "/purchase/create",
+                        onClick: () => {
+                            window.location.href = "/purchase/create"
+                        },
                         variant: "default",
                         size: "sm",
                     },
@@ -119,16 +178,23 @@ export default function PurchaseListPage() {
             />
 
             {loading ? (
-                <Loader text="Loading purchases..." />
+                <Loader text="Loading purchases…" />
             ) : (
-                <div className="relative border rounded-lg bg-card">
-                    {isSearching && (
-                        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
+                <div
+                    className={cn(
+                        "relative rounded-sm border border-border bg-card",
+                        "shadow-sm"
+                    )}
+                >
+                    {isSearching ? (
+                        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-sm bg-background/80 backdrop-blur-sm">
                             <Loader2 className="h-5 w-5 animate-spin text-primary" />
                         </div>
-                    )}
-                    <div className="overflow-x-auto">
+                    ) : null}
+                    <div className="overflow-x-auto rounded-sm">
                         <DataTable
+                            className="rounded-sm"
+                            pageSizeSelectClassName="rounded-sm"
                             columns={columns}
                             data={data}
                             pageCount={pageCount}
@@ -146,57 +212,85 @@ export default function PurchaseListPage() {
             )}
 
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                <DialogContent className="max-h-[80vh] max-w-3xl overflow-y-auto rounded-sm border-border">
                     <DialogHeader>
-                        <DialogTitle>Purchase Details</DialogTitle>
+                        <DialogTitle>Purchase details</DialogTitle>
                         <DialogDescription>
-                            View complete purchase information
+                            Complete purchase information for this invoice.
                         </DialogDescription>
                     </DialogHeader>
-                    {selectedPurchase && (
+                    {selectedPurchase ? (
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Purchase Number</p>
-                                    <p className="text-base font-semibold">{selectedPurchase.purchaseNumber}</p>
+                                    <p className="text-sm font-medium text-muted-foreground">
+                                        Purchase number
+                                    </p>
+                                    <p className="text-base font-semibold">
+                                        {selectedPurchase.purchaseNumber}
+                                    </p>
                                 </div>
                                 <div>
                                     <p className="text-sm font-medium text-muted-foreground">Date</p>
                                     <p className="text-base">
-                                        {format(new Date(selectedPurchase.purchaseDate), "MMM dd, yyyy")}
+                                        {format(
+                                            new Date(selectedPurchase.purchaseDate),
+                                            "MMM dd, yyyy"
+                                        )}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Supplier</p>
+                                    <p className="text-sm font-medium text-muted-foreground">
+                                        Supplier
+                                    </p>
                                     <p className="text-base">{selectedPurchase.supplierName}</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Total Amount</p>
+                                    <p className="text-sm font-medium text-muted-foreground">
+                                        Total amount
+                                    </p>
                                     <p className="text-base font-semibold">
                                         ${selectedPurchase.totalAmount.toFixed(2)}
                                     </p>
                                 </div>
                             </div>
                             <div>
-                                <p className="text-sm font-medium text-muted-foreground mb-2">Items</p>
-                                <div className="border rounded-lg">
+                                <p className="mb-2 text-sm font-medium text-muted-foreground">
+                                    Items
+                                </p>
+                                <div className="rounded-sm border border-border">
                                     <table className="w-full">
                                         <thead className="bg-muted">
                                             <tr>
-                                                <th className="text-left p-2 text-sm font-medium">Product</th>
-                                                <th className="text-left p-2 text-sm font-medium">Quantity</th>
-                                                <th className="text-left p-2 text-sm font-medium">Unit Cost</th>
-                                                <th className="text-left p-2 text-sm font-medium">Total</th>
+                                                <th className="p-2 text-left text-sm font-medium">
+                                                    Product
+                                                </th>
+                                                <th className="p-2 text-left text-sm font-medium">
+                                                    Quantity
+                                                </th>
+                                                <th className="p-2 text-left text-sm font-medium">
+                                                    Unit cost
+                                                </th>
+                                                <th className="p-2 text-left text-sm font-medium">
+                                                    Total
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {selectedPurchase.items.map((item) => (
-                                                <tr key={item.id} className="border-t">
-                                                    <td className="p-2">{item.productTitle || item.title}</td>
+                                                <tr key={item.id} className="border-t border-border">
+                                                    <td className="p-2">
+                                                        {item.productTitle || item.title}
+                                                    </td>
                                                     <td className="p-2">{item.quantity}</td>
-                                                    <td className="p-2">${item.unitCost.toFixed(2)}</td>
+                                                    <td className="p-2">
+                                                        ${item.unitCost.toFixed(2)}
+                                                    </td>
                                                     <td className="p-2 font-medium">
-                                                        ${((item.quantity || 0) * (item.unitCost || 0)).toFixed(2)}
+                                                        $
+                                                        {(
+                                                            (item.quantity || 0) * (item.unitCost || 0)
+                                                        ).toFixed(2)}
                                                     </td>
                                                 </tr>
                                             ))}
@@ -204,17 +298,18 @@ export default function PurchaseListPage() {
                                     </table>
                                 </div>
                             </div>
-                            {selectedPurchase.metadata?.notes && (
+                            {selectedPurchase.metadata?.notes ? (
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Notes</p>
+                                    <p className="text-sm font-medium text-muted-foreground">
+                                        Notes
+                                    </p>
                                     <p className="text-base">{selectedPurchase.metadata.notes}</p>
                                 </div>
-                            )}
+                            ) : null}
                         </div>
-                    )}
+                    ) : null}
                 </DialogContent>
             </Dialog>
         </div>
     )
 }
-

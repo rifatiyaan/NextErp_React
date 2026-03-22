@@ -27,6 +27,8 @@ interface ColumnsProps {
     onDelete?: (productId: number, productTitle: string) => void
     pageIndex?: number
     pageSize?: number
+    /** Extra stock columns from GET /api/Product?includeStock=true */
+    withStock?: boolean
 }
 
 export const createColumns = (props?: ColumnsProps): ColumnDef<Product>[] => [
@@ -146,6 +148,41 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Product>[] => [
             return <Badge variant={config.variant} className="text-xs h-5">{config.label}</Badge>
         },
     },
+    ...(props?.withStock
+        ? ([
+              {
+                  id: "totalAvailableQuantity",
+                  header: "Stock qty",
+                  cell: ({ row }) => {
+                      const q = row.original.totalAvailableQuantity
+                      const text =
+                          q !== null && q !== undefined && !Number.isNaN(Number(q))
+                              ? String(q)
+                              : "—"
+                      return <span className="tabular-nums text-sm">{text}</span>
+                  },
+              },
+              {
+                  id: "lowStock",
+                  header: "Low",
+                  cell: ({ row }) => {
+                      if (row.original.hasLowStock === true) {
+                          return (
+                              <Badge variant="destructive" className="text-xs h-5">
+                                  Low
+                              </Badge>
+                          )
+                      }
+                      if (row.original.hasLowStock === false) {
+                          return (
+                              <span className="text-xs text-muted-foreground">OK</span>
+                          )
+                      }
+                      return <span className="text-xs text-muted-foreground">—</span>
+                  },
+              },
+          ] satisfies ColumnDef<Product>[])
+        : []),
     {
         id: "actions",
         header: "",

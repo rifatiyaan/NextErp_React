@@ -2,6 +2,21 @@ import type { NavigationType } from "@/types"
 
 export const navigationsData: NavigationType[] = [
     {
+        title: "ERP",
+        items: [
+            {
+                title: "Dashboard",
+                href: "/dashboard",
+                iconName: "layout-dashboard",
+            },
+            {
+                title: "Sales",
+                href: "/dashboard/sales",
+                iconName: "file-text",
+            },
+        ],
+    },
+    {
         title: "Dashboards",
         items: [
             {

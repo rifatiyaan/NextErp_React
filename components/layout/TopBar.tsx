@@ -12,6 +12,7 @@ export interface TopBarAction {
     onClick: () => void
     variant?: "default" | "outline" | "ghost" | "secondary" | "destructive"
     size?: "default" | "sm" | "lg" | "icon"
+    className?: string
 }
 
 export interface TopBarProps {
@@ -22,11 +23,15 @@ export interface TopBarProps {
         value: string
         onChange: (value: string) => void
         onSearch?: (value: string) => void
+        /** Merged into search Input (e.g. rounded-sm on a specific page). */
+        inputClassName?: string
     }
     actions?: TopBarAction[]
     filters?: ReactNode
     columnVisibility?: ReactNode
     className?: string
+    /** Applied to every action button (e.g. rounded-sm on a list page). */
+    actionButtonClassName?: string
 }
 
 export function TopBar({
@@ -37,6 +42,7 @@ export function TopBar({
     filters,
     columnVisibility,
     className,
+    actionButtonClassName,
 }: TopBarProps) {
     return (
         <div
@@ -64,7 +70,7 @@ export function TopBar({
                                     variant={action.variant || "default"}
                                     size={action.size || "sm"}
                                     onClick={action.onClick}
-                                    className="h-8"
+                                    className={cn("h-8", actionButtonClassName, action.className)}
                                 >
                                     {action.icon && <span className="mr-1.5">{action.icon}</span>}
                                     {action.label}
@@ -88,7 +94,10 @@ export function TopBar({
                                                 search.onSearch(search.value)
                                             }
                                         }}
-                                        className="pl-8 h-8 text-sm bg-background/50 border-border/50"
+                                        className={cn(
+                                            "pl-8 h-8 text-sm bg-background/50 border-border/50",
+                                            search.inputClassName
+                                        )}
                                     />
                                 </div>
                             )}

@@ -30,7 +30,32 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
 
-  // Optional: 
+  async redirects() {
+    return [
+      {
+        source: "/sales/invoices",
+        destination: "/dashboard/sales",
+        permanent: false,
+      },
+      {
+        source: "/sales/invoices/:id",
+        destination: "/dashboard/sales/:id",
+        permanent: false,
+      },
+      {
+        source: "/inventory/stock",
+        destination: "/inventory/products",
+        permanent: false,
+      },
+      {
+        source: "/dashboard/stock",
+        destination: "/inventory/products",
+        permanent: false,
+      },
+    ]
+  },
+
+  // Optional:
   async rewrites() {
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL
 

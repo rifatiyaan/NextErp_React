@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { productAPI } from "@/lib/api/product"
 import { Product } from "@/types/product"
 import { DataTable } from "./data-table"
@@ -25,6 +25,9 @@ import { TopBar } from "@/components/layout/TopBar"
 import { ColumnVisibility } from "./_components/ColumnVisibility"
 import { Table } from "@tanstack/react-table"
 import { ConfirmModal } from "@/components/ConfirmModal"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+
 export default function ProductsPage() {
     const [data, setData] = useState<Product[]>([])
     const [loading, setLoading] = useState(true)
@@ -41,6 +44,7 @@ export default function ProductsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [table, setTable] = useState<Table<Product> | null>(null)
     const [productToDelete, setProductToDelete] = useState<{ id: number; title: string } | null>(null)
+    const [withStock, setWithStock] = useState(false)
 
     // Debounce search query
     useEffect(() => {
@@ -77,7 +81,8 @@ export default function ProductsPage() {
         size: number, 
         search?: string, 
         status?: string | null, 
-        categoryId?: number | null
+        categoryId?: number | null,
+        includeStock?: boolean
     ) => {
         setLoading(true)
         try {
@@ -87,7 +92,8 @@ export default function ProductsPage() {
                 search || undefined, 
                 undefined, 
                 categoryId || undefined, 
-                status || undefined
+                status || undefined,
+                includeStock
             )
             if (response && response.data) {
                 setData(response.data)
@@ -111,6 +117,10 @@ export default function ProductsPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [debouncedSearchQuery, statusFilter, categoryFilter])
 
+    useEffect(() => {
+        setPageIndex(1)
+    }, [withStock])
+
     // Fetch data when filters change
     useEffect(() => {
         const categoryId = categoryFilter !== "all" ? parseInt(categoryFilter) : null
@@ -119,16 +129,17 @@ export default function ProductsPage() {
             pageSize, 
             debouncedSearchQuery || undefined, 
             statusFilter !== "all" ? statusFilter : null,
-            categoryId && categoryId > 0 ? categoryId : null
+            categoryId && categoryId > 0 ? categoryId : null,
+            withStock
         )
-    }, [pageIndex, pageSize, debouncedSearchQuery, statusFilter, categoryFilter, fetchData])
+    }, [pageIndex, pageSize, debouncedSearchQuery, statusFilter, categoryFilter, withStock, fetchData])
 
     const pageCount = Math.ceil(total / pageSize) || 1
 
-    const handleViewDetails = (product: Product) => {
+    const handleViewDetails = useCallback((product: Product) => {
         setSelectedProduct(product)
         setIsModalOpen(true)
-    }
+    }, [])
 
     const handleDeleteProduct = useCallback((productId: number, productTitle: string) => {
         if (!productId || productId <= 0) return
@@ -148,20 +159,26 @@ export default function ProductsPage() {
                 pageSize,
                 debouncedSearchQuery || undefined,
                 statusFilter !== "all" ? statusFilter : null,
-                categoryId && categoryId > 0 ? categoryId : null
+                categoryId && categoryId > 0 ? categoryId : null,
+                withStock
             )
         } catch (error) {
             console.error("Failed to delete product:", error)
             toast.error("Failed to remove product")
         }
-    }, [productToDelete, pageIndex, pageSize, debouncedSearchQuery, statusFilter, categoryFilter, fetchData])
+    }, [productToDelete, pageIndex, pageSize, debouncedSearchQuery, statusFilter, categoryFilter, withStock, fetchData])
 
-    const columns = createColumns({ 
-        onViewDetails: handleViewDetails,
-        onDelete: handleDeleteProduct,
-        pageIndex,
-        pageSize
-    })
+    const columns = useMemo(
+        () =>
+            createColumns({
+                onViewDetails: handleViewDetails,
+                onDelete: handleDeleteProduct,
+                pageIndex,
+                pageSize,
+                withStock,
+            }),
+        [handleViewDetails, handleDeleteProduct, pageIndex, pageSize, withStock]
+    )
 
     return (
         <div className="space-y-3">
@@ -183,6 +200,20 @@ export default function ProductsPage() {
                 ]}
                 filters={
                     <>
+                        <div className="flex h-8 items-center gap-2 rounded-md border border-input bg-background px-2">
+                            <Switch
+                                id="products-with-stock"
+                                checked={withStock}
+                                onCheckedChange={setWithStock}
+                                className="scale-90"
+                            />
+                            <Label
+                                htmlFor="products-with-stock"
+                                className="cursor-pointer text-xs font-medium leading-none"
+                            >
+                                With stock
+                            </Label>
+                        </div>
                         <Select value={statusFilter} onValueChange={setStatusFilter}>
                             <SelectTrigger className="w-[160px] h-8 text-sm">
                                 <SelectValue placeholder="Status" />

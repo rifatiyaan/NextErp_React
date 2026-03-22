@@ -2,12 +2,18 @@ import { fetchAPI } from "@/lib/api/client"
 import type { Product, ProductListResponse, CreateProductRequest } from "@/types/product"
 
 function normalizeProduct(p: Record<string, unknown>): Product {
+    const taq = p.totalAvailableQuantity ?? p.TotalAvailableQuantity
+    const low = p.hasLowStock ?? p.HasLowStock
     return {
         id: Number(p.id ?? p.Id ?? 0),
         title: String(p.title ?? p.Title ?? ""),
         code: String(p.code ?? p.Code ?? ""),
         price: Number(p.price ?? p.Price ?? 0),
         stock: Number(p.stock ?? p.Stock ?? 0),
+        totalAvailableQuantity:
+            taq === null || taq === undefined ? undefined : Number(taq),
+        hasLowStock:
+            low === null || low === undefined ? undefined : Boolean(low),
         categoryId: Number(p.categoryId ?? p.CategoryId ?? 0),
         createdAt: (p.createdAt ?? p.CreatedAt) as string | null | undefined,
         imageUrl: (p.imageUrl ?? p.ImageUrl) as string | null | undefined,
@@ -27,7 +33,8 @@ export const productAPI = {
         searchText?: string, 
         sortBy?: string,
         categoryId?: number | null,
-        status?: string | null
+        status?: string | null,
+        includeStock?: boolean
     ): Promise<ProductListResponse> {
         const params = new URLSearchParams({
             pageIndex: pageIndex.toString(),
@@ -37,6 +44,7 @@ export const productAPI = {
         if (sortBy) params.append("sortBy", sortBy)
         if (categoryId && categoryId > 0) params.append("categoryId", categoryId.toString())
         if (status && status !== "all") params.append("status", status)
+        if (includeStock) params.append("includeStock", "true")
 
         const raw = await fetchAPI<Record<string, unknown>>(`/api/Product?${params.toString()}`)
         const dataArray = raw?.data ?? raw?.Data

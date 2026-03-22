@@ -36,6 +36,10 @@ export interface Product {
     code: string
     price: number
     stock: number
+    /** Aggregated available qty when list was loaded with includeStock */
+    totalAvailableQuantity?: number | null
+    /** True when any variant is at or below low-stock threshold */
+    hasLowStock?: boolean | null
     categoryId: number
     /** ISO date from API when present */
     createdAt?: string | null

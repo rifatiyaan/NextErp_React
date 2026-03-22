@@ -47,6 +47,10 @@ interface DataTableProps<TData, TValue> {
     onPageSizeChange: (pageSize: number) => void
     onRowDoubleClick?: (row: TData) => void
     onTableReady?: (table: TanStackTable<TData>) => void
+    /** Outer wrapper (table + pagination). */
+    className?: string
+    /** Page-size select trigger. */
+    pageSizeSelectClassName?: string
 }
 
 export function DataTable<TData, TValue>({
@@ -59,6 +63,8 @@ export function DataTable<TData, TValue>({
     onPageSizeChange,
     onRowDoubleClick,
     onTableReady,
+    className,
+    pageSizeSelectClassName,
 }: DataTableProps<TData, TValue>) {
     const table = useReactTable({
         data,
@@ -124,7 +130,7 @@ export function DataTable<TData, TValue>({
     }
 
     return (
-        <div className="space-y-2">
+        <div className={cn("space-y-2", className)}>
             <div className="border-t overflow-x-auto">
                 <Table>
                     <TableHeader>
@@ -199,7 +205,9 @@ export function DataTable<TData, TValue>({
                             onPageSizeChange(Number(value))
                         }}
                     >
-                        <SelectTrigger className="h-7 w-[65px] text-xs">
+                        <SelectTrigger
+                            className={cn("h-7 w-[65px] text-xs", pageSizeSelectClassName)}
+                        >
                             <SelectValue placeholder={pageSize} />
                         </SelectTrigger>
                         <SelectContent side="top">
