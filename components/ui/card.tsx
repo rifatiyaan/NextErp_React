@@ -1,5 +1,9 @@
+"use client"
+
 import { Slot } from "@radix-ui/react-slot"
 import type { ComponentProps } from "react"
+
+import { useRadiusClass } from "@/hooks/use-radius-class"
 import { cn } from "@/lib/utils"
 
 interface CardProps extends ComponentProps<"div"> {
@@ -8,14 +12,12 @@ interface CardProps extends ComponentProps<"div"> {
 
 export function Card({ className, asChild, ...props }: CardProps) {
   const Comp = asChild ? Slot : "div"
+  const radiusClass = useRadiusClass()
 
   return (
     <Comp
       data-slot="card"
-      className={cn(
-        "rounded-lg border bg-card text-card-foreground",
-        className
-      )}
+      className={cn("border bg-card text-card-foreground", radiusClass, className)}
       {...props}
     />
   )

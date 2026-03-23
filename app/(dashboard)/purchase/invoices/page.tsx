@@ -16,13 +16,14 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import { format } from "date-fns"
-import { Loader2, Plus } from "lucide-react"
+import { Plus } from "lucide-react"
 import { TopBar } from "@/components/layout/TopBar"
 import {
     FilterBar,
     type FilterBarFieldConfig,
     type FilterBarValues,
 } from "@/components/shared/filter-bar"
+import { useRadiusClass } from "@/hooks/use-radius-class"
 import { cn } from "@/lib/utils"
 
 const STATUS_OPTIONS = [
@@ -31,6 +32,7 @@ const STATUS_OPTIONS = [
 ] as const
 
 export default function PurchaseListPage() {
+    const radiusClass = useRadiusClass()
     const [data, setData] = useState<Purchase[]>([])
     const [loading, setLoading] = useState(true)
     const [pageIndex, setPageIndex] = useState(1)
@@ -38,7 +40,6 @@ export default function PurchaseListPage() {
     const [total, setTotal] = useState(0)
     const [searchQuery, setSearchQuery] = useState("")
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
-    const [isSearching, setIsSearching] = useState(false)
     const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [suppliers, setSuppliers] = useState<Supplier[]>([])
@@ -75,15 +76,11 @@ export default function PurchaseListPage() {
     }, [])
 
     useEffect(() => {
-        if (searchQuery !== debouncedSearchQuery) {
-            setIsSearching(true)
-        }
         const timer = setTimeout(() => {
-            setDebouncedSearchQuery(searchQuery)
-            setIsSearching(false)
+            setDebouncedSearchQuery(searchQuery.trim())
         }, 500)
         return () => clearTimeout(timer)
-    }, [searchQuery, debouncedSearchQuery])
+    }, [searchQuery])
 
     const fetchData = useCallback(
         async (page: number, size: number, search?: string, filters?: PurchaseListFilters) => {
@@ -147,12 +144,10 @@ export default function PurchaseListPage() {
         <div className="space-y-3">
             <TopBar
                 title="Purchase invoices"
-                actionButtonClassName="rounded-sm"
                 search={{
                     placeholder: "Search purchases…",
                     value: searchQuery,
                     onChange: setSearchQuery,
-                    inputClassName: "rounded-sm",
                 }}
                 filters={
                     <div className="min-w-0 flex-1 basis-full sm:basis-[min(100%,28rem)]">
@@ -160,7 +155,6 @@ export default function PurchaseListPage() {
                             fields={filtersConfig}
                             applied={appliedFilters}
                             onApply={handleApplyFilters}
-                            className="rounded-sm"
                         />
                     </div>
                 }
@@ -182,19 +176,13 @@ export default function PurchaseListPage() {
             ) : (
                 <div
                     className={cn(
-                        "relative rounded-sm border border-border bg-card",
-                        "shadow-sm"
+                        "relative border border-border bg-card shadow-sm",
+                        radiusClass
                     )}
                 >
-                    {isSearching ? (
-                        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-sm bg-background/80 backdrop-blur-sm">
-                            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                        </div>
-                    ) : null}
-                    <div className="overflow-x-auto rounded-sm">
+                    <div className={cn("overflow-x-auto", radiusClass)}>
                         <DataTable
-                            className="rounded-sm"
-                            pageSizeSelectClassName="rounded-sm"
+                            pageSizeSelectClassName={radiusClass}
                             columns={columns}
                             data={data}
                             pageCount={pageCount}
@@ -212,7 +200,7 @@ export default function PurchaseListPage() {
             )}
 
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="max-h-[80vh] max-w-3xl overflow-y-auto rounded-sm border-border">
+                <DialogContent className="max-h-[80vh] max-w-3xl overflow-y-auto border-border">
                     <DialogHeader>
                         <DialogTitle>Purchase details</DialogTitle>
                         <DialogDescription>
@@ -258,20 +246,20 @@ export default function PurchaseListPage() {
                                 <p className="mb-2 text-sm font-medium text-muted-foreground">
                                     Items
                                 </p>
-                                <div className="rounded-sm border border-border">
-                                    <table className="w-full">
+                                <div className={cn("border border-border", radiusClass)}>
+                                    <table className="w-full text-xs">
                                         <thead className="bg-muted">
                                             <tr>
-                                                <th className="p-2 text-left text-sm font-medium">
+                                                <th className="px-2 py-1 text-left text-[11px] font-medium">
                                                     Product
                                                 </th>
-                                                <th className="p-2 text-left text-sm font-medium">
+                                                <th className="px-2 py-1 text-left text-[11px] font-medium">
                                                     Quantity
                                                 </th>
-                                                <th className="p-2 text-left text-sm font-medium">
+                                                <th className="px-2 py-1 text-left text-[11px] font-medium">
                                                     Unit cost
                                                 </th>
-                                                <th className="p-2 text-left text-sm font-medium">
+                                                <th className="px-2 py-1 text-left text-[11px] font-medium">
                                                     Total
                                                 </th>
                                             </tr>
@@ -279,14 +267,14 @@ export default function PurchaseListPage() {
                                         <tbody>
                                             {selectedPurchase.items.map((item) => (
                                                 <tr key={item.id} className="border-t border-border">
-                                                    <td className="p-2">
+                                                    <td className="px-2 py-1 leading-snug">
                                                         {item.productTitle || item.title}
                                                     </td>
-                                                    <td className="p-2">{item.quantity}</td>
-                                                    <td className="p-2">
+                                                    <td className="px-2 py-1 tabular-nums">{item.quantity}</td>
+                                                    <td className="px-2 py-1 tabular-nums">
                                                         ${item.unitCost.toFixed(2)}
                                                     </td>
-                                                    <td className="p-2 font-medium">
+                                                    <td className="px-2 py-1 font-medium tabular-nums">
                                                         $
                                                         {(
                                                             (item.quantity || 0) * (item.unitCost || 0)

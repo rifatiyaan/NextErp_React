@@ -51,7 +51,7 @@ export function StockTable({ rows, highlightLow }: StockTableProps) {
                                     <TableCell className="text-muted-foreground">
                                         {row.variantTitle || "—"}
                                     </TableCell>
-                                    <TableCell className="font-mono text-sm">
+                                    <TableCell className="font-mono text-[11px]">
                                         {row.variantSku || "—"}
                                     </TableCell>
                                     <TableCell className="text-right tabular-nums font-medium">

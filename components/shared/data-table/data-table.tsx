@@ -70,7 +70,7 @@ export function DataTable<TData, TValue>({
                             {headerGroup.headers.map((header) => (
                                 <TableHead
                                     key={header.id}
-                                    className="h-9 px-3 text-xs font-semibold text-muted-foreground"
+                                    className="h-7 px-2 text-[11px] font-semibold text-muted-foreground"
                                 >
                                     {header.isPlaceholder
                                         ? null
@@ -90,14 +90,14 @@ export function DataTable<TData, TValue>({
                                 key={row.id}
                                 data-state={row.getIsSelected() && "selected"}
                                 className={cn(
-                                    "h-10 text-sm",
+                                    "h-8",
                                     onRowClick && "cursor-pointer hover:bg-muted/60",
                                     getRowClassName?.(row.original)
                                 )}
                                 onClick={() => onRowClick?.(row.original)}
                             >
                                 {row.getVisibleCells().map((cell) => (
-                                    <TableCell key={cell.id} className="px-3 py-2 align-middle">
+                                    <TableCell key={cell.id} className="px-2 py-1 align-middle">
                                         {flexRender(
                                             cell.column.columnDef.cell,
                                             cell.getContext()
@@ -110,7 +110,7 @@ export function DataTable<TData, TValue>({
                         <TableRow>
                             <TableCell
                                 colSpan={columns.length}
-                                className="h-20 text-center text-sm text-muted-foreground"
+                                className="h-16 text-center text-xs text-muted-foreground"
                             >
                                 {isLoading ? "Loading…" : "No results."}
                             </TableCell>

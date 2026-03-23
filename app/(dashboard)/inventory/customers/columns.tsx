@@ -65,14 +65,14 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Customer>[] => [
         cell: ({ row }) => {
             const customer = row.original
             return (
-                <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold">
+                <div className="flex items-center gap-2">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
                         {customer.title.charAt(0).toUpperCase()}
                     </div>
-                    <div className="flex flex-col">
-                        <span className="font-medium">{customer.title}</span>
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                        <span className="truncate font-medium leading-tight">{customer.title}</span>
                         {customer.email && (
-                            <span className="text-sm text-muted-foreground">
+                            <span className="truncate text-[11px] text-muted-foreground">
                                 {customer.email}
                             </span>
                         )}
@@ -87,9 +87,9 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Customer>[] => [
         cell: ({ row }) => {
             const phone = row.original.phone
             return phone ? (
-                <span className="text-sm">{phone}</span>
+                <span>{phone}</span>
             ) : (
-                <span className="text-sm text-muted-foreground">-</span>
+                <span className="text-muted-foreground">-</span>
             )
         },
     },
@@ -111,9 +111,11 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Customer>[] => [
         cell: ({ row }) => {
             const loyaltyCode = row.original.metadata?.loyaltyCode
             return loyaltyCode ? (
-                <Badge variant="secondary">{loyaltyCode}</Badge>
+                <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-medium">
+                    {loyaltyCode}
+                </Badge>
             ) : (
-                <span className="text-sm text-muted-foreground">-</span>
+                <span className="text-muted-foreground">-</span>
             )
         },
     },
@@ -123,7 +125,10 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Customer>[] => [
         cell: ({ row }) => {
             const isActive = row.original.isActive
             return (
-                <Badge variant={isActive ? "default" : "secondary"}>
+                <Badge
+                    variant={isActive ? "default" : "secondary"}
+                    className="h-5 px-1.5 text-[10px] font-medium"
+                >
                     {isActive ? "Active" : "Inactive"}
                 </Badge>
             )
@@ -138,9 +143,9 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Customer>[] => [
             return (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
+                        <Button variant="ghost" className="h-6 w-6 p-0">
                             <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
+                            <MoreHorizontal className="h-3.5 w-3.5" />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">

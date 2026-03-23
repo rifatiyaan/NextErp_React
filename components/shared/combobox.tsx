@@ -26,6 +26,8 @@ export type ComboboxProps = {
     disabled?: boolean
     className?: string
     triggerClassName?: string
+    /** `compact` uses h-8 trigger and denser command input (toolbar row). */
+    size?: "default" | "compact"
 }
 
 export function Combobox({
@@ -37,9 +39,11 @@ export function Combobox({
     disabled = false,
     className,
     triggerClassName,
+    size = "default",
 }: ComboboxProps) {
     const [open, setOpen] = React.useState(false)
     const selected = items.find((i) => i.value === value)
+    const compact = size === "compact"
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
@@ -51,7 +55,8 @@ export function Combobox({
                     aria-expanded={open}
                     disabled={disabled}
                     className={cn(
-                        "h-9 w-full justify-between border-border bg-background px-2.5 font-normal text-foreground",
+                        "w-full justify-between border-border bg-background px-2.5 font-normal text-foreground",
+                        compact ? "h-8" : "h-9",
                         !selected && "text-muted-foreground",
                         triggerClassName
                     )}
@@ -65,7 +70,10 @@ export function Combobox({
                 align="start"
             >
                 <Command>
-                    <CommandInput placeholder="Search…" className="h-9 border-border" />
+                    <CommandInput
+                        placeholder="Search…"
+                        className={cn("border-border", compact ? "h-8 py-2" : "h-9")}
+                    />
                     <CommandList>
                         <CommandEmpty className="py-3 text-sm text-muted-foreground">
                             {emptyText}

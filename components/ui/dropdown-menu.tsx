@@ -3,6 +3,7 @@
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
 import { Check, ChevronRight, Dot } from "lucide-react"
 import type { ComponentProps } from "react"
+import { useRadiusClass } from "@/hooks/use-radius-class"
 import { cn } from "@/lib/utils"
 
 export function DropdownMenu({
@@ -69,12 +70,14 @@ export function DropdownMenuSubTrigger({
     children,
     ...props
 }: DropdownMenuSubTriggerProps) {
+    const radiusClass = useRadiusClass()
     return (
         <DropdownMenuPrimitive.SubTrigger
             data-slot="dropdown-menu-sub-trigger"
             data-inset={inset}
             className={cn(
-                "cursor-pointer flex items-center rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[inset]:ps-8 focus:bg-accent focus:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground",
+                "flex cursor-pointer items-center px-2 py-1.5 text-sm outline-hidden select-none data-[inset]:ps-8 focus:bg-accent focus:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground",
+                radiusClass,
                 className
             )}
             {...props}
@@ -89,11 +92,13 @@ export function DropdownMenuSubContent({
     className,
     ...props
 }: ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
+    const radiusClass = useRadiusClass()
     return (
         <DropdownMenuPrimitive.SubContent
             data-slot="dropdown-menu-sub-content"
             className={cn(
-                "z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+                "z-50 min-w-[8rem] overflow-hidden border bg-popover p-1 text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+                radiusClass,
                 className
             )}
             {...props}
@@ -106,14 +111,16 @@ export function DropdownMenuContent({
     sideOffset = 4,
     ...props
 }: ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+    const radiusClass = useRadiusClass()
     return (
         <DropdownMenuPrimitive.Portal>
             <DropdownMenuPrimitive.Content
                 data-slot="dropdown-menu-content"
                 sideOffset={sideOffset}
                 className={cn(
-                    "z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
+                    "z-50 min-w-[8rem] overflow-hidden border bg-popover p-1 text-popover-foreground shadow-md",
                     "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+                    radiusClass,
                     className
                 )}
                 {...props}
@@ -135,13 +142,15 @@ export function DropdownMenuItem({
     variant = "default",
     ...props
 }: DropdownMenuItemProps) {
+    const radiusClass = useRadiusClass()
     return (
         <DropdownMenuPrimitive.Item
             data-slot="dropdown-menu-item"
             data-inset={inset}
             data-variant={variant}
             className={cn(
-                "relative flex cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[inset]:ps-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 focus:bg-accent focus:text-accent-foreground data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 dark:data-[variant=destructive]:focus:bg-destructive/20 data-[variant=destructive]:focus:text-destructive data-[variant=destructive]:*:[svg]:!text-destructive [&_svg:not([class*='text-'])]:text-muted-foreground",
+                "relative flex cursor-pointer items-center px-2 py-1.5 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[inset]:ps-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 focus:bg-accent focus:text-accent-foreground data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 dark:data-[variant=destructive]:focus:bg-destructive/20 data-[variant=destructive]:focus:text-destructive data-[variant=destructive]:*:[svg]:!text-destructive [&_svg:not([class*='text-'])]:text-muted-foreground",
+                radiusClass,
                 className
             )}
             {...props}
@@ -155,11 +164,13 @@ export function DropdownMenuCheckboxItem({
     checked,
     ...props
 }: ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem>) {
+    const radiusClass = useRadiusClass()
     return (
         <DropdownMenuPrimitive.CheckboxItem
             data-slot="dropdown-menu-checkbox-item"
             className={cn(
-                "relative flex cursor-pointer select-none items-center rounded-sm py-1.5 ps-8 pe-2 text-sm outline-hidden transition-colors focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50",
+                "relative flex cursor-pointer select-none items-center py-1.5 ps-8 pe-2 text-sm outline-hidden transition-colors focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50",
+                radiusClass,
                 className
             )}
             checked={checked}
@@ -180,11 +191,13 @@ export function DropdownMenuRadioItem({
     children,
     ...props
 }: ComponentProps<typeof DropdownMenuPrimitive.RadioItem>) {
+    const radiusClass = useRadiusClass()
     return (
         <DropdownMenuPrimitive.RadioItem
             data-slot="dropdown-menu-radio-item"
             className={cn(
-                "relative flex cursor-pointer select-none items-center rounded-sm py-1.5 ps-8 pe-2 text-sm outline-hidden transition-colors focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50",
+                "relative flex cursor-pointer select-none items-center py-1.5 ps-8 pe-2 text-sm outline-hidden transition-colors focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50",
+                radiusClass,
                 className
             )}
             {...props}

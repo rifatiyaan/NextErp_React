@@ -107,7 +107,10 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Purchase>[] => [
         cell: ({ row }) => {
             const isActive = row.getValue("isActive")
             return (
-                <Badge variant={isActive ? "default" : "secondary"}>
+                <Badge
+                    variant={isActive ? "default" : "secondary"}
+                    className="h-5 px-1.5 text-[10px] font-medium"
+                >
                     {isActive ? "Active" : "Inactive"}
                 </Badge>
             )
@@ -122,9 +125,9 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Purchase>[] => [
             return (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
+                        <Button variant="ghost" className="h-6 w-6 p-0">
                             <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
+                            <MoreHorizontal className="h-3.5 w-3.5" />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">

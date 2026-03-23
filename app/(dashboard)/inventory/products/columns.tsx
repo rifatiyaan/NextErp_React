@@ -78,13 +78,14 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Product>[] => [
             const imageUrl = product.imageUrl || "/placeholder-product.png"
             return (
                 <div className="flex items-center gap-2">
-                    <div className="relative h-8 w-8 overflow-hidden rounded border bg-muted flex-shrink-0">
+                    <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded border bg-muted">
                         {product.imageUrl ? (
                             <Image
                                 src={imageUrl}
                                 alt={product.title}
                                 fill
                                 className="object-cover"
+                                sizes="28px"
                                 unoptimized
                             />
                         ) : (
@@ -94,7 +95,7 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Product>[] => [
                         )}
                     </div>
                     <div className="flex flex-col min-w-0">
-                        <span className="font-medium text-sm truncate">{product.title}</span>
+                        <span className="truncate font-medium">{product.title}</span>
                     </div>
                 </div>
             )
@@ -109,7 +110,7 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Product>[] => [
                 style: "currency",
                 currency: "USD",
             }).format(price)
-            return <div className="font-medium text-sm">{formatted}</div>
+            return <div className="font-medium tabular-nums">{formatted}</div>
         },
     },
     {
@@ -159,7 +160,7 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Product>[] => [
                           q !== null && q !== undefined && !Number.isNaN(Number(q))
                               ? String(q)
                               : "—"
-                      return <span className="tabular-nums text-sm">{text}</span>
+                      return <span className="tabular-nums">{text}</span>
                   },
               },
               {
@@ -196,7 +197,7 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Product>[] => [
             return (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-7 w-7 p-0">
+                        <Button variant="ghost" className="h-6 w-6 p-0">
                             <span className="sr-only">Open menu</span>
                             <MoreHorizontal className="h-3.5 w-3.5" />
                         </Button>

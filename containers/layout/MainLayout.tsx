@@ -8,7 +8,6 @@ import type { ReactNode } from "react"
 import { MenuProvider } from "@/contexts/menu-context"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
-import { DynamicBreadcrumb } from "@/components/layout/DynamicBreadcrumb"
 import { getDictionary } from "@/lib/get-dictionary"
 // import { Footer } from "@/components/layout/footer" // Not implemented yet
 
@@ -54,7 +53,6 @@ export function MainLayout({ children }: { children: ReactNode }) {
                 <div className="flex flex-col flex-1 min-w-0 transition-[margin] duration-300 ease-in-out bg-background">
                     <Header dictionary={dictionary} />
                     <main className="flex-1 overflow-y-auto bg-background p-2 sm:p-3 lg:p-4">
-                        <DynamicBreadcrumb />
                         {children}
                     </main>
                 {/* <Footer /> */}

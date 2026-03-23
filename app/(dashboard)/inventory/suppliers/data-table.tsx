@@ -158,7 +158,7 @@ export function DataTable<TData, TValue>({
                             <TableRow>
                                 <TableCell
                                     colSpan={columns.length}
-                                    className="h-24 text-center"
+                                    className="h-16 text-center text-xs text-muted-foreground"
                                 >
                                     No results.
                                 </TableCell>
@@ -169,9 +169,7 @@ export function DataTable<TData, TValue>({
             </div>
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <p className="text-sm text-muted-foreground">
-                        Rows per page
-                    </p>
+                    <p className="text-[11px] text-muted-foreground">Rows per page</p>
                     <Select
                         value={pageSize.toString()}
                         onValueChange={(value) => {
@@ -179,7 +177,7 @@ export function DataTable<TData, TValue>({
                             onPageChange(1)
                         }}
                     >
-                        <SelectTrigger className="h-8 w-[70px]">
+                        <SelectTrigger className="h-7 w-[64px] text-xs">
                             <SelectValue placeholder={pageSize} />
                         </SelectTrigger>
                         <SelectContent side="top">

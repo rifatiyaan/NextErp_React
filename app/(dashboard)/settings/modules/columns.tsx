@@ -60,7 +60,7 @@ export const columns: ColumnDef<Module>[] = [
             return (
                 <div className="flex items-center gap-2">
                     {module.icon && (
-                        <DynamicIcon name={module.icon as any} className="h-4 w-4" />
+                        <DynamicIcon name={module.icon as any} className="h-3.5 w-3.5 shrink-0" />
                     )}
                     <span className="font-medium">{module.title}</span>
                 </div>
@@ -73,7 +73,10 @@ export const columns: ColumnDef<Module>[] = [
         cell: ({ row }) => {
             const type = coerceModuleType(row.getValue("type"))
             return (
-                <Badge variant={type === ModuleType.Module ? "default" : "secondary"}>
+                <Badge
+                    variant={type === ModuleType.Module ? "default" : "secondary"}
+                    className="h-5 px-1.5 text-[10px] font-medium"
+                >
                     {type === ModuleType.Module ? "Module" : "Link"}
                 </Badge>
             )
@@ -84,7 +87,7 @@ export const columns: ColumnDef<Module>[] = [
         header: "URL",
         cell: ({ row }) => {
             const url = row.getValue("url") as string | undefined
-            return <span className="text-sm text-muted-foreground">{url || "—"}</span>
+            return <span className="truncate text-muted-foreground">{url || "—"}</span>
         },
     },
     {
@@ -93,9 +96,7 @@ export const columns: ColumnDef<Module>[] = [
         cell: ({ row }) => {
             const parent = row.original.parent
             return (
-                <span className="text-sm text-muted-foreground">
-                    {parent ? parent.title : "—"}
-                </span>
+                <span className="truncate text-muted-foreground">{parent ? parent.title : "—"}</span>
             )
         },
     },
@@ -112,7 +113,10 @@ export const columns: ColumnDef<Module>[] = [
         cell: ({ row }) => {
             const isActive = row.getValue("isActive") as boolean
             return (
-                <Badge variant={isActive ? "default" : "secondary"}>
+                <Badge
+                    variant={isActive ? "default" : "secondary"}
+                    className="h-5 px-1.5 text-[10px] font-medium"
+                >
                     {isActive ? "Active" : "Inactive"}
                 </Badge>
             )
@@ -127,9 +131,9 @@ export const columns: ColumnDef<Module>[] = [
             return (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
+                        <Button variant="ghost" className="h-6 w-6 p-0">
                             <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
+                            <MoreHorizontal className="h-3.5 w-3.5" />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">

@@ -5,6 +5,7 @@ import { cva } from "class-variance-authority"
 
 import type { ComponentProps } from "react"
 
+import { useRadiusClass } from "@/hooks/use-radius-class"
 import { cn } from "@/lib/utils"
 
 export function Sheet({
@@ -86,12 +87,13 @@ export function SheetContent({
     side = "right",
     ...props
 }: SheetContentProps) {
+    const radiusClass = useRadiusClass()
     return (
         <SheetPortal>
             <SheetOverlay />
             <SheetPrimitive.Content
                 data-slot="sheet-content"
-                className={cn(sheetVariants({ side }), className)}
+                className={cn(sheetVariants({ side }), radiusClass, className)}
                 {...props}
             >
                 {children}

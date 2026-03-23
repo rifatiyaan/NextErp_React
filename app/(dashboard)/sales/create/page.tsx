@@ -1,6 +1,7 @@
-"use client"
+  "use client"
 
-import { useState, useMemo, useEffect, useCallback } from "react"
+import { useState, useMemo, useEffect, useCallback, useRef } from "react"
+import { useRouter } from "next/navigation"
 import {
   Search,
   ShoppingCart,
@@ -12,11 +13,13 @@ import {
   Inbox,
   Package,
 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { Textarea } from "@/components/ui/textarea"
 import { productAPI } from "@/lib/api/product"
 import { categoryAPI } from "@/lib/api/category"
 import { pickPrimaryVariant } from "@/lib/product-variant"
@@ -33,8 +36,10 @@ import {
   CompactField,
   CompactInput,
   CompactTable,
-  SummaryPanel,
 } from "@/components/shared/erp"
+import { CategoryCombobox } from "@/components/shared/category-combobox"
+import { useRadiusClass } from "@/hooks/use-radius-class"
+import { tableBodyRowHoverClassName } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
 import {
   Sheet,
@@ -76,18 +81,25 @@ interface CartLine {
 }
 
 export default function CreateSalesPage() {
+  const router = useRouter()
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
   const [cart, setCart] = useState<CartLine[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
+  /** POS grid: true after first fetch for current mode completes (used for empty vs loading). */
+  const [posProductsReady, setPosProductsReady] = useState(false)
+  /** POS: API in flight (spinner in search only; list not cleared). */
+  const [posSearchPending, setPosSearchPending] = useState(false)
+  const posFetchSeq = useRef(0)
   const [loadingCategories, setLoadingCategories] = useState(true)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false)
   const [isCreatingSale, setIsCreatingSale] = useState(false)
   const [discount, setDiscount] = useState(0)
+  const [saleDate, setSaleDate] = useState(() => new Date().toISOString().split("T")[0])
+  const [saleInvoiceNote, setSaleInvoiceNote] = useState("")
   const [paymentMethod, setPaymentMethod] = useState<string>("cash")
   const [layoutMode, setLayoutMode] = useState<SaleLayoutMode>("pos")
 
@@ -96,6 +108,8 @@ export default function CreateSalesPage() {
   const [invoiceSearchProducts, setInvoiceSearchProducts] = useState<Product[]>([])
   const [loadingInvoiceSearch, setLoadingInvoiceSearch] = useState(false)
   const [invoiceSearchOpen, setInvoiceSearchOpen] = useState(false)
+  const invoiceSearchSeq = useRef(0)
+  const radiusClass = useRadiusClass()
 
   // Fetch categories
   useEffect(() => {
@@ -133,27 +147,29 @@ export default function CreateSalesPage() {
   }, [invoiceProductSearchQuery])
 
   const fetchProducts = useCallback(async () => {
+    const seq = ++posFetchSeq.current
+    setPosSearchPending(true)
     try {
-      setLoading(true)
       const response = await productAPI.getProducts(
         1,
-        1000, // Large page size for POS
+        1000,
         debouncedSearchQuery || undefined,
         undefined,
         selectedCategory || undefined,
-        "active" // Only active products
+        "active"
       )
-      if (response && response.data) {
-        setProducts(response.data)
-      } else {
-        setProducts([])
-      }
+      if (seq !== posFetchSeq.current) return
+      setProducts(response?.data ?? [])
     } catch (error) {
       console.error("Failed to fetch products:", error)
+      if (seq !== posFetchSeq.current) return
       toast.error("Failed to load products")
       setProducts([])
     } finally {
-      setLoading(false)
+      if (seq === posFetchSeq.current) {
+        setPosSearchPending(false)
+        setPosProductsReady(true)
+      }
     }
   }, [debouncedSearchQuery, selectedCategory])
 
@@ -167,10 +183,12 @@ export default function CreateSalesPage() {
     const run = async () => {
       if (!debouncedInvoiceSearch || debouncedInvoiceSearch.length < 2) {
         setInvoiceSearchProducts([])
+        setLoadingInvoiceSearch(false)
         return
       }
+      const seq = ++invoiceSearchSeq.current
+      setLoadingInvoiceSearch(true)
       try {
-        setLoadingInvoiceSearch(true)
         const response = await productAPI.getProducts(
           1,
           20,
@@ -179,11 +197,13 @@ export default function CreateSalesPage() {
           selectedCategory || undefined,
           "active"
         )
+        if (seq !== invoiceSearchSeq.current) return
         setInvoiceSearchProducts(response.data || [])
       } catch {
+        if (seq !== invoiceSearchSeq.current) return
         setInvoiceSearchProducts([])
       } finally {
-        setLoadingInvoiceSearch(false)
+        if (seq === invoiceSearchSeq.current) setLoadingInvoiceSearch(false)
       }
     }
     void run()
@@ -196,12 +216,15 @@ export default function CreateSalesPage() {
       setInvoiceSearchOpen(false)
       return
     }
-    if (loadingInvoiceSearch) {
-      setInvoiceSearchOpen(true)
+    if (q !== d) {
+      setInvoiceSearchOpen(false)
       return
     }
-    const searchMatchesInput = q === d
-    setInvoiceSearchOpen(searchMatchesInput && invoiceSearchProducts.length > 0)
+    if (loadingInvoiceSearch) {
+      setInvoiceSearchOpen(invoiceSearchProducts.length > 0)
+      return
+    }
+    setInvoiceSearchOpen(invoiceSearchProducts.length > 0)
   }, [
     invoiceProductSearchQuery,
     debouncedInvoiceSearch,
@@ -375,6 +398,7 @@ export default function CreateSalesPage() {
         tax: tax,
         finalAmount: finalAmount,
         paymentMethod: paymentMethod,
+        notes: saleInvoiceNote.trim() || undefined,
         items: cart.map((item) => ({
           productVariantId: item.productVariantId,
           quantity: item.quantity,
@@ -412,120 +436,96 @@ export default function CreateSalesPage() {
     }
   }
 
-  const categoryFilterRow = (
-    <div className="flex flex-wrap gap-2">
-      <Button
-        variant={selectedCategory === null ? "default" : "outline"}
-        onClick={() => setSelectedCategory(null)}
-        size="sm"
-        className="h-10 px-3"
-      >
-        All
-      </Button>
-      {loadingCategories ? (
-        <div className="text-sm text-muted-foreground">Loading categories...</div>
-      ) : (
-        categories.map((category) => {
-          const categoryImage =
-            category.assets && category.assets.length > 0 ? category.assets[0].url : null
-          return (
-            <Button
-              key={category.id}
-              variant={selectedCategory === category.id ? "default" : "outline"}
-              onClick={() => setSelectedCategory(category.id)}
-              size="sm"
-              className="flex h-10 items-center gap-2 px-3"
-            >
-              {categoryImage && (
-                <img
-                  src={categoryImage}
-                  alt={category.title}
-                  className="h-5 w-5 rounded object-cover"
-                />
-              )}
-              {category.title}
-            </Button>
-          )
-        })
+  const posSearchCategoryRow = (
+    <div className="flex w-full min-w-0 items-center gap-2">
+      <div className="relative min-w-0 flex-1">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search products..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="h-8 w-full min-w-0 pl-9 pr-9"
+        />
+        {posSearchPending ? (
+          <Loader2
+            className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground"
+            aria-hidden
+          />
+        ) : null}
+      </div>
+      <CategoryCombobox
+        categories={categories}
+        value={selectedCategory}
+        onChange={setSelectedCategory}
+        loading={loadingCategories}
+        triggerClassName="h-8"
+        size="compact"
+      />
+    </div>
+  )
+
+  const layoutModeToggle = (
+    <div
+      className={cn(
+        "flex items-center gap-3 border border-border bg-muted/30 px-3 py-2",
+        radiusClass
       )}
+    >
+      <LayoutGrid className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+      <Label
+        htmlFor="sale-layout-mode"
+        className={cn(
+          "cursor-pointer text-sm",
+          layoutMode === "pos" ? "font-medium text-foreground" : "text-muted-foreground"
+        )}
+      >
+        POS
+      </Label>
+      <Switch
+        id="sale-layout-mode"
+        checked={layoutMode === "invoice"}
+        onCheckedChange={(on) => setLayoutMode(on ? "invoice" : "pos")}
+        aria-label="Switch between POS and invoice layout"
+      />
+      <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+      <span
+        className={cn(
+          "text-sm",
+          layoutMode === "invoice" ? "font-medium text-foreground" : "text-muted-foreground"
+        )}
+      >
+        Invoice
+      </span>
     </div>
   )
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] min-h-0 flex-col gap-3">
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">New sale</h1>
-          <p className="text-sm text-muted-foreground">
-            {layoutMode === "pos"
-              ? "POS — browse the grid and build the cart."
-              : "Invoice — search products and edit lines in a table."}
-          </p>
-        </div>
-        <div className="flex items-center gap-3 rounded-md border border-border bg-muted/30 px-3 py-2">
-          <LayoutGrid className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-          <Label
-            htmlFor="sale-layout-mode"
-            className={cn(
-              "cursor-pointer text-sm",
-              layoutMode === "pos" ? "font-medium text-foreground" : "text-muted-foreground"
-            )}
-          >
-            POS
-          </Label>
-          <Switch
-            id="sale-layout-mode"
-            checked={layoutMode === "invoice"}
-            onCheckedChange={(on) => setLayoutMode(on ? "invoice" : "pos")}
-            aria-label="Switch between POS and invoice layout"
-          />
-          <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-          <span
-            className={cn(
-              "text-sm",
-              layoutMode === "invoice" ? "font-medium text-foreground" : "text-muted-foreground"
-            )}
-          >
-            Invoice
-          </span>
-        </div>
-      </div>
-
+    <>
       {layoutMode === "pos" ? (
-        <div className="flex min-h-0 flex-1 gap-4">
-      {/* Main Content Area */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* Header */}
-        <div className="mb-4">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <div className="relative min-w-[200px] max-w-md flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
-              <Input
-                placeholder="Search products..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 pl-10"
-              />
-            </div>
+        <div className="flex h-[calc(100vh-4rem)] min-h-0 flex-col gap-2">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
+            <h1 className="text-lg font-semibold tracking-tight sm:text-xl">New sale</h1>
+            {layoutModeToggle}
           </div>
-        </div>
 
-        {/* Category Filters */}
-        <div className="mb-4">{categoryFilterRow}</div>
+        <div className="flex min-h-0 min-w-0 flex-1 gap-3">
+      {/* Main Content Area */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="mb-2 shrink-0">{posSearchCategoryRow}</div>
 
-        {/* Products Grid */}
-        <ScrollArea className="flex-1" orientation="vertical">
-          {loading ? (
-            <div className="flex h-full items-center justify-center">
-              <div className="text-muted-foreground">Loading products...</div>
+        {/* Products grid — native scroll so flex height resolves (Radix ScrollArea often collapses). */}
+        <div className="min-h-0 flex-1 basis-0 overflow-y-auto overflow-x-hidden">
+          {!posProductsReady && products.length === 0 ? (
+            <div className="flex min-h-[12rem] items-center justify-center">
+              <div className="text-sm text-muted-foreground">Loading products…</div>
             </div>
           ) : products.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center p-6 text-center">
-              <ShoppingCart className="mb-3 h-12 w-12 text-muted-foreground" />
-              <p className="text-muted-foreground">No products found</p>
+            <div className="flex min-h-[12rem] flex-col items-center justify-center p-6 text-center">
+              <ShoppingCart className="mb-2 h-10 w-10 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">No products found</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 p-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            <div className="grid grid-cols-3 gap-2 p-1 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8">
               {products.map((product) => {
                 const primary = pickPrimaryVariant(product)
                 const displayPrice = primary?.price ?? product.price
@@ -535,223 +535,290 @@ export default function CreateSalesPage() {
                     key={product.id}
                     className="group cursor-pointer overflow-hidden border border-border/50 transition-colors hover:border-primary/50"
                   >
-                    <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-muted/30">
+                    <div className="relative h-[4.5rem] w-full overflow-hidden bg-muted/30 sm:h-[5rem]">
                       {product.imageUrl ? (
                         <Image
                           src={product.imageUrl}
                           alt={product.title}
                           fill
                           className="object-cover transition-transform group-hover:scale-105"
+                          sizes="(max-width: 768px) 33vw, 120px"
                         />
                       ) : (
-                        <div className="text-4xl text-muted-foreground">
-                          <Package className="h-12 w-12" />
+                        <div className="flex h-full items-center justify-center text-muted-foreground">
+                          <Package className="h-7 w-7" />
                         </div>
                       )}
                       <Button
                         size="icon"
-                        className="absolute bottom-2 right-2 h-8 w-8 bg-primary opacity-0 transition-opacity hover:bg-primary/90 group-hover:opacity-100"
+                        className="absolute bottom-1 right-1 h-6 w-6 bg-primary opacity-0 transition-opacity hover:bg-primary/90 group-hover:opacity-100"
                         onClick={() => addToCart(product)}
                       >
-                        <ShoppingCart className="h-4 w-4" />
+                        <ShoppingCart className="h-3 w-3" />
                       </Button>
                     </div>
-                    <CardContent className="p-3">
-                      <h3 className="mb-1 truncate text-sm font-semibold">{product.title}</h3>
-                      <p className="text-base font-bold text-primary">
+                    <CardContent className="space-y-0.5 p-2">
+                      <h3 className="line-clamp-2 text-[11px] font-medium leading-tight text-foreground">
+                        {product.title}
+                      </h3>
+                      <p className="text-xs font-semibold tabular-nums text-primary">
                         ${displayPrice.toFixed(2)}
                       </p>
-                      <p className="mt-1 text-xs text-muted-foreground">Stock: {displayStock}</p>
+                      <p className="text-[10px] text-muted-foreground tabular-nums">
+                        Stk {displayStock}
+                      </p>
                     </CardContent>
                   </Card>
                 )
               })}
             </div>
           )}
-        </ScrollArea>
+        </div>
       </div>
 
-      {/* Right Side Cart Panel */}
+      {/* Right cart — narrower default; list scrolls between header and totals */}
       <ResizablePanel
-        defaultWidth={400}
-        minWidth={300}
-        maxWidth={600}
+        defaultWidth={300}
+        minWidth={260}
+        maxWidth={420}
         side="right"
-        className="flex flex-col border-l bg-background h-full"
-        storageKey="pos-cart-width"
+        className="flex min-h-0 max-h-full flex-col border-l bg-background"
+        storageKey="nexterp-pos-cart-width-v2"
       >
-        <div className="flex flex-col h-full overflow-hidden">
-          <div className="p-4 border-b">
-            <h2 className="text-lg font-semibold">Cart</h2>
-            <p className="text-sm text-muted-foreground">
-              {cart.length} item{cart.length !== 1 ? "s" : ""}
-            </p>
+        <div className="flex min-h-0 h-full max-h-full flex-col overflow-hidden">
+          <div className="shrink-0 border-b px-3 py-2">
+            <h2 className="text-sm font-semibold">
+              Cart{" "}
+              <span className="font-normal tabular-nums text-muted-foreground">
+                ({cart.length})
+              </span>
+            </h2>
           </div>
 
-          <ScrollArea className="flex-1">
+          <div className="min-h-0 flex-1 basis-0 overflow-y-auto overflow-x-hidden">
             {cart.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-                <ShoppingCart className="h-12 w-12 text-muted-foreground mb-3" />
-                <p className="text-muted-foreground">Your cart is empty.</p>
+              <div className="flex flex-col items-center justify-center p-6 text-center">
+                <ShoppingCart className="mb-2 h-9 w-9 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Your cart is empty.</p>
               </div>
             ) : (
-              <div className="space-y-3 p-4">
+              <div className="space-y-2 p-2">
                 {cart.map((item) => (
                   <div
                     key={item.productVariantId}
-                    className="flex gap-3 items-start p-3 rounded-lg border border-border/50 bg-muted/20"
+                    className={cn(
+                      "flex gap-2 border border-border/50 bg-muted/20 p-2",
+                      radiusClass
+                    )}
                   >
-                    <div className="relative w-14 h-14 rounded-md bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    <div
+                      className={cn(
+                        "relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden bg-muted",
+                        radiusClass
+                      )}
+                    >
                       {item.imageUrl ? (
                         <Image
                           src={item.imageUrl}
                           alt={item.title}
                           fill
                           className="object-cover"
+                          sizes="40px"
                         />
                       ) : (
-                        <Package className="h-6 w-6 text-muted-foreground" />
+                        <Package className="h-4 w-4 text-muted-foreground" />
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-sm truncate">
-                        {item.title}
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        ${item.price.toFixed(2)} each
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-xs font-medium leading-tight">{item.title}</h3>
+                      <p className="text-[10px] text-muted-foreground tabular-nums">
+                        ${item.price.toFixed(2)} ea
                       </p>
-                      <div className="flex items-center gap-2 mt-2">
+                      <div className="mt-1 flex items-center gap-1">
                         <Button
                           size="icon"
                           variant="outline"
-                          className="h-7 w-7"
+                          className="h-6 w-6"
                           onClick={() => updateQuantity(item.productVariantId, -1)}
                         >
-                          <Minus className="h-3 w-3" />
+                          <Minus className="h-2.5 w-2.5" />
                         </Button>
-                        <span className="w-8 text-center text-sm font-medium">
+                        <span className="w-6 text-center text-xs font-medium tabular-nums">
                           {item.quantity}
                         </span>
                         <Button
                           size="icon"
                           variant="outline"
-                          className="h-7 w-7"
+                          className="h-6 w-6"
                           onClick={() => updateQuantity(item.productVariantId, 1)}
                         >
-                          <Plus className="h-3 w-3" />
+                          <Plus className="h-2.5 w-2.5" />
                         </Button>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-sm">
+                    <div className="shrink-0 text-right">
+                      <p className="text-xs font-semibold tabular-nums">
                         ${(item.price * item.quantity).toFixed(2)}
                       </p>
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-6 w-6 mt-1 text-destructive"
+                        className="mt-0.5 h-6 w-6 text-destructive"
                         onClick={() => removeFromCart(item.productVariantId)}
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-3 w-3" />
                       </Button>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-          </ScrollArea>
+          </div>
 
           {cart.length > 0 && (
-            <div className="border-t p-4 space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Subtotal:</span>
-                  <span className="font-medium">${subtotal.toFixed(2)}</span>
+            <div className="shrink-0 space-y-3 border-t bg-background p-3">
+              <div className="space-y-1.5 text-xs">
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span className="font-medium tabular-nums">${subtotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Tax (5%):</span>
-                  <span className="font-medium">${tax.toFixed(2)}</span>
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Tax (5%)</span>
+                  <span className="font-medium tabular-nums">${tax.toFixed(2)}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Discount:</span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="shrink-0 text-muted-foreground">Discount</span>
                   <Input
                     type="number"
                     value={discount}
                     onChange={(e) => setDiscount(Number(e.target.value) || 0)}
-                    className="h-8 w-24"
+                    className="h-7 w-20 text-right text-xs tabular-nums"
                     min="0"
                     step="0.01"
                   />
                 </div>
-                <Separator />
-                <div className="flex justify-between text-lg font-bold">
-                  <span>Final Amount:</span>
-                  <span>${finalAmount.toFixed(2)}</span>
+                <Separator className="my-1" />
+                <div className="flex justify-between gap-2 text-sm font-bold">
+                  <span>Final</span>
+                  <span className="tabular-nums">${finalAmount.toFixed(2)}</span>
                 </div>
               </div>
               <Button
-                className="w-full"
-                size="lg"
+                className="h-9 w-full text-sm"
                 onClick={handleCreateOrderClick}
                 disabled={cart.length === 0}
               >
-                <ShoppingCart className="mr-2 h-4 w-4" />
-                Create Order
+                <ShoppingCart className="mr-2 h-3.5 w-3.5" />
+                Create order
               </Button>
             </div>
           )}
         </div>
       </ResizablePanel>
         </div>
+        </div>
       ) : (
-        <div className="grid min-h-0 flex-1 gap-4 overflow-hidden lg:grid-cols-[minmax(0,1fr)_340px]">
-          <div className="flex min-h-0 min-w-0 flex-col overflow-hidden border border-border bg-background">
-            <div className="shrink-0 space-y-3 border-b border-border/60 p-4">
-              {categoryFilterRow}
+        <div className="mx-auto max-w-[1920px] px-2 py-2 sm:px-4 sm:py-3">
+          <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <div
+                className={cn(
+                  "flex h-9 w-9 shrink-0 items-center justify-center bg-primary/10 text-primary ring-1 ring-primary/15",
+                  radiusClass
+                )}
+              >
+                <ShoppingCart className="h-4 w-4" aria-hidden />
+              </div>
+              <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                New sale
+              </h1>
             </div>
-            <div className="shrink-0 border-b border-border/60 px-4 py-4 sm:px-5 sm:py-5">
-              <CompactField label="Add products" htmlFor="invoiceProductSearch">
-                <p className="-mt-1 mb-2 text-xs text-muted-foreground">
-                  Waits {PRODUCT_SEARCH_DEBOUNCE_MS / 1000}s after you stop typing, then searches. With
-                  results open, press{" "}
-                  <kbd className="rounded-none border border-border bg-muted px-1 py-0.5 font-mono text-[10px]">
-                    Enter
-                  </kbd>{" "}
-                  to add the first match.
-                </p>
-                <Popover
-                  open={invoiceSearchOpen}
-                  onOpenChange={(open) => {
-                    if (!open) setInvoiceSearchOpen(false)
-                  }}
-                >
-                  <PopoverTrigger asChild>
-                    <div className="relative rounded-none ring-offset-background transition-shadow focus-within:ring-2 focus-within:ring-ring/30 focus-within:ring-offset-2">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <CompactInput
-                        id="invoiceProductSearch"
-                        value={invoiceProductSearchQuery}
-                        onChange={(e) => setInvoiceProductSearchQuery(e.target.value)}
-                        onKeyDown={handleInvoiceSearchKeyDown}
-                        placeholder="Search by name or SKU…"
-                        className="pl-10"
-                        autoComplete="off"
-                      />
-                    </div>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    className="w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-none border border-border p-0 shadow-xl"
-                    align="start"
-                    onOpenAutoFocus={(ev) => ev.preventDefault()}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              {layoutModeToggle}
+              <Badge
+                variant="secondary"
+                className={cn("h-8 w-fit px-3 text-xs font-medium tabular-nums", radiusClass)}
+              >
+                {cart.length} line{cart.length === 1 ? "" : "s"}
+              </Badge>
+            </div>
+          </div>
+
+          <div
+            className={cn(
+              "min-w-0 overflow-hidden border border-border/80 bg-card shadow-md ring-1 ring-border/40",
+              radiusClass
+            )}
+          >
+            <div className="border-b border-border/60 bg-gradient-to-b from-muted/40 to-transparent px-4 py-3 sm:px-5 sm:py-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <CompactField label="Sale date" htmlFor="saleDate">
+                  <CompactInput
+                    id="saleDate"
+                    type="date"
+                    value={saleDate}
+                    onChange={(e) => setSaleDate(e.target.value)}
+                  />
+                </CompactField>
+                <CompactField label="Document" htmlFor="saleDocType">
+                  <span
+                    id="saleDocType"
+                    className="flex h-9 items-center text-sm text-muted-foreground"
                   >
-                    <Command shouldFilter={false} className="rounded-none">
-                      <CommandList className="max-h-72 rounded-none">
+                    Invoice
+                  </span>
+                </CompactField>
+              </div>
+            </div>
+
+            <div className="border-b border-border/60 px-4 py-3 sm:px-5 sm:py-4">
+              <CompactField label="Add products" htmlFor="invoiceProductSearch">
+                <div className="flex w-full min-w-0 items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <Popover
+                      open={invoiceSearchOpen}
+                      onOpenChange={(open) => {
+                        if (!open) setInvoiceSearchOpen(false)
+                      }}
+                    >
+                      <PopoverTrigger asChild>
+                        <div
+                          tabIndex={0}
+                          className={cn(
+                            "relative block w-full min-w-0 cursor-text ring-offset-background transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-2",
+                            radiusClass
+                          )}
+                        >
+                          <Search className="pointer-events-none absolute left-2.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                          <CompactInput
+                            id="invoiceProductSearch"
+                            value={invoiceProductSearchQuery}
+                            onChange={(e) => setInvoiceProductSearchQuery(e.target.value)}
+                            onKeyDown={handleInvoiceSearchKeyDown}
+                            placeholder="Search by name or SKU…"
+                            className="h-8 w-full min-w-0 pl-9 pr-9"
+                            autoComplete="off"
+                          />
                         {loadingInvoiceSearch ? (
-                          <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
-                            <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
-                            Searching…
-                          </div>
-                        ) : (
+                          <Loader2
+                            className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground"
+                            aria-hidden
+                          />
+                        ) : null}
+                        </div>
+                      </PopoverTrigger>
+                      <PopoverContent
+                      className="w-[var(--radix-popover-trigger-width)] overflow-hidden border border-border p-0 shadow-xl"
+                      align="start"
+                      onOpenAutoFocus={(ev) => ev.preventDefault()}
+                    >
+                      <Command shouldFilter={false}>
+                        <CommandList className="max-h-72">
+                          {loadingInvoiceSearch && invoiceSearchProducts.length === 0 ? (
+                            <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                              Searching…
+                            </div>
+                          ) : null}
                           <CommandGroup className="divide-y divide-border p-0">
                             {invoiceSearchProducts.map((product) => {
                               const img = product.imageUrl?.trim() || ""
@@ -763,10 +830,15 @@ export default function CreateSalesPage() {
                                   key={product.id}
                                   value={product.id.toString()}
                                   onSelect={() => addToCart(product, { fromInvoiceSearch: true })}
-                                  className="cursor-pointer rounded-none px-2 py-2 text-sm aria-selected:bg-accent data-[selected=true]:bg-accent"
+                                  className="cursor-pointer px-2 py-2 text-sm aria-selected:bg-accent data-[selected=true]:bg-accent"
                                 >
                                   <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                                    <div className="relative h-11 w-11 shrink-0 overflow-hidden border border-border bg-muted">
+                                    <div
+                                      className={cn(
+                                        "relative h-11 w-11 shrink-0 overflow-hidden border border-border bg-muted",
+                                        radiusClass
+                                      )}
+                                    >
                                       {img ? (
                                         <Image
                                           src={img}
@@ -799,11 +871,20 @@ export default function CreateSalesPage() {
                               )
                             })}
                           </CommandGroup>
-                        )}
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                        </CommandList>
+                      </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <CategoryCombobox
+                    categories={categories}
+                    value={selectedCategory}
+                    onChange={setSelectedCategory}
+                    loading={loadingCategories}
+                    triggerClassName="h-8"
+                    size="compact"
+                  />
+                </div>
                 {invoiceProductSearchQuery.trim().length >= 2 &&
                 debouncedInvoiceSearch.trim().length >= 2 &&
                 invoiceProductSearchQuery.trim() === debouncedInvoiceSearch.trim() &&
@@ -816,8 +897,7 @@ export default function CreateSalesPage() {
               </CompactField>
             </div>
 
-            <ScrollArea className="min-h-0 flex-1">
-              <CompactTable className="rounded-none border-0 shadow-none ring-0">
+            <CompactTable className="border-0 shadow-none ring-0">
                 <thead>
                   <tr className="sticky top-0 z-10 border-b border-border/80 bg-muted/80 backdrop-blur-md">
                     <th className="w-10 px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -845,7 +925,12 @@ export default function CreateSalesPage() {
                     <tr>
                       <td colSpan={6} className="px-4 py-14">
                         <div className="flex flex-col items-center justify-center gap-2 text-center">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-none bg-muted text-muted-foreground">
+                          <div
+                            className={cn(
+                              "flex h-12 w-12 items-center justify-center bg-muted text-muted-foreground",
+                              radiusClass
+                            )}
+                          >
                             <Inbox className="h-6 w-6" aria-hidden />
                           </div>
                           <p className="text-sm font-medium text-foreground">No line items yet</p>
@@ -861,7 +946,7 @@ export default function CreateSalesPage() {
                       return (
                         <tr
                           key={item.productVariantId}
-                          className="align-middle transition-colors hover:bg-muted/40"
+                          className={cn("align-middle", tableBodyRowHoverClassName)}
                         >
                           <td className="px-2 py-2 text-center">
                             <span className="font-mono text-sm tabular-nums text-muted-foreground">
@@ -931,62 +1016,101 @@ export default function CreateSalesPage() {
                   )}
                 </tbody>
               </CompactTable>
-            </ScrollArea>
-          </div>
 
-          <SummaryPanel className="top-0 lg:sticky">
-            <div className="space-y-1">
-              <h2 className="text-sm font-semibold text-foreground">Order summary</h2>
-              <p className="text-xs text-muted-foreground">
-                {cart.length} line{cart.length !== 1 ? "s" : ""}
-              </p>
-            </div>
+            <div className="border-t border-border/60 bg-muted/10 px-4 py-4 sm:px-5 sm:py-5">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 flex-1 lg:max-w-xl">
+                  <CompactField label="Order note" htmlFor="saleInvoiceNote">
+                    <Textarea
+                      id="saleInvoiceNote"
+                      value={saleInvoiceNote}
+                      onChange={(e) => setSaleInvoiceNote(e.target.value)}
+                      placeholder="Reference, customer note, internal comments…"
+                      rows={3}
+                      className={cn(
+                        "min-h-[5rem] resize-y border-border bg-background px-3 py-2 text-sm shadow-sm transition-[box-shadow] focus-visible:ring-2 focus-visible:ring-ring/25",
+                        radiusClass
+                      )}
+                    />
+                  </CompactField>
+                </div>
 
-            <div className="flex flex-1 flex-col gap-3 rounded-none border border-border/60 bg-muted/25 p-3">
-              <div className="flex justify-between gap-3 text-sm">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span className="font-mono font-medium tabular-nums text-foreground">
-                  {formatMoney(subtotal)}
-                </span>
-              </div>
-              <div className="flex justify-between gap-3 text-sm">
-                <span className="text-muted-foreground">Tax (5%)</span>
-                <span className="font-mono font-medium tabular-nums text-foreground">
-                  {formatMoney(tax)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <span className="text-muted-foreground">Discount</span>
-                <CompactInput
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={discount}
-                  onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-                  className="w-28 text-right font-mono text-sm tabular-nums"
-                />
-              </div>
-              <div className="mt-1 rounded-none border border-primary/20 bg-primary/5 px-3 py-3">
-                <div className="flex justify-between gap-3 text-sm font-semibold text-foreground">
-                  <span>Final amount</span>
-                  <span className="font-mono text-base tabular-nums text-primary">
-                    {formatMoney(finalAmount)}
-                  </span>
+                <div className="flex w-full max-w-[17.5rem] flex-col gap-3 self-end lg:max-w-[17.5rem] lg:shrink-0">
+                  <p className="text-[11px] font-medium text-muted-foreground">
+                    Totals · {cart.length} line{cart.length === 1 ? "" : "s"}
+                  </p>
+                  <div
+                    className={cn(
+                      "overflow-hidden border border-border/70 bg-card",
+                      radiusClass
+                    )}
+                  >
+                    <table className="w-full border-collapse text-xs tabular-nums">
+                      <tbody>
+                        <tr className="border-b border-border/50">
+                          <td className="px-3 py-2 text-muted-foreground">Subtotal</td>
+                          <td className="px-3 py-2 text-right font-mono font-medium text-foreground">
+                            {formatMoney(subtotal)}
+                          </td>
+                        </tr>
+                        <tr className="border-b border-border/50">
+                          <td className="px-3 py-2 text-muted-foreground">Tax (5%)</td>
+                          <td className="px-3 py-2 text-right font-mono font-medium text-foreground">
+                            {formatMoney(tax)}
+                          </td>
+                        </tr>
+                        <tr className="border-b border-border/50">
+                          <td className="px-3 py-2 align-middle text-muted-foreground">
+                            Discount
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <CompactInput
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              value={discount}
+                              onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                              className="ms-auto h-8 w-full min-w-0 max-w-[7.5rem] text-right font-mono text-xs tabular-nums"
+                            />
+                          </td>
+                        </tr>
+                        <tr className="bg-primary/5">
+                          <td className="px-3 py-2.5 font-semibold text-foreground">
+                            Final amount
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-mono text-sm font-semibold text-primary">
+                            {formatMoney(finalAmount)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => router.back()}
+                      className={cn("h-10 flex-1 px-3 text-sm font-medium", radiusClass)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      disabled={cart.length === 0}
+                      className={cn(
+                        "h-10 flex-1 px-3 text-sm font-semibold shadow-sm",
+                        radiusClass
+                      )}
+                      onClick={handleCreateOrderClick}
+                    >
+                      <ShoppingCart className="mr-2 h-4 w-4" />
+                      Create order
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
-
-            <Button
-              type="button"
-              className="h-10 w-full rounded-none text-sm font-semibold shadow-sm"
-              size="lg"
-              onClick={handleCreateOrderClick}
-              disabled={cart.length === 0}
-            >
-              <ShoppingCart className="mr-2 h-4 w-4" />
-              Create order
-            </Button>
-          </SummaryPanel>
+          </div>
         </div>
       )}
 
@@ -1112,7 +1236,10 @@ export default function CreateSalesPage() {
               <select
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className={cn(
+                  "h-10 w-full border border-input bg-background px-3 py-2 text-sm",
+                  radiusClass
+                )}
               >
                 <option value="cash">Cash</option>
                 <option value="card">Card</option>
@@ -1137,6 +1264,6 @@ export default function CreateSalesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }

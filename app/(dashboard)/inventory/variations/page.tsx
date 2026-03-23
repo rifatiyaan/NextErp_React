@@ -259,19 +259,19 @@ export default function VariationsPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow className="hover:bg-transparent">
-                                    <TableHead className="h-8 text-xs font-medium text-muted-foreground">Name</TableHead>
-                                    <TableHead className="h-8 text-xs font-medium text-muted-foreground">Values</TableHead>
-                                    <TableHead className="h-8 w-14 text-xs font-medium text-muted-foreground">Order</TableHead>
+                                    <TableHead className="h-7 text-[11px] font-medium text-muted-foreground">Name</TableHead>
+                                    <TableHead className="h-7 text-[11px] font-medium text-muted-foreground">Values</TableHead>
+                                    <TableHead className="h-7 w-12 text-[11px] font-medium text-muted-foreground">Order</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {options.map((row) => (
-                                    <TableRow key={row.id} className="hover:bg-muted/50">
-                                        <TableCell className="py-1.5 text-sm font-medium">{row.name}</TableCell>
-                                        <TableCell className="py-1.5 text-sm text-muted-foreground">
-                                            {valuesCell(row)}
+                                    <TableRow key={row.id}>
+                                        <TableCell className="py-1 font-medium">{row.name}</TableCell>
+                                        <TableCell className="py-1 text-muted-foreground">{valuesCell(row)}</TableCell>
+                                        <TableCell className="py-1 text-muted-foreground tabular-nums">
+                                            {row.displayOrder}
                                         </TableCell>
-                                        <TableCell className="py-1.5 text-xs text-muted-foreground">{row.displayOrder}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>

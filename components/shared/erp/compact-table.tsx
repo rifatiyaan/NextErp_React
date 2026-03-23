@@ -1,5 +1,8 @@
+"use client"
+
 import type { ReactNode } from "react"
 
+import { useRadiusClass } from "@/hooks/use-radius-class"
 import { cn } from "@/lib/utils"
 
 /** Table in a bordered shell — works in light & dark via theme tokens. */
@@ -12,21 +15,25 @@ export function CompactTable({
     tableClassName?: string
     children: ReactNode
 }) {
+    const radiusClass = useRadiusClass()
     return (
         <div
             className={cn(
-                "min-w-0 overflow-x-auto rounded-none border border-border/80 bg-card shadow-sm ring-1 ring-border/40",
+                "min-w-0 overflow-hidden border border-border/80 bg-card shadow-sm ring-1 ring-border/40",
+                radiusClass,
                 className
             )}
         >
-            <table
-                className={cn(
-                    "w-full min-w-[760px] border-collapse text-sm text-foreground",
-                    tableClassName
-                )}
-            >
-                {children}
-            </table>
+            <div className="min-w-0 overflow-x-auto">
+                <table
+                    className={cn(
+                        "w-full min-w-[760px] border-collapse text-sm text-foreground",
+                        tableClassName
+                    )}
+                >
+                    {children}
+                </table>
+            </div>
         </div>
     )
 }

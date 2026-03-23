@@ -35,6 +35,7 @@ import {
     PaginationNext,
     PaginationPrevious,
 } from "@/components/ui/pagination"
+import { useRadiusClass } from "@/hooks/use-radius-class"
 import { cn } from "@/lib/utils"
 
 interface DataTableProps<TData, TValue> {
@@ -66,6 +67,7 @@ export function DataTable<TData, TValue>({
     className,
     pageSizeSelectClassName,
 }: DataTableProps<TData, TValue>) {
+    const radiusClass = useRadiusClass()
     const table = useReactTable({
         data,
         columns,
@@ -131,14 +133,19 @@ export function DataTable<TData, TValue>({
 
     return (
         <div className={cn("space-y-2", className)}>
-            <div className="border-t overflow-x-auto">
+            <div
+                className={cn(
+                    "overflow-hidden",
+                    radiusClass
+                )}
+            >
                 <Table>
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
                             <TableRow key={headerGroup.id}>
                                 {headerGroup.headers.map((header) => {
                                     return (
-                                        <TableHead key={header.id} className="h-8 px-2 text-xs">
+                                        <TableHead key={header.id} className="h-7 px-2 text-[11px]">
                                             {header.isPlaceholder
                                                 ? null
                                                 : flexRender(
@@ -160,12 +167,12 @@ export function DataTable<TData, TValue>({
                                         data-state={row.getIsSelected() && "selected"}
                                         onDoubleClick={() => onRowDoubleClick?.(row.original)}
                                         className={cn(
-                                            onRowDoubleClick ? "cursor-pointer hover:bg-muted/50" : "",
-                                            "h-10"
+                                            onRowDoubleClick ? "cursor-pointer" : "",
+                                            "h-8"
                                         )}
                                     >
                                         {row.getVisibleCells().map((cell) => (
-                                            <TableCell key={cell.id} className="px-2 py-1.5">
+                                            <TableCell key={cell.id} className="px-2 py-1">
                                                 {flexRender(
                                                     cell.column.columnDef.cell,
                                                     cell.getContext()
@@ -175,7 +182,7 @@ export function DataTable<TData, TValue>({
                                     </TableRow>
                                 ))}
                                 {Array.from({ length: pageSize - table.getRowModel().rows.length }).map((_, index) => (
-                                    <TableRow key={`empty-${index}`} className="h-10">
+                                    <TableRow key={`empty-${index}`} className="h-8">
                                         <TableCell colSpan={columns.length}>
                                             &nbsp;
                                         </TableCell>
@@ -186,7 +193,7 @@ export function DataTable<TData, TValue>({
                             <TableRow>
                                 <TableCell
                                     colSpan={columns.length}
-                                    className="h-24 text-center"
+                                    className="h-16 text-center text-xs text-muted-foreground"
                                 >
                                     No results.
                                 </TableCell>
@@ -196,9 +203,9 @@ export function DataTable<TData, TValue>({
                 </Table>
             </div>
 
-            <div className="flex items-center justify-between px-3 py-2 border-t bg-muted/30">
+            <div className="flex items-center justify-between border-t bg-muted/30 px-2 py-1.5">
                 <div className="flex items-center space-x-2">
-                    <p className="text-xs text-muted-foreground">Rows per page</p>
+                    <p className="text-[11px] text-muted-foreground">Rows per page</p>
                     <Select
                         value={`${pageSize}`}
                         onValueChange={(value) => {

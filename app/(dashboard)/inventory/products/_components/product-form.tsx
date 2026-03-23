@@ -1039,7 +1039,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                             </CardHeader>
                                             <CardContent className="pt-3 px-4 pb-4">
                                                 <div className="rounded-lg border border-border/50 overflow-hidden">
-                                                    <Table>
+                                                    <Table className="text-sm">
                                                         <TableHeader>
                                                             <TableRow className="bg-muted/30 hover:bg-muted/30">
                                                                 <TableHead className="font-semibold">Combination</TableHead>

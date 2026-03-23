@@ -10,6 +10,7 @@ import {
     DropdownMenuContent,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useRadiusClass } from "@/hooks/use-radius-class"
 import { cn } from "@/lib/utils"
 
 export type FilterBarOption = { value: string; label: string }
@@ -43,6 +44,7 @@ export type FilterBarProps = {
 }
 
 export function FilterBar({ fields, applied, onApply, className }: FilterBarProps) {
+    const radiusClass = useRadiusClass()
     const [draft, setDraft] = React.useState<FilterBarValues>(() =>
         draftFromApplied(fields, applied)
     )
@@ -83,6 +85,7 @@ export function FilterBar({ fields, applied, onApply, className }: FilterBarProp
         <div
             className={cn(
                 "flex h-8 w-full items-stretch overflow-hidden border border-border bg-muted/50 text-foreground",
+                radiusClass,
                 className
             )}
         >
@@ -107,7 +110,10 @@ export function FilterBar({ fields, applied, onApply, className }: FilterBarProp
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                         align="start"
-                        className="max-h-64 min-w-[12rem] rounded-sm border-border bg-popover p-1 text-popover-foreground"
+                        className={cn(
+                            "max-h-64 min-w-[12rem] border-border bg-popover p-1 text-popover-foreground",
+                            radiusClass
+                        )}
                     >
                         {field.options.map((opt) => (
                             <DropdownMenuCheckboxItem
@@ -127,7 +133,7 @@ export function FilterBar({ fields, applied, onApply, className }: FilterBarProp
                 type="button"
                 variant="secondary"
                 size="sm"
-                className="h-8 shrink-0 rounded-none border-0 border-l border-border px-3 text-[12px] font-medium"
+                className="h-8 shrink-0 border-0 border-l border-border px-3 text-[12px] font-medium"
                 onClick={handleApply}
             >
                 Apply

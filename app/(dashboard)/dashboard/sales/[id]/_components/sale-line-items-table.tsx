@@ -21,14 +21,14 @@ function variantLabel(item: SaleItemResponse): string {
 export function SaleLineItemsTable({ items }: SaleLineItemsTableProps) {
     return (
         <div className="rounded-md border">
-            <Table>
+            <Table className="text-sm">
                 <TableHeader>
                     <TableRow className="hover:bg-transparent">
-                        <TableHead className="h-8 text-xs">Product</TableHead>
-                        <TableHead className="h-8 text-xs">Variant</TableHead>
-                        <TableHead className="h-8 text-right text-xs">Qty</TableHead>
-                        <TableHead className="h-8 text-right text-xs">Price</TableHead>
-                        <TableHead className="h-8 text-right text-xs">Total</TableHead>
+                        <TableHead className="h-7 text-[11px]">Product</TableHead>
+                        <TableHead className="h-7 text-[11px]">Variant</TableHead>
+                        <TableHead className="h-7 text-right text-[11px]">Qty</TableHead>
+                        <TableHead className="h-7 text-right text-[11px]">Price</TableHead>
+                        <TableHead className="h-7 text-right text-[11px]">Total</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -43,20 +43,20 @@ export function SaleLineItemsTable({ items }: SaleLineItemsTableProps) {
                         </TableRow>
                     ) : (
                         items.map((item) => (
-                            <TableRow key={item.id} className="h-9">
-                                <TableCell className="py-1.5 text-sm font-medium">
+                            <TableRow key={item.id} className="h-8">
+                                <TableCell className="py-1 font-medium">
                                     {item.productTitle}
                                 </TableCell>
-                                <TableCell className="py-1.5 text-sm text-muted-foreground">
+                                <TableCell className="py-1 text-muted-foreground">
                                     {variantLabel(item)}
                                 </TableCell>
-                                <TableCell className="py-1.5 text-right text-sm tabular-nums">
+                                <TableCell className="py-1 text-right tabular-nums">
                                     {item.quantity}
                                 </TableCell>
-                                <TableCell className="py-1.5 text-right text-sm tabular-nums">
+                                <TableCell className="py-1 text-right tabular-nums">
                                     {formatCurrency(item.unitPrice)}
                                 </TableCell>
-                                <TableCell className="py-1.5 text-right text-sm tabular-nums">
+                                <TableCell className="py-1 text-right tabular-nums">
                                     {formatCurrency(item.total)}
                                 </TableCell>
                             </TableRow>

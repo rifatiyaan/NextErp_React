@@ -1,13 +1,16 @@
+"use client"
+
 import { Slot } from "@radix-ui/react-slot"
 import { cva } from "class-variance-authority"
 
 import type { VariantProps } from "class-variance-authority"
 import type { ComponentProps } from "react"
 
+import { useRadiusClass } from "@/hooks/use-radius-class"
 import { cn } from "@/lib/utils"
 
 export const badgeVariants = cva(
-    "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+    "inline-flex items-center border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
     {
         variants: {
             variant: {
@@ -36,11 +39,12 @@ export function Badge({
     ...props
 }: BadgeProps) {
     const Comp = asChild ? Slot : "span"
+    const radiusClass = useRadiusClass()
 
     return (
         <Comp
             data-slot="badge"
-            className={cn(badgeVariants({ variant }), className)}
+            className={cn(badgeVariants({ variant }), radiusClass, className)}
             {...props}
         />
     )

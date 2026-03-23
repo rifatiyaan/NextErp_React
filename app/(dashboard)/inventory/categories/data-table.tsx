@@ -150,7 +150,7 @@ export function DataTable<TData, TValue>({
                                     </TableRow>
                                 ))}
                                 {Array.from({ length: pageSize - table.getRowModel().rows.length }).map((_, index) => (
-                                    <TableRow key={`empty-${index}`} className="h-12">
+                                    <TableRow key={`empty-${index}`} className="h-8">
                                         <TableCell colSpan={columns.length}>
                                             &nbsp;
                                         </TableCell>
@@ -173,14 +173,14 @@ export function DataTable<TData, TValue>({
 
             <div className="flex items-center justify-between px-2">
                 <div className="flex items-center space-x-2">
-                    <p className="text-sm font-medium">Rows per page</p>
+                    <p className="text-[11px] font-medium text-muted-foreground">Rows per page</p>
                     <Select
                         value={`${pageSize}`}
                         onValueChange={(value) => {
                             onPageSizeChange(Number(value))
                         }}
                     >
-                        <SelectTrigger className="h-8 w-[70px]">
+                        <SelectTrigger className="h-7 w-[64px] text-xs">
                             <SelectValue placeholder={pageSize} />
                         </SelectTrigger>
                         <SelectContent side="top">

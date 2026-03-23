@@ -21,7 +21,7 @@ export function TableSkeleton({ columns, rows = 8 }: TableSkeletonProps) {
                     <TableRow>
                         {Array.from({ length: columns }).map((_, i) => (
                             <TableHead key={i}>
-                                <Skeleton className="h-4 w-20" />
+                                <Skeleton className="h-3 w-16" />
                             </TableHead>
                         ))}
                     </TableRow>
@@ -31,7 +31,7 @@ export function TableSkeleton({ columns, rows = 8 }: TableSkeletonProps) {
                         <TableRow key={r}>
                             {Array.from({ length: columns }).map((_, c) => (
                                 <TableCell key={c}>
-                                    <Skeleton className="h-4 w-full max-w-[140px]" />
+                                    <Skeleton className="h-3 w-full max-w-[120px]" />
                                 </TableCell>
                             ))}
                         </TableRow>

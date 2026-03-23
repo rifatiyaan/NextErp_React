@@ -84,4 +84,6 @@ export interface CreateSaleRequest {
     finalAmount: number
     paymentMethod?: string
     items: SaleItemRequest[]
+    /** Optional cashier / internal note (sent if API supports it). */
+    notes?: string | null
 }

@@ -5,25 +5,14 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { X, Loader2, Search, PackagePlus, Inbox } from "lucide-react"
 
+import { CategoryCombobox } from "@/components/shared/category-combobox"
 import { Combobox } from "@/components/shared/combobox"
-import {
-    CompactField,
-    CompactInput,
-    CompactTable,
-    SummaryPanel,
-} from "@/components/shared/erp"
+import { CompactField, CompactInput, CompactTable } from "@/components/shared/erp"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
 import { purchaseAPI } from "@/lib/api/purchase"
 import { supplierAPI } from "@/lib/api/supplier"
 import { productAPI } from "@/lib/api/product"
@@ -33,6 +22,9 @@ import type { Product } from "@/types/product"
 import type { Category } from "@/types/category"
 import type { PurchaseItemRequest } from "@/types/purchase"
 import { pickPrimaryVariant } from "@/lib/product-variant"
+import { useRadiusClass } from "@/hooks/use-radius-class"
+import { tableBodyRowHoverClassName } from "@/components/ui/table"
+import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
 function formatMoney(n: number) {
@@ -62,11 +54,13 @@ interface PurchaseItemRow extends PurchaseItemRequest {
 /** Debounce delay before calling product search API */
 const PRODUCT_SEARCH_DEBOUNCE_MS = 480
 
-const selectTriggerErp =
-    "h-9 w-full rounded-none border-border bg-background px-2.5 text-sm shadow-sm transition-colors hover:bg-muted/40 [&>span]:truncate"
-
 export default function CreatePurchasePage() {
     const router = useRouter()
+    const radiusClass = useRadiusClass()
+    const selectTriggerErp = cn(
+        "h-9 w-full border-border bg-background px-2.5 text-sm shadow-sm transition-colors hover:bg-muted/40 [&>span]:truncate",
+        radiusClass
+    )
     const [loading, setLoading] = useState(false)
     const [loadingSuppliers, setLoadingSuppliers] = useState(true)
     const [suppliers, setSuppliers] = useState<Supplier[]>([])
@@ -84,7 +78,7 @@ export default function CreatePurchasePage() {
     const [searchProducts, setSearchProducts] = useState<Product[]>([])
     const [loadingProducts, setLoadingProducts] = useState(false)
     const [searchOpen, setSearchOpen] = useState(false)
-    const searchInputRef = useRef<HTMLInputElement>(null)
+    const productSearchSeq = useRef(0)
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -94,13 +88,15 @@ export default function CreatePurchasePage() {
     }, [productSearchQuery])
 
     useEffect(() => {
-        const fetchProducts = async () => {
+        const run = async () => {
             if (!debouncedSearch || debouncedSearch.length < 2) {
                 setSearchProducts([])
+                setLoadingProducts(false)
                 return
             }
+            const seq = ++productSearchSeq.current
+            setLoadingProducts(true)
             try {
-                setLoadingProducts(true)
                 const response = await productAPI.getProducts(
                     1,
                     20,
@@ -109,20 +105,18 @@ export default function CreatePurchasePage() {
                     selectedCategory || undefined,
                     "active"
                 )
+                if (seq !== productSearchSeq.current) return
                 setSearchProducts(response.data || [])
             } catch {
+                if (seq !== productSearchSeq.current) return
                 setSearchProducts([])
             } finally {
-                setLoadingProducts(false)
+                if (seq === productSearchSeq.current) setLoadingProducts(false)
             }
         }
-        void fetchProducts()
+        void run()
     }, [debouncedSearch, selectedCategory])
 
-    /**
-     * Popover: open while a request is in flight, or when debounced query matches the input
-     * and API returned ≥1 row. Never open for zero matches; avoid showing stale results while typing.
-     */
     useEffect(() => {
         const q = productSearchQuery.trim()
         const d = debouncedSearch.trim()
@@ -130,12 +124,15 @@ export default function CreatePurchasePage() {
             setSearchOpen(false)
             return
         }
-        if (loadingProducts) {
-            setSearchOpen(true)
+        if (q !== d) {
+            setSearchOpen(false)
             return
         }
-        const searchMatchesInput = q === d
-        setSearchOpen(searchMatchesInput && searchProducts.length > 0)
+        if (loadingProducts) {
+            setSearchOpen(searchProducts.length > 0)
+            return
+        }
+        setSearchOpen(searchProducts.length > 0)
     }, [
         productSearchQuery,
         debouncedSearch,
@@ -286,35 +283,39 @@ export default function CreatePurchasePage() {
     }
 
     return (
-        <div className="mx-auto max-w-[1920px] px-2 py-3 sm:px-4">
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div className="flex items-start gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-none bg-primary/10 text-primary ring-1 ring-primary/15">
-                        <PackagePlus className="h-5 w-5" aria-hidden />
+        <div className="mx-auto max-w-[1920px] px-2 py-2 sm:px-4 sm:py-3">
+            <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                    <div
+                        className={cn(
+                            "flex h-9 w-9 shrink-0 items-center justify-center bg-primary/10 text-primary ring-1 ring-primary/15",
+                            radiusClass
+                        )}
+                    >
+                        <PackagePlus className="h-4 w-4" aria-hidden />
                     </div>
-                    <div>
-                        <h1 className="text-balance text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-                            New purchase
-                        </h1>
-                        <p className="mt-0.5 max-w-xl text-sm text-muted-foreground">
-                            Enter supplier and date, search products, then review totals before saving.
-                        </p>
-                    </div>
+                    <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                        New purchase
+                    </h1>
                 </div>
                 <Badge
                     variant="secondary"
-                    className="h-8 w-fit rounded-none px-3 text-xs font-medium tabular-nums"
+                    className={cn("h-8 w-fit px-3 text-xs font-medium tabular-nums", radiusClass)}
                 >
                     {items.length} line{items.length === 1 ? "" : "s"}
                 </Badge>
             </div>
 
             <form onSubmit={handleSubmit}>
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-6">
-                    <div className="min-w-0 overflow-hidden rounded-none border border-border/80 bg-card shadow-md ring-1 ring-border/40">
-                        {/* Header: supplier | date | category */}
-                        <div className="border-b border-border/60 bg-gradient-to-b from-muted/40 to-transparent px-4 py-4 sm:px-5 sm:py-5">
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div
+                    className={cn(
+                        "min-w-0 overflow-hidden border border-border/80 bg-card shadow-md ring-1 ring-border/40",
+                        radiusClass
+                    )}
+                >
+                        {/* Header: supplier | date */}
+                        <div className="border-b border-border/60 bg-gradient-to-b from-muted/40 to-transparent px-4 py-3 sm:px-5 sm:py-4">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <CompactField label="Supplier *" htmlFor="supplier">
                                     <Combobox
                                         items={suppliers.map((s) => ({
@@ -342,91 +343,61 @@ export default function CreatePurchasePage() {
                                         required
                                     />
                                 </CompactField>
-                                <CompactField label="Category filter" htmlFor="category">
-                                    <Select
-                                        value={selectedCategory?.toString() || "all"}
-                                        onValueChange={(value) => {
-                                            setSelectedCategory(
-                                                value === "all" ? null : parseInt(value, 10)
-                                            )
-                                            setProductSearchQuery("")
-                                            setSearchProducts([])
-                                        }}
-                                    >
-                                        <SelectTrigger id="category" className={selectTriggerErp}>
-                                            <SelectValue placeholder="All categories" />
-                                        </SelectTrigger>
-                                        <SelectContent className="rounded-none border-border shadow-lg">
-                                            <SelectItem value="all" className="rounded-none text-sm">
-                                                All categories
-                                            </SelectItem>
-                                            {categories.map((category) => (
-                                                <SelectItem
-                                                    key={category.id}
-                                                    value={category.id.toString()}
-                                                    className="rounded-none text-sm"
-                                                >
-                                                    {category.title}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </CompactField>
                             </div>
                         </div>
 
-                        {/* Product search */}
-                        <div className="border-b border-border/60 px-4 py-4 sm:px-5 sm:py-5">
-                            <CompactField
-                                label="Add products"
-                                htmlFor="productSearch"
-                            >
-                                <p className="-mt-1 mb-2 text-xs text-muted-foreground">
-                                    Waits {PRODUCT_SEARCH_DEBOUNCE_MS / 1000}s after you stop typing, then searches.
-                                    With results open, press{" "}
-                                    <kbd className="rounded-none border border-border bg-muted px-1 py-0.5 font-mono text-[10px]">
-                                        Enter
-                                    </kbd>{" "}
-                                    to add the first match.
-                                </p>
-                                <Popover
-                                    open={searchOpen}
-                                    onOpenChange={(open) => {
-                                        if (!open) setSearchOpen(false)
-                                    }}
-                                >
-                                    <PopoverTrigger asChild>
-                                        <div className="relative rounded-none ring-offset-background transition-shadow focus-within:ring-2 focus-within:ring-ring/30 focus-within:ring-offset-2">
-                                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                            <CompactInput
-                                                ref={searchInputRef}
-                                                id="productSearch"
-                                                value={productSearchQuery}
-                                                onChange={(e) => setProductSearchQuery(e.target.value)}
-                                                onKeyDown={handleSearchKeyDown}
-                                                placeholder="Search by name or SKU…"
-                                                className="pl-10"
-                                                autoComplete="off"
-                                            />
-                                        </div>
-                                    </PopoverTrigger>
-                                    <PopoverContent
-                                        className="w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-none border border-border p-0 shadow-xl"
-                                        align="start"
-                                        onOpenAutoFocus={(ev) => ev.preventDefault()}
-                                    >
-                                        <Command shouldFilter={false} className="rounded-none">
-                                            <CommandList className="max-h-72 rounded-none">
-                                                {loadingProducts ? (
-                                                    <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
-                                                        <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
-                                                        Searching…
-                                                    </div>
-                                                ) : (
+                        {/* Product search + category */}
+                        <div className="border-b border-border/60 px-4 py-3 sm:px-5 sm:py-4">
+                            <CompactField label="Add products" htmlFor="productSearch">
+                                <div className="flex w-full min-w-0 items-center gap-2">
+                                    <div className="min-w-0 flex-1">
+                                        <Popover
+                                            open={searchOpen}
+                                            onOpenChange={(open) => {
+                                                if (!open) setSearchOpen(false)
+                                            }}
+                                        >
+                                            <PopoverTrigger asChild>
+                                                <div
+                                                    tabIndex={0}
+                                                    className={cn(
+                                                        "relative block w-full min-w-0 cursor-text ring-offset-background transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-2",
+                                                        radiusClass
+                                                    )}
+                                                >
+                                                    <Search className="pointer-events-none absolute left-2.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                                    <CompactInput
+                                                        id="productSearch"
+                                                        value={productSearchQuery}
+                                                        onChange={(e) => setProductSearchQuery(e.target.value)}
+                                                        onKeyDown={handleSearchKeyDown}
+                                                        placeholder="Search by name or SKU…"
+                                                        className="h-8 w-full min-w-0 pl-9 pr-9"
+                                                        autoComplete="off"
+                                                    />
+                                                    {loadingProducts ? (
+                                                        <Loader2
+                                                            className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground"
+                                                            aria-hidden
+                                                        />
+                                                    ) : null}
+                                                </div>
+                                            </PopoverTrigger>
+                                            <PopoverContent
+                                                className="w-[var(--radix-popover-trigger-width)] overflow-hidden border border-border p-0 shadow-xl"
+                                                align="start"
+                                                onOpenAutoFocus={(ev) => ev.preventDefault()}
+                                            >
+                                            <Command shouldFilter={false}>
+                                                <CommandList className="max-h-72">
+                                                    {loadingProducts && searchProducts.length === 0 ? (
+                                                        <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                                                            Searching…
+                                                        </div>
+                                                    ) : null}
                                                     <CommandGroup className="divide-y divide-border p-0">
                                                         {searchProducts.map((product) => {
-                                                            const img =
-                                                                product.imageUrl?.trim() || ""
+                                                            const img = product.imageUrl?.trim() || ""
                                                             return (
                                                                 <CommandItem
                                                                     key={product.id}
@@ -434,10 +405,15 @@ export default function CreatePurchasePage() {
                                                                     onSelect={() =>
                                                                         addProductToItems(product)
                                                                     }
-                                                                    className="cursor-pointer rounded-none px-2 py-2 text-sm aria-selected:bg-accent data-[selected=true]:bg-accent"
+                                                                    className="cursor-pointer px-2 py-2 text-sm aria-selected:bg-accent data-[selected=true]:bg-accent"
                                                                 >
                                                                     <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                                                                        <div className="relative h-11 w-11 shrink-0 overflow-hidden border border-border bg-muted">
+                                                                        <div
+                                                                            className={cn(
+                                                                                "relative h-11 w-11 shrink-0 overflow-hidden border border-border bg-muted",
+                                                                                radiusClass
+                                                                            )}
+                                                                        >
                                                                             {img ? (
                                                                                 <Image
                                                                                     src={img}
@@ -462,10 +438,8 @@ export default function CreatePurchasePage() {
                                                                             </span>
                                                                             <span className="font-mono text-xs text-muted-foreground tabular-nums">
                                                                                 {product.code} ·{" "}
-                                                                                {formatMoney(
-                                                                                    product.price
-                                                                                )}{" "}
-                                                                                · stock {product.stock}
+                                                                                {formatMoney(product.price)} ·
+                                                                                stock {product.stock}
                                                                             </span>
                                                                         </div>
                                                                     </div>
@@ -473,11 +447,23 @@ export default function CreatePurchasePage() {
                                                             )
                                                         })}
                                                     </CommandGroup>
-                                                )}
-                                            </CommandList>
-                                        </Command>
-                                    </PopoverContent>
-                                </Popover>
+                                                </CommandList>
+                                            </Command>
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                    <CategoryCombobox
+                                        categories={categories}
+                                        value={selectedCategory}
+                                        onChange={(id) => {
+                                            setSelectedCategory(id)
+                                            setProductSearchQuery("")
+                                            setSearchProducts([])
+                                        }}
+                                        triggerClassName="h-8"
+                                        size="compact"
+                                    />
+                                </div>
                                 {productSearchQuery.trim().length >= 2 &&
                                 debouncedSearch.trim().length >= 2 &&
                                 productSearchQuery.trim() === debouncedSearch.trim() &&
@@ -491,7 +477,7 @@ export default function CreatePurchasePage() {
                         </div>
 
                         {/* Lines table */}
-                        <CompactTable className="rounded-none border-0 shadow-none ring-0">
+                        <CompactTable className="border-0 shadow-none ring-0">
                             <thead>
                                 <tr className="sticky top-0 z-10 border-b border-border/80 bg-muted/80 backdrop-blur-md">
                                     <th className="w-10 px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -522,7 +508,12 @@ export default function CreatePurchasePage() {
                                     <tr>
                                         <td colSpan={7} className="px-4 py-14">
                                             <div className="flex flex-col items-center justify-center gap-2 text-center">
-                                                <div className="flex h-12 w-12 items-center justify-center rounded-none bg-muted text-muted-foreground">
+                                                <div
+                                                    className={cn(
+                                                        "flex h-12 w-12 items-center justify-center bg-muted text-muted-foreground",
+                                                        radiusClass
+                                                    )}
+                                                >
                                                     <Inbox className="h-6 w-6" aria-hidden />
                                                 </div>
                                                 <p className="text-sm font-medium text-foreground">
@@ -546,7 +537,10 @@ export default function CreatePurchasePage() {
                                         return (
                                             <tr
                                                 key={item.id}
-                                                className="align-middle transition-colors hover:bg-muted/40"
+                                                className={cn(
+                                                    "align-middle",
+                                                    tableBodyRowHoverClassName
+                                                )}
                                             >
                                                 <td className="px-2 py-2 text-center">
                                                     <span className="font-mono text-sm tabular-nums text-muted-foreground">
@@ -624,7 +618,10 @@ export default function CreatePurchasePage() {
                                                         variant="ghost"
                                                         size="icon"
                                                         onClick={() => removeItem(item.id)}
-                                                        className="h-8 w-8 rounded-none text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                                        className={cn(
+                                                            "h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive",
+                                                            radiusClass
+                                                        )}
                                                         aria-label="Remove line"
                                                     >
                                                         <X className="h-4 w-4" />
@@ -636,81 +633,112 @@ export default function CreatePurchasePage() {
                                 )}
                             </tbody>
                         </CompactTable>
-                    </div>
 
-                    <SummaryPanel>
-                        <CompactField label="Invoice note" htmlFor="invoiceNote">
-                            <Textarea
-                                id="invoiceNote"
-                                value={invoiceNote}
-                                onChange={(e) => setInvoiceNote(e.target.value)}
-                                placeholder="Reference, delivery notes, internal comments…"
-                                rows={3}
-                                className="min-h-[5.5rem] resize-y rounded-none border-border bg-background px-3 py-2.5 text-sm shadow-sm transition-[box-shadow] focus-visible:ring-2 focus-visible:ring-ring/25"
-                            />
-                        </CompactField>
+                    <div className="border-t border-border/60 bg-muted/10 px-4 py-4 sm:px-5 sm:py-5">
+                        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="min-w-0 flex-1 lg:max-w-xl">
+                                <CompactField label="Invoice note" htmlFor="invoiceNote">
+                                    <Textarea
+                                        id="invoiceNote"
+                                        value={invoiceNote}
+                                        onChange={(e) => setInvoiceNote(e.target.value)}
+                                        placeholder="Reference, delivery notes, internal comments…"
+                                        rows={3}
+                                        className={cn(
+                                            "min-h-[5rem] resize-y border-border bg-background px-3 py-2 text-sm shadow-sm transition-[box-shadow] focus-visible:ring-2 focus-visible:ring-ring/25",
+                                            radiusClass
+                                        )}
+                                    />
+                                </CompactField>
+                            </div>
 
-                        <div className="flex flex-1 flex-col gap-3 rounded-none border border-border/60 bg-muted/25 p-3">
-                            <div className="flex justify-between gap-3 text-sm">
-                                <span className="text-muted-foreground">Subtotal</span>
-                                <span className="font-mono tabular-nums font-medium text-foreground">
-                                    {formatMoney(subtotal)}
-                                </span>
-                            </div>
-                            <div className="flex justify-between gap-3 text-sm">
-                                <span className="text-muted-foreground">Tax</span>
-                                <span className="font-mono tabular-nums font-medium text-foreground">
-                                    {formatMoney(taxTotal)}
-                                </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-3 text-sm">
-                                <span className="text-muted-foreground">Discount</span>
-                                <CompactInput
-                                    type="number"
-                                    min={0}
-                                    step={0.01}
-                                    value={discount}
-                                    onChange={(e) =>
-                                        setDiscount(parseFloat(e.target.value) || 0)
-                                    }
-                                    className="w-28 text-right font-mono text-sm tabular-nums"
-                                />
-                            </div>
-                            <div className="mt-1 rounded-none border border-primary/20 bg-primary/5 px-3 py-3">
-                                <div className="flex justify-between gap-3 text-sm font-semibold text-foreground">
-                                    <span>Grand total</span>
-                                    <span className="font-mono text-base tabular-nums text-primary">
-                                        {formatMoney(grandTotal)}
-                                    </span>
+                            <div className="flex w-full max-w-[17.5rem] flex-col gap-3 self-end lg:max-w-[17.5rem] lg:shrink-0">
+                                <p className="text-[11px] font-medium text-muted-foreground">
+                                    Totals · {items.length} line{items.length === 1 ? "" : "s"}
+                                </p>
+                                <div
+                                    className={cn(
+                                        "overflow-hidden border border-border/70 bg-card",
+                                        radiusClass
+                                    )}
+                                >
+                                    <table className="w-full border-collapse text-xs tabular-nums">
+                                        <tbody>
+                                            <tr className="border-b border-border/50">
+                                                <td className="px-3 py-2 text-muted-foreground">
+                                                    Subtotal
+                                                </td>
+                                                <td className="px-3 py-2 text-right font-mono font-medium text-foreground">
+                                                    {formatMoney(subtotal)}
+                                                </td>
+                                            </tr>
+                                            <tr className="border-b border-border/50">
+                                                <td className="px-3 py-2 text-muted-foreground">Tax</td>
+                                                <td className="px-3 py-2 text-right font-mono font-medium text-foreground">
+                                                    {formatMoney(taxTotal)}
+                                                </td>
+                                            </tr>
+                                            <tr className="border-b border-border/50">
+                                                <td className="px-3 py-2 align-middle text-muted-foreground">
+                                                    Discount
+                                                </td>
+                                                <td className="px-3 py-2 text-right">
+                                                    <CompactInput
+                                                        type="number"
+                                                        min={0}
+                                                        step={0.01}
+                                                        value={discount}
+                                                        onChange={(e) =>
+                                                            setDiscount(parseFloat(e.target.value) || 0)
+                                                        }
+                                                        className="ms-auto h-8 w-full min-w-0 max-w-[7.5rem] text-right font-mono text-xs tabular-nums"
+                                                    />
+                                                </td>
+                                            </tr>
+                                            <tr className="bg-primary/5">
+                                                <td className="px-3 py-2.5 font-semibold text-foreground">
+                                                    Grand total
+                                                </td>
+                                                <td className="px-3 py-2.5 text-right font-mono text-sm font-semibold text-primary">
+                                                    {formatMoney(grandTotal)}
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => router.back()}
+                                        className={cn(
+                                            "h-10 flex-1 px-3 text-sm font-medium",
+                                            radiusClass
+                                        )}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        disabled={loading || items.length === 0}
+                                        className={cn(
+                                            "h-10 flex-1 px-3 text-sm font-semibold shadow-sm",
+                                            radiusClass
+                                        )}
+                                    >
+                                        {loading ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Saving
+                                            </>
+                                        ) : (
+                                            "Save purchase"
+                                        )}
+                                    </Button>
                                 </div>
                             </div>
                         </div>
-
-                        <div className="mt-auto flex gap-2 border-t border-border/60 pt-4">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => router.back()}
-                                className="h-10 flex-1 rounded-none px-3 text-sm font-medium"
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                type="submit"
-                                disabled={loading || items.length === 0}
-                                className="h-10 flex-1 rounded-none px-3 text-sm font-semibold shadow-sm"
-                            >
-                                {loading ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Saving
-                                    </>
-                                ) : (
-                                    "Save purchase"
-                                )}
-                            </Button>
-                        </div>
-                    </SummaryPanel>
+                    </div>
                 </div>
             </form>
         </div>

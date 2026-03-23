@@ -22,13 +22,13 @@ export function SalePaymentsList({ payments }: SalePaymentsListProps) {
 
     return (
         <div className="rounded-md border">
-            <Table>
+            <Table className="text-sm">
                 <TableHeader>
                     <TableRow className="hover:bg-transparent">
-                        <TableHead className="h-8 text-xs">Amount</TableHead>
-                        <TableHead className="h-8 text-xs">Method</TableHead>
-                        <TableHead className="h-8 text-xs">Date</TableHead>
-                        <TableHead className="h-8 text-xs">Reference</TableHead>
+                        <TableHead className="h-7 text-[11px]">Amount</TableHead>
+                        <TableHead className="h-7 text-[11px]">Method</TableHead>
+                        <TableHead className="h-7 text-[11px]">Date</TableHead>
+                        <TableHead className="h-7 text-[11px]">Reference</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -43,17 +43,15 @@ export function SalePaymentsList({ payments }: SalePaymentsListProps) {
                         </TableRow>
                     ) : (
                         sorted.map((p) => (
-                            <TableRow key={p.id} className="h-9">
-                                <TableCell className="py-1.5 text-sm font-medium tabular-nums">
+                            <TableRow key={p.id} className="h-8">
+                                <TableCell className="py-1 font-medium tabular-nums">
                                     {formatCurrency(p.amount)}
                                 </TableCell>
-                                <TableCell className="py-1.5 text-sm">
-                                    {formatPaymentMethod(p.paymentMethod)}
-                                </TableCell>
-                                <TableCell className="py-1.5 text-sm text-muted-foreground">
+                                <TableCell className="py-1">{formatPaymentMethod(p.paymentMethod)}</TableCell>
+                                <TableCell className="py-1 text-muted-foreground">
                                     {formatDateTimeWithTime(p.paidAt)}
                                 </TableCell>
-                                <TableCell className="py-1.5 text-sm text-muted-foreground">
+                                <TableCell className="py-1 text-muted-foreground">
                                     {p.reference || "—"}
                                 </TableCell>
                             </TableRow>
