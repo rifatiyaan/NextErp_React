@@ -6,18 +6,24 @@ import { useAuth } from "@/contexts/auth-context"
 
 import type { ReactNode } from "react"
 import { MenuProvider } from "@/contexts/menu-context"
+import { useSidebar } from "@/components/ui/sidebar"
+import { useUiSettingsStore } from "@/lib/ui-settings"
+import { MobileNavSheet } from "@/components/layout/mobile-nav-sheet"
+import { DashboardVerticalMenu } from "@/components/layout/dashboard-vertical-menu"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
-import { getDictionary } from "@/lib/get-dictionary"
-// import { Footer } from "@/components/layout/footer" // Not implemented yet
-
-// We can fetch dictionary here or receive it.
-// Since we are client component (because Sidebar/Header are client), and getDictionary is async mock...
-// Actually, Sidebar and Header are client components, but MainLayout can be too if needed.
-// Simplest: Mock dictionary synchronously or use simple objects.
-// In lib/get-dictionary we exported async.
-// Let's use the static 'en' object directly for now to avoid async issues in client components if not handling promises.
+import { TopbarModuleStrip } from "@/components/layout/topbar-module-strip"
+import { DashboardBottomBar } from "@/components/layout/dashboard-bottom-bar"
 import { en } from "@/data/dictionaries/en"
+
+function TopbarMobileNav() {
+    const { setOpenMobile } = useSidebar()
+    return (
+        <MobileNavSheet>
+            <DashboardVerticalMenu onNavigate={() => setOpenMobile(false)} />
+        </MobileNavSheet>
+    )
+}
 
 export function MainLayout({ children }: { children: ReactNode }) {
     const { user, isLoading } = useAuth()
@@ -43,21 +49,49 @@ export function MainLayout({ children }: { children: ReactNode }) {
     }
 
     if (!user) {
-        return null // Will redirect
+        return null
     }
 
     return (
         <MenuProvider>
-            <div className="flex h-full min-h-screen bg-background text-foreground">
-                <Sidebar />
-                <div className="flex flex-col flex-1 min-w-0 transition-[margin] duration-300 ease-in-out bg-background">
-                    <Header dictionary={dictionary} />
-                    <main className="flex-1 overflow-y-auto bg-background p-2 sm:p-3 lg:p-4">
-                        {children}
-                    </main>
-                {/* <Footer /> */}
-                </div>
-            </div>
+            <MainLayoutShell dictionary={dictionary}>{children}</MainLayoutShell>
         </MenuProvider>
+    )
+}
+
+function MainLayoutShell({
+    children,
+    dictionary,
+}: {
+    children: ReactNode
+    dictionary: typeof en
+}) {
+    const navigationPlacement = useUiSettingsStore((s) => s.navigationPlacement)
+
+    return (
+        <div className="flex h-full min-h-screen w-full min-w-0 bg-background text-foreground">
+            {navigationPlacement === "topbar" ? (
+                <>
+                    <TopbarMobileNav />
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+                        <TopbarModuleStrip />
+                        <main className="min-h-0 flex-1 overflow-y-auto bg-background p-2 sm:p-3 lg:p-4">
+                            {children}
+                        </main>
+                        <DashboardBottomBar dictionary={dictionary} />
+                    </div>
+                </>
+            ) : (
+                <>
+                    <Sidebar />
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+                        <Header dictionary={dictionary} />
+                        <main className="min-h-0 flex-1 overflow-y-auto bg-background p-2 sm:p-3 lg:p-4">
+                            {children}
+                        </main>
+                    </div>
+                </>
+            )}
+        </div>
     )
 }

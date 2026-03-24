@@ -7,7 +7,7 @@ import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb"
 export function DynamicBreadcrumb({
     variant = "page",
 }: {
-    variant?: "page" | "header"
+    variant?: "page" | "header" | "dock"
 } = {}) {
     const pathname = usePathname()
     const menu = useMenuOptional()

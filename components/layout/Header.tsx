@@ -1,34 +1,30 @@
 "use client"
 
-import { SidebarTrigger } from "@/components/ui/sidebar"
 import { DynamicBreadcrumb } from "@/components/layout/DynamicBreadcrumb"
+import { AppSettingsPanel } from "@/components/layout/app-settings-panel"
 import { NotificationDropdown } from "./NotificationDropdown"
 import { UserDropdown } from "./UserDropdown"
 import { ToggleMobileSidebar } from "./ToggleMobileSidebar"
-import { ModeDropdown } from "./ModeDropdown"
-import { ThemeCustomizer } from "./ThemeCustomizer"
-import { UiSettingsMenu } from "@/components/ui-settings/ui-settings-menu"
+import { SidebarTrigger } from "@/components/ui/sidebar"
 import type { DictionaryType } from "@/lib/get-dictionary"
 
+/** Sidebar layout: single top row (breadcrumb + utilities). Module nav is in the left sidebar. */
 export function Header({
     dictionary,
 }: {
     dictionary: DictionaryType
 }) {
     return (
-        <header className="sticky top-0 z-50 w-full bg-background border-b border-sidebar-border">
-            <div className="container flex h-12 items-center gap-2 sm:gap-3">
+        <header className="sticky top-0 z-50 w-full border-b border-sidebar-border bg-background">
+            <div className="flex h-11 w-full min-w-0 items-center gap-1.5 px-2 sm:gap-2 sm:px-3">
                 <ToggleMobileSidebar />
                 <SidebarTrigger className="hidden shrink-0 lg:flex" />
                 <div className="min-w-0 flex-1">
                     <DynamicBreadcrumb variant="header" />
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                     <NotificationDropdown dictionary={dictionary} />
-                    <ThemeCustomizer />
-                    <UiSettingsMenu />
-                    <ModeDropdown dictionary={dictionary} />
-                    {/* <LanguageDropdown dictionary={dictionary} /> */}
+                    <AppSettingsPanel />
                     <UserDropdown dictionary={dictionary} />
                 </div>
             </div>

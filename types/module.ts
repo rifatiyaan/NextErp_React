@@ -65,6 +65,7 @@ export interface MenuItem {
     order: number
     isExternal: boolean
     badgeText?: string
+    /** From module metadata; applies to this node when used as a link. */
     openInNewTab?: boolean
 }
 

@@ -5,6 +5,8 @@ import { ThemeProvider as NextThemesProvider } from "next-themes"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { SidebarViewProvider } from "@/contexts/sidebar-view-context"
 import { SidebarWidthProvider } from "@/contexts/sidebar-width-context"
+import { AccentThemeSync } from "@/components/layout/accent-theme-sync"
+
 export function Providers({ children }: { children: ReactNode }) {
     return (
         <NextThemesProvider
@@ -30,6 +32,7 @@ export function Providers({ children }: { children: ReactNode }) {
         >
             <SidebarWidthProvider>
                 <SidebarProvider>
+                    <AccentThemeSync />
                     <SidebarViewProvider>
                         {children}
                     </SidebarViewProvider>

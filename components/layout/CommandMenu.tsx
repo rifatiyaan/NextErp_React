@@ -36,10 +36,13 @@ import { DynamicIcon } from "@/components/dynamic-icon"
 
 interface CommandMenuProps extends DialogProps {
     buttonClassName?: string
+    /** Icon-only trigger for narrow rails / dense toolbars. */
+    compactTrigger?: boolean
 }
 
 export function CommandMenu({
     buttonClassName,
+    compactTrigger,
     ...props
 }: CommandMenuProps) {
     const [open, setOpen] = useState(false)
@@ -132,17 +135,25 @@ export function CommandMenu({
         <>
             <Button
                 variant="outline"
-                size="lg"
+                size={compactTrigger ? "icon" : "lg"}
                 className={cn(
-                    "max-w-64 w-full justify-start px-3 rounded-md bg-muted/50 text-muted-foreground",
+                    !compactTrigger &&
+                        "max-w-64 w-full justify-start px-3 rounded-md bg-muted/50 text-muted-foreground",
+                    compactTrigger && "h-9 w-9 shrink-0 bg-muted/40 text-muted-foreground",
                     buttonClassName
                 )}
                 onClick={() => setOpen(true)}
                 {...props}
             >
-                <Search className="me-2 h-4 w-4" />
-                <span>Search...</span>
-                <Keyboard className="ms-auto">K</Keyboard>
+                <Search className={cn("h-4 w-4", !compactTrigger && "me-2")} />
+                {!compactTrigger ? (
+                    <>
+                        <span>Search...</span>
+                        <Keyboard className="ms-auto">K</Keyboard>
+                    </>
+                ) : (
+                    <span className="sr-only">Open command menu</span>
+                )}
             </Button>
             <CommandDialog open={open} onOpenChange={setOpen} {...props}>
                 <DialogTitle className="sr-only">Search Menu</DialogTitle>

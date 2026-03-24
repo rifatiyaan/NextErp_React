@@ -6,14 +6,26 @@ interface SidebarWidthContextType {
     width: string
     setWidth: (width: string) => void
     widthInRem: number
-    setWidthInRem: (width: number) => void
+    setWidthInRem: (width: number, options?: { snap?: boolean }) => void
 }
 
 const SidebarWidthContext = createContext<SidebarWidthContextType | undefined>(undefined)
 
-const DEFAULT_WIDTH = 14 // rem
-const MIN_WIDTH = 12 // rem
-const MAX_WIDTH = 30 // rem
+/** Icon-only rail (~64px). */
+export const NAV_RAIL_COLLAPSED_REM = 4
+/** Below this width (after drag) snaps to collapsed. ~120px */
+export const NAV_RAIL_THRESHOLD_REM = 7.5
+export const NAV_RAIL_MAX_REM = 30
+
+const DEFAULT_WIDTH = NAV_RAIL_COLLAPSED_REM
+const MIN_WIDTH = NAV_RAIL_COLLAPSED_REM
+const MAX_WIDTH = NAV_RAIL_MAX_REM
+
+/** After pointer release: snap narrow rails to icon width, else enforce expanded floor. */
+export function snapNavRailWidthRem(widthInRem: number): number {
+    if (widthInRem < NAV_RAIL_THRESHOLD_REM) return NAV_RAIL_COLLAPSED_REM
+    return Math.max(NAV_RAIL_THRESHOLD_REM, Math.min(NAV_RAIL_MAX_REM, widthInRem))
+}
 
 export function SidebarWidthProvider({ children }: { children: ReactNode }) {
     const [widthInRem, setWidthInRemState] = useState<number>(DEFAULT_WIDTH)
@@ -40,9 +52,9 @@ export function SidebarWidthProvider({ children }: { children: ReactNode }) {
         }
     }, [widthInRem, mounted])
 
-    const setWidthInRem = (width: number) => {
-        const clampedWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, width))
-        setWidthInRemState(clampedWidth)
+    const setWidthInRem = (width: number, options?: { snap?: boolean }) => {
+        const next = options?.snap ? snapNavRailWidthRem(width) : Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, width))
+        setWidthInRemState(next)
     }
 
     const width = `${widthInRem}rem`

@@ -18,24 +18,24 @@ export interface PageBreadcrumbItemType {
 
 interface PageBreadcrumbProps {
     items: PageBreadcrumbItemType[]
-    /** `header`: single row in top bar; `page`: below header with spacing */
-    variant?: "page" | "header"
+    /** `header`: top chrome row; `dock`: bottom bar; `page`: below header with spacing */
+    variant?: "page" | "header" | "dock"
 }
 
 export function PageBreadcrumb({ items, variant = "page" }: PageBreadcrumbProps) {
     if (!items?.length) return null
-    const isHeader = variant === "header"
+    const isDenseRow = variant === "header" || variant === "dock"
     return (
         <Breadcrumb
             className={
-                isHeader
+                isDenseRow
                     ? "mb-0 min-w-0 flex-1"
                     : "mb-3 sm:mb-4"
             }
         >
             <BreadcrumbList
                 className={
-                    isHeader
+                    isDenseRow
                         ? "flex-nowrap gap-1 overflow-x-auto text-xs sm:gap-1.5 [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0"
                         : undefined
                 }
