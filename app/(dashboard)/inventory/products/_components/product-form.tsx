@@ -55,6 +55,39 @@ const generateBarcode = (): string => {
     return code
 }
 
+/** First matching "optIdx:valIdx" per distinct value string (option order, then value order). */
+function buildValueToVariationKeyMap(
+    options: ReadonlyArray<{ values?: ReadonlyArray<{ value?: string }> }>
+): Map<string, string> {
+    const map = new Map<string, string>()
+    options.forEach((opt, optIdx) => {
+        ;(opt.values ?? []).forEach((val, valIdx) => {
+            const v = (val.value ?? "").trim()
+            if (v && !map.has(v)) map.set(v, `${optIdx}:${valIdx}`)
+        })
+    })
+    return map
+}
+
+/** Cartesian product of variation keys: [["0:0","1:0"], ["0:0","1:1"], …] */
+function cartesianVariationKeys(
+    options: ReadonlyArray<{ values?: ReadonlyArray<unknown> }>
+): string[][] {
+    const build = (i: number, prefix: string[]): string[][] =>
+        i >= options.length
+            ? [prefix]
+            : (options[i].values ?? []).flatMap((_, valueIndex) =>
+                  build(i + 1, [...prefix, `${i}:${valueIndex}`])
+              )
+
+    return options.length === 0 ? [] : build(0, [])
+}
+
+function parseVariationKey(key: string): { optIdx: number; valIdx: number } {
+    const [optIdx, valIdx] = key.split(":").map(Number)
+    return { optIdx, valIdx }
+}
+
 export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
     const router = useRouter()
     const [isLoading, setIsLoading] = useState(false)
@@ -193,30 +226,16 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
 
                 // Convert product variants
                 if (initialData.productVariants && Array.isArray(initialData.productVariants)) {
-                    const formVariants = initialData.productVariants.map((variant: any) => {
-                        // Build variationValueKeys from variationValues
-                        const keys: string[] = []
-                        if (variant.variationValues && Array.isArray(variant.variationValues)) {
-                            variant.variationValues.forEach((vv: any) => {
-                                // Find which option and value index this corresponds to
-                                formVariationOptions.forEach((opt: any, optIdx: number) => {
-                                    opt.values.forEach((val: any, valIdx: number) => {
-                                        if (val.value === vv.value) {
-                                            keys.push(`${optIdx}:${valIdx}`)
-                                        }
-                                    })
-                                })
-                            })
-                        }
-                        return {
-                            sku: variant.sku || "",
-                            price: variant.price || 0,
-                            stock: variant.stock || 0,
-                            isActive: variant.isActive ?? true,
-                            variationValueKeys: keys,
-                        }
-                    })
-                    formData.productVariants = formVariants
+                    const valueToKey = buildValueToVariationKeyMap(formVariationOptions)
+                    formData.productVariants = initialData.productVariants.map((variant: any) => ({
+                        sku: variant.sku || "",
+                        price: variant.price || 0,
+                        stock: variant.stock || 0,
+                        isActive: variant.isActive ?? true,
+                        variationValueKeys: (variant.variationValues ?? [])
+                            .map((vv: any) => valueToKey.get((vv.value ?? "").trim()))
+                            .filter((k): k is string => Boolean(k)),
+                    }))
                 }
             }
 
@@ -265,59 +284,33 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
             return
         }
 
-        // Generate all combinations using cartesian product
-        const combinations: string[][] = []
-        const generateCombinations = (current: string[], optionIndex: number) => {
-            if (optionIndex >= options.length) {
-                combinations.push([...current])
-                return
-            }
-            const option = options[optionIndex]
-            option.values.forEach((_, valueIndex) => {
-                generateCombinations([...current, `${optionIndex}:${valueIndex}`], optionIndex + 1)
-            })
-        }
-        generateCombinations([], 0)
-
-        // Create or update variants
+        const combinations = cartesianVariationKeys(options)
         const existingVariants = form.getValues("productVariants") || []
-        const newVariants: ProductVariantFormValues[] = combinations.map((keys, index) => {
-            // Try to find existing variant with same keys
-            const existing = existingVariants.find(
-                (v) => JSON.stringify(v.variationValueKeys.sort()) === JSON.stringify(keys.sort())
+        const baseCode = form.getValues("code") || "PROD"
+        const basePrice = form.getValues("price") || 0
+
+        const skuForKeys = (keys: string[]) =>
+            `${baseCode}-${keys
+                .map((key) => {
+                    const { optIdx, valIdx } = parseVariationKey(key)
+                    return (options[optIdx]?.values[valIdx]?.value || "").substring(0, 3).toUpperCase()
+                })
+                .join("-")}`
+
+        const sameKeySet = (a: string[], b: string[]) =>
+            JSON.stringify([...a].sort()) === JSON.stringify([...b].sort())
+
+        const newVariants: ProductVariantFormValues[] = combinations.map((keys) => {
+            const existing = existingVariants.find((v) => sameKeySet(v.variationValueKeys, keys))
+            return (
+                existing ?? {
+                    sku: skuForKeys(keys),
+                    price: basePrice,
+                    stock: 0,
+                    isActive: true,
+                    variationValueKeys: keys,
+                }
             )
-
-            if (existing) {
-                return existing
-            }
-
-            // Generate variant title from values
-            const variantTitle = keys
-                .map((key) => {
-                    const [optIdx, valIdx] = key.split(":").map(Number)
-                    return options[optIdx]?.values[valIdx]?.value || ""
-                })
-                .filter(Boolean)
-                .join(" / ")
-
-            // Generate SKU
-            const baseCode = form.getValues("code") || "PROD"
-            const variantSuffix = keys
-                .map((key) => {
-                    const [optIdx, valIdx] = key.split(":").map(Number)
-                    const value = options[optIdx]?.values[valIdx]?.value || ""
-                    return value.substring(0, 3).toUpperCase()
-                })
-                .join("-")
-            const sku = `${baseCode}-${variantSuffix}`
-
-            return {
-                sku,
-                price: form.getValues("price") || 0,
-                stock: 0,
-                isActive: true,
-                variationValueKeys: keys,
-            }
         })
 
         form.setValue("productVariants", newVariants, { shouldDirty: false })

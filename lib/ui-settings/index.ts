@@ -13,4 +13,4 @@ export {
     DEFAULT_ACCENT_THEME,
     type AccentThemeClass,
 } from "./accent-themes"
-export { getRadiusClass } from "@/lib/ui/radius"
+export { applyUiRadiusToDocument, getRadiusClass } from "@/lib/ui/radius"

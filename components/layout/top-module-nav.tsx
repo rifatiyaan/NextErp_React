@@ -40,12 +40,16 @@ export function TopModuleNav({
     const radiusClass = useRadiusClass()
 
     const isRoot = variant === "root"
+    /** Root topbar: slower expand/collapse on hover (width + chrome). */
+    const rootMotion = "transition-[width,gap,padding,min-width,background-color] duration-500 ease-in-out"
+    const compactMotion =
+        "transition-[width,gap,padding,min-width,background-color] duration-200 ease-in-out"
     const triggerBase = cn(
-        "flex shrink-0 items-center rounded-md border border-transparent font-medium outline-none transition-[width,gap,padding,background-color,min-width] duration-200 ease-in-out focus-visible:ring-2 focus-visible:ring-ring/40",
-        isRoot
-            ? "h-11 min-h-11 max-w-[min(18rem,calc(100vw-4rem))] overflow-hidden text-sm sm:h-12 sm:min-h-12"
-            : "h-8 max-w-[10rem] overflow-hidden text-xs"
+        "flex shrink-0 items-center rounded-md border border-transparent font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+        isRoot ? cn(rootMotion, "h-11 min-h-11 max-w-[min(18rem,calc(100vw-4rem))] overflow-hidden text-sm sm:h-12 sm:min-h-12") : cn(compactMotion, "h-8 max-w-[10rem] overflow-hidden text-xs")
     )
+    const labelMotionRoot = "transition-[opacity,max-width] duration-500 ease-in-out"
+    const labelMotionCompact = "transition-[opacity,max-width] duration-200 ease-in-out"
     const iconWrap = isRoot ? "h-5 w-5 shrink-0" : "h-4 w-4 shrink-0"
     const iconOnlyW = isRoot ? "w-11 min-w-11 justify-center px-0 sm:w-12 sm:min-w-12" : "w-8 min-w-8 justify-center px-0"
     const hoverExpand = isRoot
@@ -108,7 +112,8 @@ export function TopModuleNav({
                         rootSelected
                             ? "min-w-0 flex-1 truncate text-left opacity-100"
                             : cn(
-                                  "min-w-0 truncate opacity-0 max-w-0 overflow-hidden transition-[opacity,max-width] duration-200 ease-in-out",
+                                  "min-w-0 truncate opacity-0 max-w-0 overflow-hidden",
+                                  isRoot ? labelMotionRoot : labelMotionCompact,
                                   "group-hover:opacity-100",
                                   isRoot ? "group-hover:max-w-[12rem]" : "group-hover:max-w-[10rem]",
                                   isActive && "max-w-[10rem] opacity-100"
@@ -186,7 +191,8 @@ export function TopModuleNav({
                                             rootParentSelected
                                                 ? "min-w-0 flex-1 truncate text-left opacity-100"
                                                 : cn(
-                                                      "min-w-0 truncate overflow-hidden transition-[opacity,max-width] duration-200 ease-in-out",
+                                                      "min-w-0 truncate overflow-hidden",
+                                                      isRoot ? labelMotionRoot : labelMotionCompact,
                                                       showParentLabel &&
                                                           !isRoot &&
                                                           "max-w-[10rem] opacity-100",
@@ -207,7 +213,8 @@ export function TopModuleNav({
                                         <Badge
                                             variant="secondary"
                                             className={cn(
-                                                "ms-auto h-5 shrink-0 px-1 text-[10px] transition-[opacity,max-width] duration-200",
+                                                "ms-auto h-5 shrink-0 px-1 text-[10px] transition-[opacity,max-width]",
+                                                isRoot ? "duration-500 ease-in-out" : "duration-200 ease-in-out",
                                                 rootParentSelected &&
                                                     "border-primary-foreground/35 bg-primary-foreground/15 text-primary-foreground hover:bg-primary-foreground/20",
                                                 showParentLabel

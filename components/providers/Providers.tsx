@@ -6,6 +6,7 @@ import { SidebarProvider } from "@/components/ui/sidebar"
 import { SidebarViewProvider } from "@/contexts/sidebar-view-context"
 import { SidebarWidthProvider } from "@/contexts/sidebar-width-context"
 import { AccentThemeSync } from "@/components/layout/accent-theme-sync"
+import { RadiusCssVarSync } from "@/components/layout/radius-css-var-sync"
 
 export function Providers({ children }: { children: ReactNode }) {
     return (
@@ -33,6 +34,7 @@ export function Providers({ children }: { children: ReactNode }) {
             <SidebarWidthProvider>
                 <SidebarProvider>
                     <AccentThemeSync />
+                    <RadiusCssVarSync />
                     <SidebarViewProvider>
                         {children}
                     </SidebarViewProvider>
