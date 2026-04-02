@@ -4,11 +4,7 @@ import { useEffect, useState } from "react"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from "@/components/ui/collapsible"
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible"
 import { ChevronDown, Save } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { IdentityRoleEntry } from "@/lib/types/identity"
@@ -188,30 +184,42 @@ export function EditablePermissionMatrix({
 
                     return (
                         <Collapsible key={groupName} open={isOpen} onOpenChange={() => toggleGroupOpen(groupName)}>
-                            <CollapsibleTrigger className="flex w-full items-center justify-between border-b border-border/60 px-4 py-2.5 hover:bg-muted/30 transition-colors">
-                                <div className="flex items-center gap-2">
+                            <div className="flex w-full items-center justify-between gap-2 border-b border-border/60 px-4 py-2.5 transition-colors hover:bg-muted/30">
+                                <button
+                                    type="button"
+                                    className="flex min-w-0 flex-1 items-center gap-2 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                    aria-expanded={isOpen}
+                                    onClick={() => toggleGroupOpen(groupName)}
+                                >
                                     <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                                         {groupName}
                                     </span>
                                     <Badge variant="outline" className="border px-1 py-0 text-[10px]">
                                         {enabledCount}/{items.length}
                                     </Badge>
-                                </div>
-                                <div className="flex items-center gap-2">
+                                </button>
+                                <div className="flex shrink-0 items-center gap-2">
                                     <Switch
                                         checked={allEnabled}
                                         onCheckedChange={() => toggleGroup(groupName, items)}
                                         className="scale-75"
-                                        onClick={(e) => e.stopPropagation()}
                                     />
-                                    <ChevronDown
-                                        className={cn(
-                                            "size-3.5 text-muted-foreground transition-transform duration-200",
-                                            isOpen && "rotate-180"
-                                        )}
-                                    />
+                                    <button
+                                        type="button"
+                                        className="rounded-sm p-0.5 text-muted-foreground hover:bg-muted/50"
+                                        aria-expanded={isOpen}
+                                        aria-label={isOpen ? "Collapse section" : "Expand section"}
+                                        onClick={() => toggleGroupOpen(groupName)}
+                                    >
+                                        <ChevronDown
+                                            className={cn(
+                                                "size-3.5 transition-transform duration-200",
+                                                isOpen && "rotate-180"
+                                            )}
+                                        />
+                                    </button>
                                 </div>
-                            </CollapsibleTrigger>
+                            </div>
                             <CollapsibleContent>
                                 <div className="divide-y divide-border/40">
                                     {items.map((item) => (
