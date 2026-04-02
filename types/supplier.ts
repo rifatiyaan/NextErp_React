@@ -1,20 +1,20 @@
+/** Mirrors Party API (Supplier partyType = 1). */
 export interface Supplier {
-    id: number
+    id: string
     title: string
     contactPerson?: string
     phone?: string
     email?: string
     address?: string
+    vatNumber?: string
+    taxId?: string
+    notes?: string
+    partyType?: number
     isActive: boolean
     createdAt: string
     updatedAt?: string
     tenantId: string
     branchId?: string
-    metadata?: {
-        vatNumber?: string
-        taxId?: string
-        notes?: string
-    }
 }
 
 export interface SupplierFormValues {
@@ -30,4 +30,3 @@ export interface SupplierFormValues {
         notes?: string
     }
 }
-

@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation"
 import { ChevronDown } from "lucide-react"
 
 import type { MenuItem } from "@/types/module"
+import { useAuth } from "@/contexts/auth-context"
+import { hasIdentityAdminRole } from "@/lib/auth/roles"
 import { useMenu } from "@/contexts/menu-context"
 import { useSidebarView } from "@/contexts/sidebar-view-context"
 import { ModuleType, coerceModuleType } from "@/types/module"
@@ -31,8 +33,23 @@ import { DynamicIcon } from "@/components/dynamic-icon"
 import { CommandMenu } from "./CommandMenu"
 import { cn } from "@/lib/utils"
 
+/** Hide /settings/* links from the dynamic menu for non–identity admins. */
+function stripSettingsFromMenuTree(items: MenuItem[]): MenuItem[] {
+    return items
+        .filter((item) => {
+            const u = item.url || ""
+            return !u.startsWith("/settings")
+        })
+        .map((item) => ({
+            ...item,
+            children: stripSettingsFromMenuTree(item.children ?? []),
+        }))
+}
+
 export function DashboardVerticalMenu({ onNavigate }: { onNavigate?: () => void }) {
     const pathname = usePathname()
+    const { user } = useAuth()
+    const allowSettingsNav = hasIdentityAdminRole(user?.roles ?? [])
     const { menuTree, isLoading } = useMenu()
     const { mode } = useSidebarView()
     const { isMobile, setOpenMobile } = useSidebar()
@@ -46,14 +63,17 @@ export function DashboardVerticalMenu({ onNavigate }: { onNavigate?: () => void 
     }
 
     const menuItems = useMemo(() => {
-        const filtered = menuTree
+        const base = allowSettingsNav
+            ? menuTree
+            : stripSettingsFromMenuTree(menuTree)
+        const filtered = base
             .filter((m) => coerceModuleType(m.type) === ModuleType.Module)
             .sort((a, b) => a.order - b.order)
         if (mode === "grid") {
             return filtered.map((m) => ({ ...m, children: [] as MenuItem[] }))
         }
         return filtered
-    }, [menuTree, mode])
+    }, [menuTree, mode, allowSettingsNav])
 
     const CollapsibleItem = ({
         item,

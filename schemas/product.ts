@@ -13,7 +13,10 @@ export const variationOptionSchema = z.object({
 })
 
 export const productVariantSchema = z.object({
-    sku: z.string().min(1, "SKU is required"),
+    sku: z
+        .string()
+        .min(1, "SKU is required")
+        .regex(/^[A-Za-z0-9]+$/, "SKU must be alphanumeric only"),
     price: z.coerce.number().min(0, "Price must be positive"),
     stock: z.coerce.number().min(0, "Stock must be non-negative"),
     isActive: z.boolean().default(true),

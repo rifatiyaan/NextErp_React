@@ -1,11 +1,10 @@
 "use client"
 
-import { z } from "zod"
-import { useEffect, useState, useCallback, useMemo, useRef } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
-import { ProductFormValues, VariationOptionFormValues, ProductVariantFormValues } from "@/schemas/product"
+import { ProductFormValues, ProductVariantFormValues } from "@/schemas/product"
 import { productAPI } from "@/lib/api/product"
 import { categoryAPI } from "@/lib/api/category"
 import { variationAPI, type BulkVariationOption } from "@/lib/api/variation"
@@ -30,13 +29,18 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
+import {
+    ContextMenu,
+    ContextMenuContent,
+    ContextMenuItem,
+    ContextMenuSeparator,
+    ContextMenuTrigger,
+} from "@/components/ui/context-menu"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { FileDropzone } from "@/components/ui/file-dropzone"
 import { Switch } from "@/components/ui/switch"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "sonner"
-import { ChevronLeft, Plus, X, Package, Image as ImageIcon, Layers, DollarSign, FolderTree, Sparkles } from "lucide-react"
+import { ChevronLeft, Plus, Star, X, Package, Upload } from "lucide-react"
 import type { Category } from "@/types/category"
 import { productSchema } from "@/schemas/product"
 
@@ -45,14 +49,38 @@ interface ProductFormProps {
     isEdit?: boolean
 }
 
-// Auto-generate barcode / product code (alphanumeric, few digits)
-const generateBarcode = (): string => {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    let code = ""
-    for (let i = 0; i < 6; i++) {
-        code += chars.charAt(Math.floor(Math.random() * chars.length))
+/** Alphanumeric code from product name (no symbols). */
+function codeFromTitle(title: string): string {
+    const raw = title
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^A-Za-z0-9]+/g, "")
+        .slice(0, 40)
+    return raw.length > 0 ? raw : "ITEM"
+}
+
+/** Excel-style letter suffix: 0→a, 25→z, 26→aa … appended to base SKU. */
+function variantLetterSuffix(index: number): string {
+    let n = index + 1
+    let s = ""
+    while (n > 0) {
+        n--
+        s = String.fromCharCode(97 + (n % 26)) + s
+        n = Math.floor(n / 26)
     }
-    return code
+    return s
+}
+
+function newGalleryKey(): string {
+    return `g-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+}
+
+type GallerySlot = {
+    key: string
+    url?: string
+    file?: File
+    preview: string | null
+    serverId?: number
 }
 
 /** First matching "optIdx:valIdx" per distinct value string (option order, then value order). */
@@ -83,15 +111,13 @@ function cartesianVariationKeys(
     return options.length === 0 ? [] : build(0, [])
 }
 
-function parseVariationKey(key: string): { optIdx: number; valIdx: number } {
-    const [optIdx, valIdx] = key.split(":").map(Number)
-    return { optIdx, valIdx }
-}
-
 export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
     const router = useRouter()
     const [isLoading, setIsLoading] = useState(false)
-    const [images, setImages] = useState<(File | string)[]>([])
+    const [gallerySlots, setGallerySlots] = useState<GallerySlot[]>([])
+    const [thumbnailKey, setThumbnailKey] = useState<string | null>(null)
+    const galleryDirtyRef = useRef(false)
+    const codeManuallyEditedRef = useRef(false)
     const [categories, setCategories] = useState<Category[]>([])
     const [subCategories, setSubCategories] = useState<Category[]>([])
     const [loadingCategories, setLoadingCategories] = useState(true)
@@ -104,7 +130,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
         resolver: zodResolver(productSchema),
         defaultValues: {
             title: "",
-            code: generateBarcode(),
+            code: "",
             price: 0,
             stock: 0,
             categoryId: 0,
@@ -179,26 +205,19 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
         fetchBulkVariations()
     }, [])
 
-    // Auto-generate SKU on mount if not editing
-    useEffect(() => {
-        if (!isEdit && !initialData?.code) {
-            form.setValue("code", generateBarcode())
-        }
-    }, [isEdit, initialData, form])
-
     // Load initialData into form when editing
     useEffect(() => {
         if (isEdit && initialData) {
             // Reset form with initial data
             const formData: any = {
                 title: initialData.title || "",
-                code: initialData.code || generateBarcode(),
+                code: initialData.code || "",
                 price: initialData.price || 0,
                 stock: initialData.stock || 0,
                 categoryId: initialData.categoryId && initialData.categoryId > 0 ? initialData.categoryId : undefined,
                 subCategoryId: initialData.subCategoryId && initialData.subCategoryId > 0 ? initialData.subCategoryId : undefined,
                 imageUrl: initialData.imageUrl ? [initialData.imageUrl] : [],
-                // Set images state for FileDropzone
+                // Primary image for compact uploader
                 isActive: initialData.isActive ?? true,
                 hasVariations: initialData.hasVariations || false,
                 variationOptions: [],
@@ -234,7 +253,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                         isActive: variant.isActive ?? true,
                         variationValueKeys: (variant.variationValues ?? [])
                             .map((vv: any) => valueToKey.get((vv.value ?? "").trim()))
-                            .filter((k): k is string => Boolean(k)),
+                            .filter((k: string | undefined): k is string => typeof k === "string" && k.length > 0),
                     }))
                 }
             }
@@ -242,11 +261,34 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
             // Reset form with all data
             form.reset(formData)
 
-            // Set images state for FileDropzone (support both File and string URLs)
-            if (initialData.imageUrl) {
-                setImages([initialData.imageUrl])
+            galleryDirtyRef.current = false
+            const imgs = initialData.images as
+                | Array<{ id?: number; url?: string; isThumbnail?: boolean }>
+                | undefined
+            if (imgs && Array.isArray(imgs) && imgs.length > 0) {
+                const slots: GallerySlot[] = imgs.map((im) => ({
+                    key: newGalleryKey(),
+                    url: im.url,
+                    preview: im.url ?? null,
+                    serverId: typeof im.id === "number" && im.id > 0 ? im.id : undefined,
+                }))
+                setGallerySlots(slots)
+                const ti = imgs.findIndex((im) => im.isThumbnail)
+                const thumbIdx = ti >= 0 ? ti : 0
+                setThumbnailKey(slots[thumbIdx]?.key ?? slots[0]?.key ?? null)
+            } else if (initialData.imageUrl) {
+                const k = newGalleryKey()
+                setGallerySlots([
+                    {
+                        key: k,
+                        url: initialData.imageUrl,
+                        preview: initialData.imageUrl,
+                    },
+                ])
+                setThumbnailKey(k)
             } else {
-                setImages([])
+                setGallerySlots([])
+                setThumbnailKey(null)
             }
 
             // Ensure field arrays are properly initialized after reset
@@ -269,11 +311,40 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
         (subCat) => subCat.parentId === selectedCategoryId
     )
 
-    const handleImagesChange = (files: File[]) => {
-        // Keep existing URL strings and add new files
-        const existingUrls = images.filter((img): img is string => typeof img === "string")
-        setImages([...existingUrls, ...files])
-        form.setValue("imageUrl", files as any)
+    const addGalleryFiles = (files: FileList | null) => {
+        if (!files?.length) return
+        const next: GallerySlot[] = []
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i]
+            if (!file.type.startsWith("image/")) continue
+            if (file.size > 2 * 1024 * 1024) {
+                toast.error(`${file.name} must be under 2MB`)
+                continue
+            }
+            const key = newGalleryKey()
+            next.push({ key, file, preview: URL.createObjectURL(file) })
+        }
+        if (next.length === 0) return
+        galleryDirtyRef.current = true
+        setGallerySlots((prev) => {
+            const merged = [...prev, ...next]
+            setThumbnailKey((tk) => tk ?? next[0]!.key)
+            return merged
+        })
+    }
+
+    const removeGallerySlot = (key: string) => {
+        galleryDirtyRef.current = true
+        setGallerySlots((prev) => {
+            const slot = prev.find((s) => s.key === key)
+            if (slot?.preview?.startsWith("blob:")) URL.revokeObjectURL(slot.preview)
+            const next = prev.filter((s) => s.key !== key)
+            setThumbnailKey((tk) => {
+                if (tk !== key) return tk
+                return next[0]?.key ?? null
+            })
+            return next
+        })
     }
 
     // Generate all possible variant combinations from variation options
@@ -289,22 +360,16 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
         const baseCode = form.getValues("code") || "PROD"
         const basePrice = form.getValues("price") || 0
 
-        const skuForKeys = (keys: string[]) =>
-            `${baseCode}-${keys
-                .map((key) => {
-                    const { optIdx, valIdx } = parseVariationKey(key)
-                    return (options[optIdx]?.values[valIdx]?.value || "").substring(0, 3).toUpperCase()
-                })
-                .join("-")}`
-
         const sameKeySet = (a: string[], b: string[]) =>
             JSON.stringify([...a].sort()) === JSON.stringify([...b].sort())
 
-        const newVariants: ProductVariantFormValues[] = combinations.map((keys) => {
+        const newVariants: ProductVariantFormValues[] = combinations.map((keys, idx) => {
             const existing = existingVariants.find((v) => sameKeySet(v.variationValueKeys, keys))
+            const base = (baseCode || "ITEM").replace(/[^A-Za-z0-9]/g, "")
+            const suffix = variantLetterSuffix(idx)
             return (
                 existing ?? {
-                    sku: skuForKeys(keys),
+                    sku: `${base}${suffix}`,
                     price: basePrice,
                     stock: 0,
                     isActive: true,
@@ -386,14 +451,47 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
     const onSubmit = async (data: ProductFormValues) => {
         setIsLoading(true)
         try {
-            // Prepare image data - use first File if available, otherwise use first URL string, otherwise use data.imageUrl
-            const firstFile = images.find((img): img is File => img instanceof File)
-            const firstUrl = images.find((img): img is string => typeof img === "string")
-            const imageData = firstFile || firstUrl || data.imageUrl
+            const slots = gallerySlots.filter((s) => s.file || s.url)
+            const thumbKeyResolved = thumbnailKey ?? slots[0]?.key ?? null
+            const primarySlot = thumbKeyResolved ? slots.find((s) => s.key === thumbKeyResolved) : slots[0]
 
             const submitData: any = {
                 ...data,
-                imageUrl: imageData,
+                imageUrl:
+                    primarySlot?.url ??
+                    (typeof data.imageUrl === "string" ? data.imageUrl : undefined) ??
+                    (isEdit ? initialData?.imageUrl : undefined),
+            }
+
+            if (!isEdit) {
+                if (slots.length > 0) {
+                    submitData.imageSlots = slots.map((s) => ({
+                        url: s.file ? undefined : s.url,
+                        file: s.file,
+                        isThumbnail: s.key === thumbKeyResolved,
+                    }))
+                }
+            } else {
+                const hasServerIds = slots.some((s) => s.serverId != null)
+                if (!galleryDirtyRef.current && hasServerIds && slots.length > 0) {
+                    submitData.productImageThumbnailUpdates = slots
+                        .filter((s) => s.serverId != null)
+                        .map((s) => ({
+                            id: s.serverId!,
+                            isThumbnail: s.key === thumbKeyResolved,
+                        }))
+                } else {
+                    if (slots.length === 0) {
+                        submitData.clearGallery = true
+                        submitData.imageUrl = undefined
+                    } else {
+                        submitData.imageSlots = slots.map((s) => ({
+                            url: s.file ? undefined : s.url,
+                            file: s.file,
+                            isThumbnail: s.key === thumbKeyResolved,
+                        }))
+                    }
+                }
             }
 
             // If product has variations, ensure variation data is included
@@ -453,9 +551,8 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
     }
 
     return (
-        <div className="space-y-4">
-            {/* Modern Header */}
-            <div className="flex items-center justify-between pb-2 border-b border-border/40">
+        <div className="space-y-3">
+            <div className="flex items-center justify-between pb-1.5 border-b border-border/40">
                 <div className="flex items-center gap-2.5">
                     <Button
                         variant="ghost"
@@ -470,7 +567,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                             <Package className="h-4 w-4 text-primary" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-semibold">{isEdit ? "Edit Product" : "Create Product"}</h1>
+                            <h1 className="text-lg font-semibold">{isEdit ? "Edit Product" : "Create Product"}</h1>
                         </div>
                     </div>
                 </div>
@@ -498,95 +595,185 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
             </div>
 
             <Form {...form}>
-                <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
-                    <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
-                        {/* Left Column */}
-                        <div className="lg:col-span-2 space-y-4">
-                            {/* Product Details */}
-                            <Card className="border border-border/50">
-                                <CardHeader className="pb-2.5 pt-3 px-4 border-b border-border/50">
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
-                                            <Package className="h-3.5 w-3.5 text-primary" />
-                                        </div>
-                                        <CardTitle className="text-base font-semibold">Product Details</CardTitle>
-                                    </div>
+                <form onSubmit={(e) => e.preventDefault()} className="space-y-3">
+                    <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 xl:items-start">
+                        {/* Left ~50%: product + price & category */}
+                        <div className="min-w-0 max-w-full space-y-3 overflow-hidden">
+                            <Card className="min-w-0 max-w-full overflow-hidden border border-border/50 shadow-none">
+                                <CardHeader className="py-2 px-3 border-b border-border/50">
+                                    <CardTitle className="text-sm font-semibold">Product</CardTitle>
                                 </CardHeader>
-                                <CardContent className="space-y-3 pt-3 px-4 pb-4">
-                                    <FormField
-                                        control={form.control}
-                                        name="title"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="text-sm font-medium">Product Name *</FormLabel>
-                                                <FormControl>
-                                                    <Input
-                                                        placeholder="Enter product name"
-                                                        {...field}
-                                                        className="h-9"
-                                                    />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="code"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="text-sm font-medium">Product Code *</FormLabel>
-                                                <FormControl>
-                                                    <div className="flex gap-2">
-                                                        <Input
-                                                            placeholder="Alphanumeric code or generate"
-                                                            {...field}
-                                                            onChange={(e) => {
-                                                                const value = e.target.value.replace(/[^A-Za-z0-9]/g, "")
-                                                                field.onChange(value)
-                                                            }}
-                                                            className="h-9"
-                                                        />
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() => {
-                                                                const newCode = generateBarcode()
-                                                                field.onChange(newCode)
-                                                            }}
-                                                            className="h-9 px-3"
-                                                        >
-                                                            <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-                                                            Generate
-                                                        </Button>
+                                <CardContent className="min-w-0 max-w-full space-y-3 p-3">
+                                    {/* Stack vertically so images row never fights name/code for width (fixes overlap). */}
+                                    <div className="flex min-w-0 max-w-full flex-col gap-3">
+                                        <div className="min-w-0 max-w-full space-y-1.5">
+                                            <FormLabel className="text-xs font-medium">Images</FormLabel>
+                                            {gallerySlots.length === 0 ? (
+                                                <div className="flex min-h-14 w-full min-w-0 items-center rounded-lg border border-dashed border-border/60 bg-muted/15 px-3 py-2 text-[11px] leading-snug text-muted-foreground">
+                                                    No images yet. Use the &quot;Add images&quot; button below.
+                                                </div>
+                                            ) : (
+                                                <div className="min-w-0 max-w-full rounded-lg border border-border/50 bg-muted/15 p-2.5 sm:p-3">
+                                                    <div className="flex min-h-[5.25rem] w-full min-w-0 flex-nowrap items-center gap-3 overflow-x-auto overflow-y-hidden py-1 sm:min-h-[5.75rem] sm:gap-4">
+                                                        {gallerySlots.map((slot) => (
+                                                            <div key={slot.key} className="shrink-0">
+                                                                <ContextMenu>
+                                                                    <ContextMenuTrigger asChild>
+                                                                        <button
+                                                                            type="button"
+                                                                            className={`relative flex size-16 shrink-0 items-center justify-center rounded-lg border bg-muted p-1.5 text-left outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:size-[4.75rem] sm:p-2 ${
+                                                                                thumbnailKey === slot.key
+                                                                                    ? "ring-2 ring-primary ring-offset-1 ring-offset-background border-primary"
+                                                                                    : "border-border/60 hover:border-border"
+                                                                            }`}
+                                                                            aria-label="Product image, open menu for options"
+                                                                        >
+                                                                            {slot.preview ? (
+                                                                                // eslint-disable-next-line @next/next/no-img-element
+                                                                                <img
+                                                                                    src={slot.preview}
+                                                                                    alt=""
+                                                                                    className="max-h-full max-w-full rounded-md object-contain pointer-events-none"
+                                                                                />
+                                                                            ) : (
+                                                                                <div className="flex size-full min-h-0 min-w-0 items-center justify-center pointer-events-none">
+                                                                                    <Package className="h-6 w-6 text-muted-foreground/40 sm:h-7 sm:w-7" />
+                                                                                </div>
+                                                                            )}
+                                                                            {thumbnailKey === slot.key ? (
+                                                                                <span className="absolute top-0.5 left-0.5 flex h-4 w-4 items-center justify-center rounded bg-primary text-primary-foreground shadow-sm pointer-events-none sm:h-5 sm:w-5">
+                                                                                    <Star className="h-2.5 w-2.5 fill-current sm:h-3 sm:w-3" />
+                                                                                </span>
+                                                                            ) : null}
+                                                                        </button>
+                                                                    </ContextMenuTrigger>
+                                                                    <ContextMenuContent>
+                                                                        <ContextMenuItem
+                                                                            onSelect={() =>
+                                                                                setThumbnailKey(slot.key)
+                                                                            }
+                                                                        >
+                                                                            Set thumbnail
+                                                                        </ContextMenuItem>
+                                                                        <ContextMenuSeparator />
+                                                                        <ContextMenuItem
+                                                                            variant="destructive"
+                                                                            onSelect={() =>
+                                                                                removeGallerySlot(slot.key)
+                                                                            }
+                                                                        >
+                                                                            Delete
+                                                                        </ContextMenuItem>
+                                                                    </ContextMenuContent>
+                                                                </ContextMenu>
+                                                            </div>
+                                                        ))}
                                                     </div>
-                                                </FormControl>
-                                                <FormDescription className="text-xs text-muted-foreground">
-                                                    Alphanumeric product code. Click Generate for auto barcode.
-                                                </FormDescription>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                                                </div>
+                                            )}
+                                            <input
+                                                id="product-gallery-upload"
+                                                type="file"
+                                                accept="image/*"
+                                                multiple
+                                                className="hidden"
+                                                onChange={(e) => {
+                                                    addGalleryFiles(e.target.files)
+                                                    e.target.value = ""
+                                                }}
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="secondary"
+                                                size="sm"
+                                                className="h-7 text-[11px]"
+                                                onClick={() =>
+                                                    document.getElementById("product-gallery-upload")?.click()
+                                                }
+                                            >
+                                                <Upload className="h-3 w-3 mr-1 shrink-0" />
+                                                Add images
+                                            </Button>
+                                            <p className="text-[10px] text-muted-foreground leading-tight">
+                                                JPG, PNG · max 2MB each · right-click an image to set thumbnail or
+                                                delete
+                                            </p>
+                                        </div>
+                                        <div className="min-w-0 max-w-full space-y-2">
+                                            <FormField
+                                                control={form.control}
+                                                name="title"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="text-xs font-medium">Name *</FormLabel>
+                                                        <FormControl>
+                                                            <Input
+                                                                placeholder="Product name"
+                                                                {...field}
+                                                                className="h-8 text-sm"
+                                                                onBlur={(e) => {
+                                                                    field.onBlur()
+                                                                    if (!isEdit && !codeManuallyEditedRef.current) {
+                                                                        const t = e.target.value.trim()
+                                                                        if (t)
+                                                                            form.setValue(
+                                                                                "code",
+                                                                                codeFromTitle(t),
+                                                                                { shouldValidate: true }
+                                                                            )
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name="code"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="text-xs font-medium">Code *</FormLabel>
+                                                        <FormControl>
+                                                            <Input
+                                                                placeholder="Letters and numbers only"
+                                                                {...field}
+                                                                onChange={(e) => {
+                                                                    codeManuallyEditedRef.current = true
+                                                                    const value = e.target.value.replace(
+                                                                        /[^A-Za-z0-9]/g,
+                                                                        ""
+                                                                    )
+                                                                    field.onChange(value)
+                                                                }}
+                                                                className="h-8 text-sm"
+                                                            />
+                                                        </FormControl>
+                                                        <FormDescription className="text-[11px]">
+                                                            Filled from name until you edit it manually.
+                                                        </FormDescription>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+                                    </div>
                                     <FormField
                                         control={form.control}
                                         name="metadata.description"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel className="text-sm font-medium">Description</FormLabel>
+                                                <FormLabel className="text-xs font-medium">Description</FormLabel>
                                                 <FormControl>
                                                     <Textarea
-                                                        placeholder="Describe your product in detail..."
-                                                        className="resize-none min-h-[80px]"
-                                                        rows={3}
+                                                        placeholder="Short description…"
+                                                        className="resize-none min-h-[52px] text-sm"
+                                                        rows={2}
                                                         {...field}
                                                         value={field.value || ""}
                                                     />
                                                 </FormControl>
-                                                <FormDescription className="text-xs text-muted-foreground">
-                                                    Provide a detailed description to help customers understand your product better.
-                                                </FormDescription>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
@@ -594,65 +781,129 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                 </CardContent>
                             </Card>
 
-                            {/* Product Images */}
-                            <Card className="border border-border/50">
-                                <CardHeader className="pb-2.5 pt-3 px-4 border-b border-border/50">
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
-                                            <ImageIcon className="h-3.5 w-3.5 text-primary" />
-                                        </div>
-                                        <CardTitle className="text-base font-semibold">Product Images</CardTitle>
-                                    </div>
+                            <Card className="border border-border/50 shadow-none">
+                                <CardHeader className="py-2 px-3 border-b border-border/50">
+                                    <CardTitle className="text-sm font-semibold">Price & category</CardTitle>
                                 </CardHeader>
-                                <CardContent className="pt-3 px-4 pb-4">
+                                <CardContent className="p-3 space-y-2.5">
                                     <FormField
                                         control={form.control}
-                                        name="imageUrl"
+                                        name="price"
                                         render={({ field }) => (
                                             <FormItem>
+                                                <FormLabel className="text-xs font-medium">
+                                                    {hasVariations ? "Base price" : "Price *"}
+                                                </FormLabel>
                                                 <FormControl>
-                                                    <FileDropzone
-                                                        value={images}
-                                                        onChange={handleImagesChange}
-                                                        onUrlRemove={(url) => {
-                                                            setImages(prev => prev.filter(img => img !== url))
-                                                            // If this was the only image, clear form value
-                                                            const remaining = images.filter(img => img !== url)
-                                                            if (remaining.length === 0) {
-                                                                form.setValue("imageUrl", undefined)
-                                                            }
-                                                        }}
-                                                        maxFiles={10}
+                                                    <Input
+                                                        type="number"
+                                                        step="0.01"
+                                                        placeholder="0.00"
+                                                        {...field}
+                                                        onChange={(e) =>
+                                                            field.onChange(e.target.valueAsNumber || 0)
+                                                        }
+                                                        className="h-8 text-sm"
                                                     />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
                                     />
+                                    <FormField
+                                        control={form.control}
+                                        name="categoryId"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className="text-xs font-medium">Category *</FormLabel>
+                                                <FormControl>
+                                                    <Combobox
+                                                        options={categories.map((cat) => ({
+                                                            value: String(cat.id),
+                                                            label: cat.title,
+                                                        }))}
+                                                        value={
+                                                            field.value && field.value > 0
+                                                                ? String(field.value)
+                                                                : undefined
+                                                        }
+                                                        onValueChange={(value) => {
+                                                            const numValue = value ? Number(value) : undefined
+                                                            field.onChange(
+                                                                numValue && numValue > 0 ? numValue : undefined
+                                                            )
+                                                            form.setValue("subCategoryId", undefined)
+                                                        }}
+                                                        placeholder="Category"
+                                                        searchPlaceholder="Search…"
+                                                        emptyMessage="None"
+                                                        disabled={loadingCategories}
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    {selectedCategoryId > 0 && (
+                                        <FormField
+                                            control={form.control}
+                                            name="subCategoryId"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-xs font-medium">Subcategory</FormLabel>
+                                                    <FormControl>
+                                                        <Combobox
+                                                            options={filteredSubCategories.map((cat) => ({
+                                                                value: String(cat.id),
+                                                                label: cat.title,
+                                                            }))}
+                                                            value={
+                                                                field.value && field.value > 0
+                                                                    ? String(field.value)
+                                                                    : undefined
+                                                            }
+                                                            onValueChange={(value) => {
+                                                                const numValue = value ? Number(value) : undefined
+                                                                field.onChange(
+                                                                    numValue && numValue > 0 ? numValue : undefined
+                                                                )
+                                                            }}
+                                                            placeholder="Subcategory"
+                                                            searchPlaceholder="Search…"
+                                                            emptyMessage="None"
+                                                            disabled={
+                                                                loadingCategories ||
+                                                                filteredSubCategories.length === 0
+                                                            }
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    )}
                                 </CardContent>
                             </Card>
+                        </div>
 
+                        {/* Right ~50%: variations */}
+                        <div className="min-w-0 max-w-full space-y-3 xl:sticky xl:top-4 xl:max-h-[calc(100dvh-5.5rem)] xl:overflow-y-auto xl:pr-0.5">
                             {/* Variations Toggle */}
-                            <Card className="border border-border/50">
-                                <CardHeader className="pb-2.5 pt-3 px-4 border-b border-border/50">
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
-                                            <Layers className="h-3.5 w-3.5 text-primary" />
-                                        </div>
-                                        <CardTitle className="text-base font-semibold">Product Variations</CardTitle>
-                                    </div>
+                            <Card className="min-w-0 max-w-full border border-border/50 shadow-none">
+                                <CardHeader className="py-2 px-3 border-b border-border/50">
+                                    <CardTitle className="text-sm font-semibold">Variations</CardTitle>
                                 </CardHeader>
-                                <CardContent className="pt-3 px-4 pb-4">
+                                <CardContent className="p-3">
                                     <FormField
                                         control={form.control}
                                         name="hasVariations"
                                         render={({ field }) => (
-                                            <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border/50 bg-muted/30 p-3 hover:bg-muted/50 transition-colors">
-                                                <div className="space-y-0.5 pr-3 flex-1">
-                                                    <FormLabel className="text-sm font-semibold cursor-pointer">
-                                                        Enable Product Variations
+                                            <FormItem className="flex flex-row items-center justify-between gap-2 rounded-md border border-border/50 bg-muted/25 px-2.5 py-2">
+                                                <div className="min-w-0 pr-2 flex-1">
+                                                    <FormLabel className="text-xs font-medium cursor-pointer leading-tight">
+                                                        Enable variations
                                                     </FormLabel>
-                                                    <FormDescription className="text-xs text-muted-foreground">
+                                                    <FormDescription className="text-[11px] text-muted-foreground leading-snug mt-0.5">
                                                         {isEdit ? "Variations cannot be edited after product creation" : "Add variation options like Size, Color, or Material to create multiple product variants. "}
                                                         {!isEdit && (
                                                             <>
@@ -691,43 +942,38 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                             {/* Variation Options Management - Compact Side-by-Side Column Layout */}
                             {hasVariations && (
                                 <>
-                                    <Card className="border border-border/50">
-                                        <CardHeader className="pb-2.5 pt-3 px-4 border-b border-border/50">
+                                    <Card className="border border-border/50 shadow-none">
+                                        <CardHeader className="py-2 px-3 border-b border-border/50">
                                             <div className="flex items-center justify-between gap-2 flex-wrap">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
-                                                        <Layers className="h-3.5 w-3.5 text-primary" />
-                                                    </div>
-                                                    <CardTitle className="text-base font-semibold">Variation Options</CardTitle>
-                                                </div>
+                                                <CardTitle className="text-sm font-semibold">Options & values</CardTitle>
                                                 {!isEdit && (
-                                                    <Button variant="outline" size="sm" asChild>
+                                                    <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
                                                         <Link href="/inventory/variations?returnTo=/inventory/products/create">
-                                                            Add variation options
+                                                            Manage catalog
                                                         </Link>
                                                     </Button>
                                                 )}
                                             </div>
                                         </CardHeader>
-                                        <CardContent className="pt-3 px-4 pb-4">
-                                            <div className="space-y-3">
+                                        <CardContent className="p-3">
+                                            <div className="space-y-2.5">
                                                 {variationOptionsFields.fields.map((field, optionIndex) => {
                                                     const currentValues = form.watch(`variationOptions.${optionIndex}.values`) || []
                                                     const newValue = newValueInputs[optionIndex] || ""
-                                                    const selectedOptionName = form.watch(`variationOptions.${optionIndex}.name`)
-                                                    const availableValues = bulkVariationOptions.find(opt => opt.name === selectedOptionName)?.values || []
 
                                                     return (
-                                                        <div key={field.id} className="grid grid-cols-[200px_1fr_auto] gap-2 items-start border-b pb-3 last:border-b-0">
-                                                            {/* Option Name Column */}
-                                                            <div className="flex items-center gap-1">
+                                                        <div
+                                                            key={field.id}
+                                                            className="flex flex-col gap-2 border-b border-border/40 pb-2.5 last:border-b-0 last:pb-0"
+                                                        >
+                                                            <div className="flex items-start justify-between gap-2">
                                                                 <FormField
                                                                     control={form.control}
                                                                     name={`variationOptions.${optionIndex}.name`}
                                                                     render={({ field }) => {
                                                                         const isCustomOption = field.value && !bulkVariationOptions.some(opt => opt.name === field.value)
                                                                         return (
-                                                                            <FormItem className="flex-1">
+                                                                            <FormItem className="min-w-0 flex-1">
                                                                                 <FormControl>
                                                                                     {!isEdit ? (
                                                                                         <div className="flex gap-1">
@@ -802,9 +1048,37 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                                         )
                                                                     }}
                                                                 />
+                                                                {variationOptionsFields.fields.length > 1 && !isEdit && (
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                                                                        onClick={() => {
+                                                                            variationOptionsFields.remove(optionIndex)
+                                                                            setNewValueInputs((prev) => {
+                                                                                const updated = { ...prev }
+                                                                                delete updated[optionIndex]
+                                                                                const reindexed: Record<number, string> = {}
+                                                                                Object.keys(updated).forEach((key) => {
+                                                                                    const idx = parseInt(key, 10)
+                                                                                    if (idx > optionIndex) {
+                                                                                        reindexed[idx - 1] = updated[idx]
+                                                                                    } else if (idx < optionIndex) {
+                                                                                        reindexed[idx] = updated[idx]
+                                                                                    }
+                                                                                })
+                                                                                return reindexed
+                                                                            })
+                                                                            generateVariants()
+                                                                        }}
+                                                                    >
+                                                                        <X className="h-3.5 w-3.5" />
+                                                                    </Button>
+                                                                )}
                                                             </div>
 
-                                                            {/* Values Column */}
+                                                            {/* Values */}
                                                             <div className="flex flex-wrap items-center gap-1 min-h-[32px]">
                                                                 {currentValues.map((val: any, valueIndex: number) => {
                                                                     const originalOption = isEdit && originalVariationOptions.length > optionIndex
@@ -963,35 +1237,6 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                                 )}
                                                             </div>
 
-                                                            {/* Remove Button Column */}
-                                                            {variationOptionsFields.fields.length > 1 && !isEdit && (
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                                                    onClick={() => {
-                                                                        variationOptionsFields.remove(optionIndex)
-                                                                        setNewValueInputs(prev => {
-                                                                            const updated = { ...prev }
-                                                                            delete updated[optionIndex]
-                                                                            const reindexed: Record<number, string> = {}
-                                                                            Object.keys(updated).forEach(key => {
-                                                                                const idx = parseInt(key)
-                                                                                if (idx > optionIndex) {
-                                                                                    reindexed[idx - 1] = updated[idx]
-                                                                                } else if (idx < optionIndex) {
-                                                                                    reindexed[idx] = updated[idx]
-                                                                                }
-                                                                            })
-                                                                            return reindexed
-                                                                        })
-                                                                        generateVariants()
-                                                                    }}
-                                                                >
-                                                                    <X className="h-4 w-4" />
-                                                                </Button>
-                                                            )}
                                                         </div>
                                                     )
                                                 })}
@@ -1021,24 +1266,18 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
 
                                     {/* Product Variants Table */}
                                     {productVariantsFields.fields.length > 0 && (
-                                        <Card className="border border-border/50">
-                                            <CardHeader className="pb-2.5 pt-3 px-4 border-b border-border/50">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
-                                                        <Package className="h-3.5 w-3.5 text-primary" />
-                                                    </div>
-                                                    <CardTitle className="text-base font-semibold">Product Variants</CardTitle>
-                                                </div>
+                                        <Card className="border border-border/50 shadow-none">
+                                            <CardHeader className="py-2 px-3 border-b border-border/50">
+                                                <CardTitle className="text-sm font-semibold">Variants</CardTitle>
                                             </CardHeader>
-                                            <CardContent className="pt-3 px-4 pb-4">
-                                                <div className="rounded-lg border border-border/50 overflow-hidden">
-                                                    <Table className="text-sm">
+                                            <CardContent className="p-3 pt-2">
+                                                <div className="rounded-md border border-border/50 overflow-x-auto">
+                                                    <Table className="text-xs">
                                                         <TableHeader>
                                                             <TableRow className="bg-muted/30 hover:bg-muted/30">
-                                                                <TableHead className="font-semibold">Combination</TableHead>
-                                                                <TableHead className="font-semibold">SKU</TableHead>
-                                                                <TableHead className="font-semibold">Price</TableHead>
-                                                                <TableHead className="font-semibold">Stock</TableHead>
+                                                                <TableHead className="h-8 py-1 font-medium">Combo</TableHead>
+                                                                <TableHead className="h-8 py-1 font-medium">SKU</TableHead>
+                                                                <TableHead className="h-8 py-1 font-medium">Price</TableHead>
                                                             </TableRow>
                                                         </TableHeader>
                                                         <TableBody>
@@ -1056,11 +1295,11 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                                     .join(" / ") || ""
 
                                                                 return (
-                                                                    <TableRow key={field.id}>
-                                                                        <TableCell className="font-medium">
+                                                                    <TableRow key={field.id} className="h-8">
+                                                                        <TableCell className="py-1.5 font-medium max-w-[140px] truncate">
                                                                             {combination}
                                                                         </TableCell>
-                                                                        <TableCell>
+                                                                        <TableCell className="py-1.5">
                                                                             <FormField
                                                                                 control={form.control}
                                                                                 name={`productVariants.${variantIndex}.sku`}
@@ -1069,9 +1308,9 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                                                         <FormControl>
                                                                                             <Input
                                                                                                 {...field}
-                                                                                                className="w-32"
+                                                                                                className="h-7 w-[7rem] text-xs"
                                                                                                 onChange={(e) => {
-                                                                                                    const value = e.target.value.replace(/[^A-Za-z0-9-]/g, '')
+                                                                                                    const value = e.target.value.replace(/[^A-Za-z0-9]/g, "")
                                                                                                     field.onChange(value)
                                                                                                 }}
                                                                                             />
@@ -1081,7 +1320,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                                                 )}
                                                                             />
                                                                         </TableCell>
-                                                                        <TableCell>
+                                                                        <TableCell className="py-1.5">
                                                                             <FormField
                                                                                 control={form.control}
                                                                                 name={`productVariants.${variantIndex}.price`}
@@ -1092,28 +1331,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                                                                                 type="number"
                                                                                                 step="0.01"
                                                                                                 {...field}
-                                                                                                className="w-24"
-                                                                                                onChange={(e) =>
-                                                                                                    field.onChange(e.target.valueAsNumber || 0)
-                                                                                                }
-                                                                                            />
-                                                                                        </FormControl>
-                                                                                        <FormMessage />
-                                                                                    </FormItem>
-                                                                                )}
-                                                                            />
-                                                                        </TableCell>
-                                                                        <TableCell>
-                                                                            <FormField
-                                                                                control={form.control}
-                                                                                name={`productVariants.${variantIndex}.stock`}
-                                                                                render={({ field }) => (
-                                                                                    <FormItem>
-                                                                                        <FormControl>
-                                                                                            <Input
-                                                                                                type="number"
-                                                                                                {...field}
-                                                                                                className="w-20"
+                                                                                                className="h-7 w-[5.5rem] text-xs"
                                                                                                 onChange={(e) =>
                                                                                                     field.onChange(e.target.valueAsNumber || 0)
                                                                                                 }
@@ -1135,133 +1353,6 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                     )}
                                 </>
                             )}
-                        </div>
-
-                        {/* Right Column - Sticky to stay visible while scrolling */}
-                        <div className="lg:col-span-1 lg:sticky lg:self-start" style={{ top: '80px' }}>
-                            <div className="space-y-4">
-                                {/* Pricing */}
-                                <Card className="border border-border/50">
-                                    <CardHeader className="pb-2.5 pt-3 px-4 border-b border-border/50">
-                                        <div className="flex items-center gap-2">
-                                            <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
-                                                <DollarSign className="h-3.5 w-3.5 text-primary" />
-                                            </div>
-                                            <CardTitle className="text-base font-semibold">Pricing</CardTitle>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="space-y-3 pt-3 px-4 pb-4">
-                                        <FormField
-                                            control={form.control}
-                                            name="price"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel className="text-sm font-medium">
-                                                        {hasVariations ? "Base Price" : "Product Price *"}
-                                                    </FormLabel>
-                                                    <FormControl>
-                                                        <div className="relative">
-                                                            <Input
-                                                                type="number"
-                                                                step="0.01"
-                                                                placeholder="0.00"
-                                                                {...field}
-                                                                onChange={(e) =>
-                                                                    field.onChange(e.target.valueAsNumber || 0)
-                                                                }
-                                                                className="h-9 pl-7"
-                                                            />
-                                                        </div>
-                                                    </FormControl>
-                                                    <FormDescription className="text-xs text-muted-foreground">
-                                                        {hasVariations
-                                                            ? "Default price for all variants. Can be overridden per variant."
-                                                            : "Set the selling price for this product"}
-                                                    </FormDescription>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                    </CardContent>
-                                </Card>
-
-                                {/* Categories */}
-                                <Card className="border border-border/50">
-                                    <CardHeader className="pb-2.5 pt-3 px-4 border-b border-border/50">
-                                        <div className="flex items-center gap-2">
-                                            <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
-                                                <FolderTree className="h-3.5 w-3.5 text-primary" />
-                                            </div>
-                                            <CardTitle className="text-base font-semibold">Categories</CardTitle>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="space-y-3 pt-3 px-4 pb-4">
-                                        <FormField
-                                            control={form.control}
-                                            name="categoryId"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel className="text-sm font-medium">Category *</FormLabel>
-                                                    <FormControl>
-                                                        <Combobox
-                                                            options={categories.map((cat) => ({
-                                                                value: String(cat.id),
-                                                                label: cat.title,
-                                                            }))}
-                                                            value={field.value && field.value > 0 ? String(field.value) : undefined}
-                                                            onValueChange={(value) => {
-                                                                const numValue = value ? Number(value) : undefined
-                                                                field.onChange(numValue && numValue > 0 ? numValue : undefined)
-                                                                // Reset subcategory when category changes
-                                                                form.setValue("subCategoryId", undefined)
-                                                            }}
-                                                            placeholder="Select a category"
-                                                            searchPlaceholder="Search categories..."
-                                                            emptyMessage="No categories found."
-                                                            disabled={loadingCategories}
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        {selectedCategoryId > 0 && (
-                                            <FormField
-                                                control={form.control}
-                                                name="subCategoryId"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel className="text-sm font-medium">Sub Category</FormLabel>
-                                                        <FormControl>
-                                                            <Combobox
-                                                                options={filteredSubCategories.map((cat) => ({
-                                                                    value: String(cat.id),
-                                                                    label: cat.title,
-                                                                }))}
-                                                                value={field.value && field.value > 0 ? String(field.value) : undefined}
-                                                                onValueChange={(value) => {
-                                                                    const numValue = value ? Number(value) : undefined
-                                                                    field.onChange(numValue && numValue > 0 ? numValue : undefined)
-                                                                }}
-                                                                placeholder="Select a sub category"
-                                                                searchPlaceholder="Search subcategories..."
-                                                                emptyMessage="No subcategories found."
-                                                                disabled={loadingCategories || filteredSubCategories.length === 0}
-                                                            />
-                                                        </FormControl>
-                                                        <FormDescription className="text-xs text-muted-foreground">
-                                                            {filteredSubCategories.length === 0
-                                                                ? "This category has no subcategories"
-                                                                : `${filteredSubCategories.length} subcategor${filteredSubCategories.length === 1 ? "y" : "ies"} available`}
-                                                        </FormDescription>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            </div>
                         </div>
                     </div>
                 </form>

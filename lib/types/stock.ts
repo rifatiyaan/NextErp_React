@@ -1,5 +1,5 @@
 export interface StockRow {
-    id: number
+    id: string
     productVariantId: number
     productId: number
     productTitle: string
@@ -10,7 +10,7 @@ export interface StockRow {
     createdAt: string
     updatedAt?: string | null
     tenantId: string
-    branchId?: string | null
+    branchId: string
 }
 
 export interface CurrentStockReport {

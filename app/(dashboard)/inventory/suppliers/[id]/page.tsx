@@ -25,9 +25,7 @@ export default function EditSupplierPage({
             if (!paramsData?.id) return
 
             try {
-                const supplier = await supplierAPI.getSupplierById(
-                    parseInt(paramsData.id)
-                )
+                const supplier = await supplierAPI.getSupplierById(paramsData.id)
                 setInitialData(supplier)
             } catch (error) {
                 console.error("Failed to fetch supplier:", error)

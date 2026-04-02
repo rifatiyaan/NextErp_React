@@ -45,9 +45,9 @@ export function SupplierForm({ initialData, isEdit }: SupplierFormProps) {
             address: initialData?.address || "",
             isActive: initialData?.isActive ?? true,
             metadata: {
-                vatNumber: initialData?.metadata?.vatNumber || "",
-                taxId: initialData?.metadata?.taxId || "",
-                notes: initialData?.metadata?.notes || "",
+                vatNumber: initialData?.vatNumber || "",
+                taxId: initialData?.taxId || "",
+                notes: initialData?.notes || "",
             },
         },
     })
@@ -62,9 +62,9 @@ export function SupplierForm({ initialData, isEdit }: SupplierFormProps) {
                 address: initialData.address || "",
                 isActive: initialData.isActive,
                 metadata: {
-                    vatNumber: initialData.metadata?.vatNumber || "",
-                    taxId: initialData.metadata?.taxId || "",
-                    notes: initialData.metadata?.notes || "",
+                    vatNumber: initialData.vatNumber || "",
+                    taxId: initialData.taxId || "",
+                    notes: initialData.notes || "",
                 },
             })
         }
@@ -80,11 +80,9 @@ export function SupplierForm({ initialData, isEdit }: SupplierFormProps) {
                 email: data.email || undefined,
                 address: data.address || undefined,
                 isActive: data.isActive,
-                metadata: {
-                    vatNumber: data.metadata?.vatNumber || undefined,
-                    taxId: data.metadata?.taxId || undefined,
-                    notes: data.metadata?.notes || undefined,
-                },
+                vatNumber: data.metadata?.vatNumber || undefined,
+                taxId: data.metadata?.taxId || undefined,
+                notes: data.metadata?.notes || undefined,
             }
 
             if (isEdit && initialData) {

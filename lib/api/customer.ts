@@ -6,16 +6,15 @@ export interface Customer {
     email?: string
     phone?: string
     address?: string
+    loyaltyCode?: string
+    nationalId?: string
+    notes?: string
+    partyType: number
     isActive: boolean
     createdAt: string
     updatedAt?: string
     tenantId: string
-    branchId?: string
-    metadata?: {
-        loyaltyCode?: string
-        notes?: string
-        nationalId?: string
-    }
+    branchId: string
 }
 
 export interface CustomerCreateRequest {
@@ -23,12 +22,11 @@ export interface CustomerCreateRequest {
     email?: string
     phone?: string
     address?: string
+    loyaltyCode?: string
+    nationalId?: string
+    notes?: string
     isActive?: boolean
-    metadata?: {
-        loyaltyCode?: string
-        notes?: string
-        nationalId?: string
-    }
+    partyType?: number
 }
 
 export interface CustomerUpdateRequest extends CustomerCreateRequest {
@@ -51,36 +49,29 @@ export const customerAPI = {
         const params = new URLSearchParams({
             pageIndex: pageIndex.toString(),
             pageSize: pageSize.toString(),
+            type: "Customer",
         })
         if (searchText) params.append("searchText", searchText)
         if (sortBy) params.append("sortBy", sortBy)
 
-        const response = await fetchAPI<CustomerListResponse>(
-            `/api/Customer?${params.toString()}`
-        )
-        return response
+        return await fetchAPI<CustomerListResponse>(`/api/Party?${params.toString()}`)
     },
 
     async getCustomerById(id: string): Promise<Customer> {
-        const response = await fetchAPI<Customer>(`/api/Customer/${id}`)
-        return response
+        return await fetchAPI<Customer>(`/api/Party/${id}`)
     },
 
     async createCustomer(data: CustomerCreateRequest): Promise<Customer> {
-        const response = await fetchAPI<Customer>("/api/Customer", {
+        return await fetchAPI<Customer>("/api/Party", {
             method: "POST",
-            body: JSON.stringify(data),
+            body: JSON.stringify({ ...data, partyType: 0 }),
         })
-        return response
     },
 
-    async updateCustomer(
-        id: string,
-        data: CustomerUpdateRequest
-    ): Promise<void> {
-        await fetchAPI(`/api/Customer/${id}`, {
+    async updateCustomer(id: string, data: CustomerUpdateRequest): Promise<void> {
+        await fetchAPI(`/api/Party/${id}`, {
             method: "PUT",
-            body: JSON.stringify(data),
+            body: JSON.stringify({ ...data, partyType: 0 }),
         })
     },
 
@@ -89,4 +80,3 @@ export const customerAPI = {
         await this.updateCustomer(id, { ...customer, isActive: false })
     },
 }
-

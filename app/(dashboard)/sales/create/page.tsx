@@ -398,6 +398,7 @@ export default function CreateSalesPage() {
         tax: tax,
         finalAmount: finalAmount,
         paymentMethod: paymentMethod,
+        paidAmount: finalAmount,
         notes: saleInvoiceNote.trim() || undefined,
         items: cart.map((item) => ({
           productVariantId: item.productVariantId,

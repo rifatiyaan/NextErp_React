@@ -118,10 +118,10 @@ export const createColumns = (props?: ColumnsProps): ColumnDef<Supplier>[] => [
         },
     },
     {
-        accessorKey: "metadata.vatNumber",
+        accessorKey: "vatNumber",
         header: "VAT Number",
         cell: ({ row }) => {
-            const vatNumber = row.original.metadata?.vatNumber
+            const vatNumber = row.original.vatNumber
             return vatNumber ? (
                 <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-medium">
                     {vatNumber}

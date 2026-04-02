@@ -4,6 +4,18 @@ import type { Product, ProductListResponse, CreateProductRequest } from "@/types
 function normalizeProduct(p: Record<string, unknown>): Product {
     const taq = p.totalAvailableQuantity ?? p.TotalAvailableQuantity
     const low = p.hasLowStock ?? p.HasLowStock
+    const rawImages = p.images ?? p.Images
+    const images = Array.isArray(rawImages)
+        ? rawImages
+              .map((img: Record<string, unknown>) => ({
+                  id: Number(img.id ?? img.Id ?? 0),
+                  url: String(img.url ?? img.Url ?? ""),
+                  displayOrder: Number(img.displayOrder ?? img.DisplayOrder ?? 0),
+                  isThumbnail: Boolean(img.isThumbnail ?? img.IsThumbnail ?? false),
+              }))
+              .filter((img) => img.url)
+              .sort((a, b) => a.displayOrder - b.displayOrder)
+        : undefined
     return {
         id: Number(p.id ?? p.Id ?? 0),
         title: String(p.title ?? p.Title ?? ""),
@@ -17,6 +29,7 @@ function normalizeProduct(p: Record<string, unknown>): Product {
         categoryId: Number(p.categoryId ?? p.CategoryId ?? 0),
         createdAt: (p.createdAt ?? p.CreatedAt) as string | null | undefined,
         imageUrl: (p.imageUrl ?? p.ImageUrl) as string | null | undefined,
+        images: images && images.length > 0 ? images : undefined,
         metadata: (p.metadata ?? p.Metadata) as Product["metadata"],
         category: (p.category ?? p.Category) as Product["category"],
         isActive: Boolean(p.isActive ?? p.IsActive ?? true),
@@ -120,6 +133,11 @@ function toFormData(data: any): FormData {
             }
             return
         }
+
+        if (key === "clearGallery") {
+            if (value === true) formData.append("ClearGallery", "true")
+            return
+        }
         
         if (value === null || value === undefined) return
 
@@ -130,6 +148,21 @@ function toFormData(data: any): FormData {
                 if (metaValue !== null && metaValue !== undefined) {
                     formData.append(`Metadata.${capitalize(metaKey)}`, String(metaValue))
                 }
+            })
+        } else if (key === "imageSlots" && Array.isArray(value)) {
+            value.forEach((slot: { url?: string; file?: File; isThumbnail?: boolean }, i: number) => {
+                if (slot?.url) {
+                    formData.append(`ImageSlots[${i}].Url`, String(slot.url))
+                }
+                if (slot?.file instanceof File) {
+                    formData.append(`ImageSlots[${i}].File`, slot.file, slot.file.name)
+                }
+                formData.append(`ImageSlots[${i}].IsThumbnail`, String(!!slot?.isThumbnail))
+            })
+        } else if (key === "productImageThumbnailUpdates" && Array.isArray(value)) {
+            value.forEach((u: { id: number; isThumbnail: boolean }, i: number) => {
+                formData.append(`ProductImageThumbnailUpdates[${i}].Id`, String(u.id))
+                formData.append(`ProductImageThumbnailUpdates[${i}].IsThumbnail`, String(!!u.isThumbnail))
             })
         } else if (key === "imageUrl") {
             // Handle single file or array of files

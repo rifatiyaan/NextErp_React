@@ -83,6 +83,7 @@ export interface CreateSaleRequest {
     tax: number
     finalAmount: number
     paymentMethod?: string
+    paidAmount?: number
     items: SaleItemRequest[]
     /** Optional cashier / internal note (sent if API supports it). */
     notes?: string | null

@@ -6,6 +6,10 @@ import { useRouter } from "next/navigation"
 import type { LoginDto, RegisterDto, User } from "@/types/auth"
 import { fetchAPI } from "@/lib/api/client"
 import { tokenStorage } from "@/lib/auth/storage"
+import {
+    extractIsGlobalFromJwtPayload,
+    extractRolesFromJwtPayload,
+} from "@/lib/auth/roles"
 
 interface AuthContextType {
     user: User | null
@@ -27,11 +31,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Decode JWT to get user info (simple implementation)
     const decodeToken = (token: string): User | null => {
         try {
-            const payload = JSON.parse(atob(token.split(".")[1]))
+            const payload = JSON.parse(atob(token.split(".")[1])) as Record<string, unknown>
+            const id =
+                (payload[
+                    "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
+                ] as string) || (payload.sub as string)
+            const email =
+                (payload[
+                    "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"
+                ] as string) || (payload.email as string)
+            const userName =
+                (payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] as string) ||
+                (payload.name as string)
             return {
-                id: payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] || payload.sub,
-                email: payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || payload.email,
-                userName: payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] || payload.name,
+                id,
+                email,
+                userName,
+                roles: extractRolesFromJwtPayload(payload),
+                isGlobal: extractIsGlobalFromJwtPayload(payload),
             }
         } catch {
             return null

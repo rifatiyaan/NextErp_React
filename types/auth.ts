@@ -8,6 +8,7 @@ export interface LoginDto {
 export interface RegisterDto {
     email: string
     password: string
+    branchId?: string
 }
 
 export interface AuthResponse {
@@ -18,6 +19,10 @@ export interface User {
     id: string
     email: string
     userName: string
+    /** From JWT role claim(s) */
+    roles: string[]
+    /** SuperAdmin scope (JWT isGlobal claim) */
+    isGlobal?: boolean
 }
 
 export type LoginFormType = LoginDto

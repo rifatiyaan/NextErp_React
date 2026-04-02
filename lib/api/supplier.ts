@@ -1,22 +1,21 @@
 import { fetchAPI } from "./client"
 
 export interface Supplier {
-    id: number
+    id: string
     title: string
     contactPerson?: string
     phone?: string
     email?: string
     address?: string
+    vatNumber?: string
+    taxId?: string
+    notes?: string
+    partyType: number
     isActive: boolean
     createdAt: string
     updatedAt?: string
     tenantId: string
-    branchId?: string
-    metadata?: {
-        vatNumber?: string
-        taxId?: string
-        notes?: string
-    }
+    branchId: string
 }
 
 export interface SupplierCreateRequest {
@@ -25,16 +24,15 @@ export interface SupplierCreateRequest {
     phone?: string
     email?: string
     address?: string
+    vatNumber?: string
+    taxId?: string
+    notes?: string
     isActive?: boolean
-    metadata?: {
-        vatNumber?: string
-        taxId?: string
-        notes?: string
-    }
+    partyType?: number
 }
 
 export interface SupplierUpdateRequest extends SupplierCreateRequest {
-    id: number
+    id: string
 }
 
 export interface SupplierListResponse {
@@ -53,48 +51,34 @@ export const supplierAPI = {
         const params = new URLSearchParams({
             pageIndex: pageIndex.toString(),
             pageSize: pageSize.toString(),
+            type: "Supplier",
         })
         if (searchText) params.append("searchText", searchText)
         if (sortBy) params.append("sortBy", sortBy)
 
-        const response = await fetchAPI<{
-            total: number
-            totalDisplay: number
-            data: Supplier[]
-        }>(`/api/Supplier?${params.toString()}`)
-        return {
-            total: response.total,
-            totalDisplay: response.totalDisplay,
-            data: response.data,
-        }
+        return await fetchAPI<SupplierListResponse>(`/api/Party?${params.toString()}`)
     },
 
-    async getSupplierById(id: number): Promise<Supplier> {
-        const response = await fetchAPI<Supplier>(`/api/Supplier/${id}`)
-        return response
+    async getSupplierById(id: string): Promise<Supplier> {
+        return await fetchAPI<Supplier>(`/api/Party/${id}`)
     },
 
     async createSupplier(data: SupplierCreateRequest): Promise<Supplier> {
-        const response = await fetchAPI<Supplier>("/api/Supplier", {
+        return await fetchAPI<Supplier>("/api/Party", {
             method: "POST",
-            body: JSON.stringify(data),
+            body: JSON.stringify({ ...data, partyType: 1 }),
         })
-        return response
     },
 
-    async updateSupplier(
-        id: number,
-        data: SupplierUpdateRequest
-    ): Promise<void> {
-        await fetchAPI(`/api/Supplier/${id}`, {
+    async updateSupplier(id: string, data: SupplierUpdateRequest): Promise<void> {
+        await fetchAPI(`/api/Party/${id}`, {
             method: "PUT",
-            body: JSON.stringify(data),
+            body: JSON.stringify({ ...data, partyType: 1 }),
         })
     },
 
-    async deactivateSupplier(id: number): Promise<void> {
+    async deactivateSupplier(id: string): Promise<void> {
         const supplier = await this.getSupplierById(id)
         await this.updateSupplier(id, { ...supplier, isActive: false })
     },
 }
-

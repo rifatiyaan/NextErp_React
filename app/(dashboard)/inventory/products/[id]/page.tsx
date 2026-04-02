@@ -37,7 +37,7 @@ export default function EditProductPage() {
     }
 
     return (
-        <div className="w-full max-w-[1920px] mx-auto space-y-4">
+        <div className="w-full max-w-6xl mx-auto px-1 sm:px-2">
             <ProductForm initialData={product} isEdit />
         </div>
     )
