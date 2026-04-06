@@ -4,7 +4,6 @@ import { useEffect } from "react"
 
 import { ACCENT_THEME_CLASSNAMES, useUiSettingsStore } from "@/lib/ui-settings"
 
-/** Applies persisted accent theme classes on `document.body`. */
 export function AccentThemeSync() {
     const accentTheme = useUiSettingsStore((s) => s.accentTheme)
 

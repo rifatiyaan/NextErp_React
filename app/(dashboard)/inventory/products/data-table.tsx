@@ -48,9 +48,7 @@ interface DataTableProps<TData, TValue> {
     onPageSizeChange: (pageSize: number) => void
     onRowDoubleClick?: (row: TData) => void
     onTableReady?: (table: TanStackTable<TData>) => void
-    /** Outer wrapper (table + pagination). */
     className?: string
-    /** Page-size select trigger. */
     pageSizeSelectClassName?: string
 }
 

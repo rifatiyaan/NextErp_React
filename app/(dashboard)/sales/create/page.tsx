@@ -88,9 +88,7 @@ export default function CreateSalesPage() {
   const [cart, setCart] = useState<CartLine[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
-  /** POS grid: true after first fetch for current mode completes (used for empty vs loading). */
   const [posProductsReady, setPosProductsReady] = useState(false)
-  /** POS: API in flight (spinner in search only; list not cleared). */
   const [posSearchPending, setPosSearchPending] = useState(false)
   const posFetchSeq = useRef(0)
   const [loadingCategories, setLoadingCategories] = useState(true)

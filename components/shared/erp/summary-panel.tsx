@@ -5,7 +5,6 @@ import type { ReactNode } from "react"
 import { useRadiusClass } from "@/hooks/use-radius-class"
 import { cn } from "@/lib/utils"
 
-/** Sticky summary card with elevation — mirrors primary workspace styling. */
 export function SummaryPanel({
     className,
     children,

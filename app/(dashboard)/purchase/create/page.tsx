@@ -47,11 +47,9 @@ interface PurchaseItemRow extends PurchaseItemRequest {
     productTitle?: string
     productCode?: string
     measureUnit?: string
-    /** Line tax % — UI only; not sent to API */
     taxPercent: number
 }
 
-/** Debounce delay before calling product search API */
 const PRODUCT_SEARCH_DEBOUNCE_MS = 480
 
 export default function CreatePurchasePage() {

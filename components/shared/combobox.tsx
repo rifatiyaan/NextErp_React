@@ -26,7 +26,6 @@ export type ComboboxProps = {
     disabled?: boolean
     className?: string
     triggerClassName?: string
-    /** `compact` uses h-8 trigger and denser command input (toolbar row). */
     size?: "default" | "compact"
 }
 

@@ -1,4 +1,3 @@
-/** Accent palette classes applied on `document.body` (see themes.css). */
 export const ACCENT_THEMES = [
     { name: "Zinc", value: "theme-zinc", swatch: "bg-zinc-950" },
     { name: "Slate", value: "theme-slate", swatch: "bg-slate-950" },

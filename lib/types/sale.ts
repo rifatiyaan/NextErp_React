@@ -26,7 +26,6 @@ export interface SalePaymentLine {
     createdAt: string
 }
 
-/** Full sale shape returned by list and detail APIs */
 export interface SaleDetail {
     id: string
     title: string
@@ -50,7 +49,6 @@ export interface SaleDetail {
     branchId?: string | null
 }
 
-/** Paged list row from GET /api/Sale (lightweight projection). */
 export interface SaleListRow {
     id: string
     saleNumber: string
@@ -85,6 +83,5 @@ export interface CreateSaleRequest {
     paymentMethod?: string
     paidAmount?: number
     items: SaleItemRequest[]
-    /** Optional cashier / internal note (sent if API supports it). */
     notes?: string | null
 }

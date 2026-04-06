@@ -27,7 +27,6 @@ interface ColumnsProps {
     onDelete?: (productId: number, productTitle: string) => void
     pageIndex?: number
     pageSize?: number
-    /** Extra stock columns from GET /api/Product?includeStock=true */
     withStock?: boolean
 }
 

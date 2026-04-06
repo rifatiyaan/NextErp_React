@@ -1,4 +1,3 @@
-/** Mirrors Party API (Supplier partyType = 1). */
 export interface Supplier {
     id: string
     title: string

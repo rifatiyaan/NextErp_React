@@ -18,7 +18,6 @@ export interface PageBreadcrumbItemType {
 
 interface PageBreadcrumbProps {
     items: PageBreadcrumbItemType[]
-    /** `header`: top chrome row; `dock`: bottom bar; `page`: below header with spacing */
     variant?: "page" | "header" | "dock"
 }
 

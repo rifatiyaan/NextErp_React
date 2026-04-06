@@ -5,7 +5,6 @@ import type { ReactNode } from "react"
 import { useRadiusClass } from "@/hooks/use-radius-class"
 import { cn } from "@/lib/utils"
 
-/** Table in a bordered shell — works in light & dark via theme tokens. */
 export function CompactTable({
     className,
     tableClassName,

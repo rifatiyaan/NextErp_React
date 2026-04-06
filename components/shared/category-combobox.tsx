@@ -14,20 +14,14 @@ export type CategoryComboboxProps = {
     onChange: (categoryId: number | null) => void
     loading?: boolean
     disabled?: boolean
-    /** Label for the “all categories” option */
     allLabel?: string
     placeholder?: string
     emptyText?: string
-    /** Extra classes on the fixed-width shell (not the dropdown panel). */
     className?: string
     triggerClassName?: string
     size?: "default" | "compact"
 }
 
-/**
- * Searchable category filter built on the shared {@link Combobox}.
- * Wrapped in a fixed-width column so the trigger never collapses with a flex sibling search field.
- */
 export function CategoryCombobox({
     categories,
     value,

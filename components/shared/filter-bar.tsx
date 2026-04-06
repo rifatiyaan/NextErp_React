@@ -36,9 +36,7 @@ function draftFromApplied(
 
 export type FilterBarProps = {
     fields: FilterBarFieldConfig[]
-    /** Last applied filters (from parent). Syncs draft when this changes. */
     applied: FilterBarValues
-    /** Called only when user clicks Apply with current draft selections. */
     onApply: (values: FilterBarValues) => void
     className?: string
 }

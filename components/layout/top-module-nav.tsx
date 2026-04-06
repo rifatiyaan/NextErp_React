@@ -31,7 +31,6 @@ export function TopModuleNav({
     variant = "compact",
 }: {
     className?: string
-    /** `root`: taller strip, larger icons — primary app navigation. */
     variant?: "compact" | "root"
 }) {
     const pathname = usePathname()
@@ -40,7 +39,6 @@ export function TopModuleNav({
     const radiusClass = useRadiusClass()
 
     const isRoot = variant === "root"
-    /** Root topbar: slower expand/collapse on hover (width + chrome). */
     const rootMotion = "transition-[width,gap,padding,min-width,background-color] duration-500 ease-in-out"
     const compactMotion =
         "transition-[width,gap,padding,min-width,background-color] duration-200 ease-in-out"
@@ -55,7 +53,6 @@ export function TopModuleNav({
     const hoverExpand = isRoot
         ? "hover:w-[min(12rem,calc(100vw-2rem))] hover:justify-start hover:gap-2.5 hover:px-3"
         : "hover:w-[min(10rem,calc(100vw-12rem))] hover:justify-start hover:gap-2 hover:px-2"
-    /** Root topbar: selected module — width follows label, never icon-only. */
     const selectedExpandedRoot = cn(
         "w-auto min-w-0 justify-start gap-2.5 overflow-visible px-3 sm:gap-2.5 sm:px-3",
         "max-w-[min(18rem,calc(100vw-4rem))]"
@@ -64,7 +61,6 @@ export function TopModuleNav({
         ? selectedExpandedRoot
         : "w-[min(10rem,calc(100vw-12rem))] justify-start gap-2 overflow-hidden px-2"
 
-    /** Top bar (`root`): selected module uses theme primary; always expanded with label visible. */
     const selectedModuleRoot = cn(
         "border-transparent bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/25",
         "hover:bg-primary/90 hover:text-primary-foreground",

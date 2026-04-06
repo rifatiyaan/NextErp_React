@@ -2,7 +2,6 @@ import { fetchAPI } from "@/lib/api/client"
 import type { PurchaseReport } from "@/lib/types/reports"
 import type { Purchase, PurchaseListResponse, CreatePurchaseRequest } from "@/types/purchase"
 
-/** Multi-select filters applied with FilterBar (keys match config). */
 export type PurchaseListFilters = Record<string, string[]>
 
 function appendPurchaseListFilters(

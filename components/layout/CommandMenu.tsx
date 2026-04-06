@@ -36,7 +36,6 @@ import { DynamicIcon } from "@/components/dynamic-icon"
 
 interface CommandMenuProps extends DialogProps {
     buttonClassName?: string
-    /** Icon-only trigger for narrow rails / dense toolbars. */
     compactTrigger?: boolean
 }
 

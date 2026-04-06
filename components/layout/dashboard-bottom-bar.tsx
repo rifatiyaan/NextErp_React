@@ -7,7 +7,6 @@ import { UserDropdown } from "./UserDropdown"
 import { ToggleMobileSidebar } from "./ToggleMobileSidebar"
 import type { DictionaryType } from "@/lib/get-dictionary"
 
-/** Topbar layout: context + utilities docked to the bottom (below page content). */
 export function DashboardBottomBar({ dictionary }: { dictionary: DictionaryType }) {
     return (
         <div

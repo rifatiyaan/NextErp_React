@@ -23,11 +23,9 @@ import { cn } from "@/lib/utils"
 export interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
     data: TData[]
-    /** Shows a light overlay; keep table headers visible */
     isLoading?: boolean
     onRowClick?: (row: TData) => void
     getRowClassName?: (row: TData) => string | undefined
-    /** Client-side column sorting (optional) */
     enableSorting?: boolean
     className?: string
 }

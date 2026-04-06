@@ -3,16 +3,10 @@ import { ModuleType, coerceModuleType } from "@/types/module"
 
 export type MenuPermissionItem = { key: string; label: string }
 
-/** Stored in RolePermissions; backend lowercases keys on save. */
 export function menuPermissionKey(moduleId: number): string {
     return `menu:${moduleId}`
 }
 
-/**
- * Maps GET /api/Module/user-menu tree → permission groups.
- * Each top-level Module becomes a group; its Link children are toggles.
- * Module roots with no children but with a URL (e.g. Dashboard) get one row.
- */
 export function buildPermissionGroupsFromMenu(modules: Module[]): Record<string, MenuPermissionItem[]> {
     const roots = [...modules].sort((a, b) => a.order - b.order)
     const groups: Record<string, MenuPermissionItem[]> = {}

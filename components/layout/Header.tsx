@@ -8,7 +8,6 @@ import { ToggleMobileSidebar } from "./ToggleMobileSidebar"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import type { DictionaryType } from "@/lib/get-dictionary"
 
-/** Sidebar layout: single top row (breadcrumb + utilities). Module nav is in the left sidebar. */
 export function Header({
     dictionary,
 }: {

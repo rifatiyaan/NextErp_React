@@ -4,7 +4,6 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-/** Use on raw `<tr>` in `<tbody>` when not using {@link TableRow} (theme `muted` tokens). */
 export const tableBodyRowHoverClassName =
     "transition-colors duration-150 hover:bg-muted/50 hover:text-foreground"
 

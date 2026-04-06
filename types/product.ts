@@ -43,15 +43,11 @@ export interface Product {
     code: string
     price: number
     stock: number
-    /** Aggregated available qty when list was loaded with includeStock */
     totalAvailableQuantity?: number | null
-    /** True when any variant is at or below low-stock threshold */
     hasLowStock?: boolean | null
     categoryId: number
-    /** ISO date from API when present */
     createdAt?: string | null
     imageUrl?: string | null
-    /** Gallery from API when present (ordered). */
     images?: ProductImageItem[] | null
     metadata?: ProductMetadata
     category?: Category | null
@@ -85,11 +81,8 @@ export interface CreateProductRequest {
     stock: number
     categoryId: number
     imageUrl?: File | string | null
-    /** Multipart: ImageSlots[i].Url / .File / .IsThumbnail */
     imageSlots?: ProductImageSlotPayload[]
-    /** Update only: ImageIds + IsThumbnail (no gallery rebuild). */
     productImageThumbnailUpdates?: ProductImageThumbnailUpdatePayload[]
-    /** Clears all images on the server (multipart). */
     clearGallery?: boolean
     metadata?: ProductMetadata
     isActive: boolean

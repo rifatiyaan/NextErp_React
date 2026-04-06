@@ -33,7 +33,6 @@ import { DynamicIcon } from "@/components/dynamic-icon"
 import { CommandMenu } from "./CommandMenu"
 import { cn } from "@/lib/utils"
 
-/** Hide /settings/* links from the dynamic menu for non–identity admins. */
 function stripSettingsFromMenuTree(items: MenuItem[]): MenuItem[] {
     return items
         .filter((item) => {

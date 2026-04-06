@@ -2,7 +2,6 @@
 
 import { TopModuleNav } from "@/components/layout/top-module-nav"
 
-/** Topbar layout: primary module row only (root navigation). */
 export function TopbarModuleStrip() {
     return (
         <header className="sticky top-0 z-50 w-full border-b border-sidebar-border bg-background shadow-sm">

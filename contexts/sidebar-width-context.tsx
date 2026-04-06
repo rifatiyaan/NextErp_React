@@ -11,9 +11,7 @@ interface SidebarWidthContextType {
 
 const SidebarWidthContext = createContext<SidebarWidthContextType | undefined>(undefined)
 
-/** Icon-only rail (~64px). */
 export const NAV_RAIL_COLLAPSED_REM = 4
-/** Below this width (after drag) snaps to collapsed. ~120px */
 export const NAV_RAIL_THRESHOLD_REM = 7.5
 export const NAV_RAIL_MAX_REM = 30
 
@@ -21,7 +19,6 @@ const DEFAULT_WIDTH = NAV_RAIL_COLLAPSED_REM
 const MIN_WIDTH = NAV_RAIL_COLLAPSED_REM
 const MAX_WIDTH = NAV_RAIL_MAX_REM
 
-/** After pointer release: snap narrow rails to icon width, else enforce expanded floor. */
 export function snapNavRailWidthRem(widthInRem: number): number {
     if (widthInRem < NAV_RAIL_THRESHOLD_REM) return NAV_RAIL_COLLAPSED_REM
     return Math.max(NAV_RAIL_THRESHOLD_REM, Math.min(NAV_RAIL_MAX_REM, widthInRem))

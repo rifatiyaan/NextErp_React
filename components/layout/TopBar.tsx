@@ -23,14 +23,12 @@ export interface TopBarProps {
         value: string
         onChange: (value: string) => void
         onSearch?: (value: string) => void
-        /** Merged into search Input (e.g. rounded-sm on a specific page). */
         inputClassName?: string
     }
     actions?: TopBarAction[]
     filters?: ReactNode
     columnVisibility?: ReactNode
     className?: string
-    /** Applied to every action button (e.g. rounded-sm on a list page). */
     actionButtonClassName?: string
 }
 

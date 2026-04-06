@@ -1,4 +1,3 @@
-/** Matches ASP.NET ClaimTypes.Role in JWT (after inbound mapping). */
 const ROLE_CLAIM_URI =
     "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
 
@@ -12,7 +11,6 @@ export function extractRolesFromJwtPayload(payload: Record<string, unknown>): st
     return []
 }
 
-/** SuperAdmin or Admin — identity & settings access. */
 export function hasIdentityAdminRole(roles: string[]): boolean {
     return roles.some((r) => {
         const x = r.toLowerCase()

@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input"
 import { useRadiusClass } from "@/hooks/use-radius-class"
 import { cn } from "@/lib/utils"
 
-/** Modern dense input: theme tokens, comfortable hit target, soft focus ring. */
 export function CompactInput({ className, ...props }: ComponentProps<typeof Input>) {
     const radiusClass = useRadiusClass()
     return (

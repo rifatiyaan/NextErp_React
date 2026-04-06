@@ -6,9 +6,6 @@ import { useAuth } from "@/contexts/auth-context"
 import { hasIdentityAdminRole } from "@/lib/auth/roles"
 import { Loader } from "@/components/ui/loader"
 
-/**
- * Settings (modules, branches, user-control) — SuperAdmin and Admin only.
- */
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
     const { user, isLoading } = useAuth()
     const router = useRouter()

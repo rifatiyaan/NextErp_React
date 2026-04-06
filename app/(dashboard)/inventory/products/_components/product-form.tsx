@@ -49,7 +49,6 @@ interface ProductFormProps {
     isEdit?: boolean
 }
 
-/** Alphanumeric code from product name (no symbols). */
 function codeFromTitle(title: string): string {
     const raw = title
         .normalize("NFKD")
@@ -59,7 +58,6 @@ function codeFromTitle(title: string): string {
     return raw.length > 0 ? raw : "ITEM"
 }
 
-/** Excel-style letter suffix: 0→a, 25→z, 26→aa … appended to base SKU. */
 function variantLetterSuffix(index: number): string {
     let n = index + 1
     let s = ""
@@ -83,7 +81,6 @@ type GallerySlot = {
     serverId?: number
 }
 
-/** First matching "optIdx:valIdx" per distinct value string (option order, then value order). */
 function buildValueToVariationKeyMap(
     options: ReadonlyArray<{ values?: ReadonlyArray<{ value?: string }> }>
 ): Map<string, string> {
@@ -97,7 +94,6 @@ function buildValueToVariationKeyMap(
     return map
 }
 
-/** Cartesian product of variation keys: [["0:0","1:0"], ["0:0","1:1"], …] */
 function cartesianVariationKeys(
     options: ReadonlyArray<{ values?: ReadonlyArray<unknown> }>
 ): string[][] {

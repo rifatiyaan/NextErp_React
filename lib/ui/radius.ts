@@ -1,12 +1,7 @@
 import type { UiRadius } from "@/lib/ui-settings/store"
 
-/** Default radius for SSR / non-interactive surfaces when store is unavailable. */
 export const DEFAULT_UI_RADIUS: UiRadius = "md"
 
-/**
- * Single source of truth for corner radius classes (driven by UI settings).
- * Use {@link useRadiusClass} in client components so updates apply live.
- */
 export function getRadiusClass(radius: UiRadius): string {
     switch (radius) {
         case "none":
@@ -19,13 +14,6 @@ export function getRadiusClass(radius: UiRadius): string {
     }
 }
 
-/**
- * Pushes the UI radius preset onto `document.documentElement` CSS variables so
- * Tailwind `@theme` tokens (`--radius`, `--radius-sm`, …) and any `var(--radius*)`
- * usage (emoji picker, etc.) stay in sync with settings.
- *
- * For `md`, inline overrides are removed so `:root` values from `globals.css` apply.
- */
 export function applyUiRadiusToDocument(radius: UiRadius): void {
     if (typeof document === "undefined") return
     const el = document.documentElement

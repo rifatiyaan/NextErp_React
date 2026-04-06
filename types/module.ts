@@ -5,7 +5,6 @@ export enum ModuleType {
     Link = 2,
 }
 
-/** Normalize API values: numeric enum, string names (JsonStringEnumConverter), or string digits. */
 export function coerceModuleType(type: unknown): ModuleType {
     if (type === ModuleType.Module || type === 1 || type === "1" || type === "Module") {
         return ModuleType.Module
@@ -65,7 +64,6 @@ export interface MenuItem {
     order: number
     isExternal: boolean
     badgeText?: string
-    /** From module metadata; applies to this node when used as a link. */
     openInNewTab?: boolean
 }
 
