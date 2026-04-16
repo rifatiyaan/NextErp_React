@@ -24,13 +24,15 @@ export function StockTable({ rows, highlightLow }: StockTableProps) {
                         <TableHead>Product</TableHead>
                         <TableHead>Variant</TableHead>
                         <TableHead>SKU</TableHead>
+                        <TableHead>Unit</TableHead>
                         <TableHead className="text-right">Quantity</TableHead>
+                        <TableHead className="text-right">Reorder At</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {rows.length === 0 ? (
                         <TableRow>
-                            <TableCell colSpan={4} className="text-center text-muted-foreground">
+                            <TableCell colSpan={6} className="text-center text-muted-foreground">
                                 No stock rows
                             </TableCell>
                         </TableRow>
@@ -54,8 +56,14 @@ export function StockTable({ rows, highlightLow }: StockTableProps) {
                                     <TableCell className="font-mono text-[11px]">
                                         {row.variantSku || "—"}
                                     </TableCell>
+                                    <TableCell className="text-muted-foreground text-sm">
+                                        {row.unitOfMeasureAbbreviation || "—"}
+                                    </TableCell>
                                     <TableCell className="text-right tabular-nums font-medium">
                                         {formatQuantity(row.quantity)}
+                                    </TableCell>
+                                    <TableCell className="text-right tabular-nums text-muted-foreground text-sm">
+                                        {row.reorderLevel != null ? formatQuantity(row.reorderLevel) : "—"}
                                     </TableCell>
                                 </TableRow>
                             )

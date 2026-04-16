@@ -13,6 +13,8 @@ export interface StockTableRow {
     variantTitle: string
     variantSku: string
     quantity: number
+    reorderLevel?: number | null
+    unitOfMeasureAbbreviation?: string | null
 }
 
 function fromCurrentRow(s: StockRow): StockTableRow {
@@ -22,6 +24,8 @@ function fromCurrentRow(s: StockRow): StockTableRow {
         variantTitle: s.variantTitle,
         variantSku: s.variantSku,
         quantity: Number(s.availableQuantity),
+        reorderLevel: s.reorderLevel,
+        unitOfMeasureAbbreviation: s.unitOfMeasureAbbreviation,
     }
 }
 
@@ -32,6 +36,8 @@ function fromLowItem(s: LowStockItem): StockTableRow {
         variantTitle: s.variantTitle,
         variantSku: s.variantSku,
         quantity: Number(s.availableQuantity),
+        reorderLevel: s.reorderLevel,
+        unitOfMeasureAbbreviation: s.unitOfMeasureAbbreviation,
     }
 }
 

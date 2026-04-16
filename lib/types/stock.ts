@@ -7,6 +7,9 @@ export interface StockRow {
     variantSku: string
     variantTitle: string
     availableQuantity: number
+    reorderLevel?: number | null
+    unitOfMeasureId?: number | null
+    unitOfMeasureAbbreviation?: string | null
     createdAt: string
     updatedAt?: string | null
     tenantId: string
@@ -28,6 +31,7 @@ export interface LowStockItem {
     variantTitle: string
     availableQuantity: number
     reorderLevel?: number | null
+    unitOfMeasureAbbreviation?: string | null
     status: string
 }
 
