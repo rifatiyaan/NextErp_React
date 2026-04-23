@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation"
 import { ProductFormValues, ProductVariantFormValues } from "@/schemas/product"
 import { productAPI } from "@/lib/api/product"
 import { categoryAPI } from "@/lib/api/category"
+import { unitOfMeasureAPI } from "@/lib/api/unit-of-measure"
+import type { UnitOfMeasure } from "@/lib/types/unit-of-measure"
 import { variationAPI, type BulkVariationOption } from "@/lib/api/variation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -117,6 +119,8 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
     const [categories, setCategories] = useState<Category[]>([])
     const [subCategories, setSubCategories] = useState<Category[]>([])
     const [loadingCategories, setLoadingCategories] = useState(true)
+    const [units, setUnits] = useState<UnitOfMeasure[]>([])
+    const [loadingUnits, setLoadingUnits] = useState(true)
     const [newValueInputs, setNewValueInputs] = useState<Record<number, string>>({})
     const [originalVariationOptions, setOriginalVariationOptions] = useState<any[]>([])
     const [bulkVariationOptions, setBulkVariationOptions] = useState<BulkVariationOption[]>([])
@@ -131,6 +135,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
             stock: 0,
             categoryId: 0,
             subCategoryId: undefined,
+            unitOfMeasureId: undefined,
             imageUrl: [],
             isActive: true,
             hasVariations: false,
@@ -185,6 +190,23 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
         fetchCategories()
     }, [])
 
+    // Fetch units of measure
+    useEffect(() => {
+        const fetchUnits = async () => {
+            try {
+                setLoadingUnits(true)
+                const all = await unitOfMeasureAPI.getAll()
+                setUnits(all)
+            } catch (error) {
+                console.error("Failed to fetch units of measure:", error)
+                toast.error("Failed to load units of measure")
+            } finally {
+                setLoadingUnits(false)
+            }
+        }
+        fetchUnits()
+    }, [])
+
     // Fetch global variation options (for dropdown when building product variations)
     useEffect(() => {
         const fetchBulkVariations = async () => {
@@ -212,6 +234,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                 stock: initialData.stock || 0,
                 categoryId: initialData.categoryId && initialData.categoryId > 0 ? initialData.categoryId : undefined,
                 subCategoryId: initialData.subCategoryId && initialData.subCategoryId > 0 ? initialData.subCategoryId : undefined,
+                unitOfMeasureId: initialData.unitOfMeasureId && initialData.unitOfMeasureId > 0 ? initialData.unitOfMeasureId : undefined,
                 imageUrl: initialData.imageUrl ? [initialData.imageUrl] : [],
                 // Primary image for compact uploader
                 isActive: initialData.isActive ?? true,
@@ -878,6 +901,41 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                                             )}
                                         />
                                     )}
+                                    <FormField
+                                        control={form.control}
+                                        name="unitOfMeasureId"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className="text-xs font-medium">Unit of Measure</FormLabel>
+                                                <FormControl>
+                                                    <Combobox
+                                                        options={units
+                                                            .filter((u) => u.isActive)
+                                                            .map((unit) => ({
+                                                                value: String(unit.id),
+                                                                label: `${unit.title ?? unit.name} (${unit.abbreviation})`,
+                                                            }))}
+                                                        value={
+                                                            field.value && field.value > 0
+                                                                ? String(field.value)
+                                                                : undefined
+                                                        }
+                                                        onValueChange={(value) => {
+                                                            const numValue = value ? Number(value) : undefined
+                                                            field.onChange(
+                                                                numValue && numValue > 0 ? numValue : undefined
+                                                            )
+                                                        }}
+                                                        placeholder="Unit of measure"
+                                                        searchPlaceholder="Search…"
+                                                        emptyMessage="None"
+                                                        disabled={loadingUnits}
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
                                 </CardContent>
                             </Card>
                         </div>

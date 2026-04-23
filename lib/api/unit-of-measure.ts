@@ -10,7 +10,7 @@ export const unitOfMeasureAPI = {
         return fetchAPI<UnitOfMeasure>(`/api/UnitOfMeasure/${id}`)
     },
 
-    async create(data: { name: string; abbreviation: string }): Promise<UnitOfMeasure> {
+    async create(data: { name: string; abbreviation: string; category?: string | null }): Promise<UnitOfMeasure> {
         return fetchAPI<UnitOfMeasure>("/api/UnitOfMeasure", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -18,7 +18,7 @@ export const unitOfMeasureAPI = {
         })
     },
 
-    async update(id: number, data: { name: string; abbreviation: string; isActive: boolean }): Promise<void> {
+    async update(id: number, data: { name: string; abbreviation: string; category?: string | null; isActive: boolean }): Promise<void> {
         return fetchAPI<void>(`/api/UnitOfMeasure/${id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },

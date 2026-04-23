@@ -55,6 +55,9 @@ export interface Product {
     hasVariations?: boolean
     variationOptions?: VariationOption[]
     productVariants?: ProductVariant[]
+    unitOfMeasureId?: number
+    unitAbbreviation?: string
+    unitTitle?: string
 }
 
 export interface ProductListResponse {
@@ -87,4 +90,5 @@ export interface CreateProductRequest {
     metadata?: ProductMetadata
     isActive: boolean
     parentId?: number
+    unitOfMeasureId?: number
 }

@@ -9,4 +9,12 @@ export const stockAPI = {
     async getLowStockReport(): Promise<LowStockReport> {
         return fetchAPI<LowStockReport>("/api/Stock/report/low")
     },
+
+    async setReorderLevel(productVariantId: number, reorderLevel: number | null): Promise<void> {
+        return fetchAPI<void>(`/api/Stock/variant/${productVariantId}/reorder-level`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(reorderLevel),
+        })
+    },
 }

@@ -32,6 +32,7 @@ export const productSchema = z.object({
     stock: z.coerce.number().min(0, "Stock must be non-negative").optional(),
     categoryId: z.coerce.number().min(1, "Category is required"),
     subCategoryId: z.coerce.number().optional(),
+    unitOfMeasureId: z.coerce.number().optional(),
     imageUrl: z.union([z.instanceof(File), z.string(), z.array(z.instanceof(File)), z.array(z.string())]).optional().nullable().or(z.literal("")),
     isActive: z.boolean(),
     hasVariations: z.boolean().default(false),

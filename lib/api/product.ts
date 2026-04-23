@@ -36,6 +36,9 @@ function normalizeProduct(p: Record<string, unknown>): Product {
         hasVariations: p.hasVariations ?? p.HasVariations,
         variationOptions: (p.variationOptions ?? p.VariationOptions) as Product["variationOptions"],
         productVariants: (p.productVariants ?? p.ProductVariants) as Product["productVariants"],
+        unitOfMeasureId: Number(p.unitOfMeasureId ?? p.UnitOfMeasureId ?? 0) || undefined,
+        unitAbbreviation: (p.unitAbbreviation ?? p.UnitAbbreviation) as string | undefined,
+        unitTitle: (p.unitTitle ?? p.UnitTitle) as string | undefined,
     }
 }
 
