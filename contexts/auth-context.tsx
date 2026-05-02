@@ -19,6 +19,12 @@ interface AuthContextType {
     error: string | null
     login: (credentials: LoginDto) => Promise<void>
     register: (data: RegisterDto) => Promise<void>
+    /**
+     * Save a freshly issued token, hydrate `me`, and redirect to the dashboard.
+     * Used by the login/register forms (which now perform the network call via
+     * `useLogin` / `useRegister`) to hand the resulting token to the context.
+     */
+    setSession: (token: string) => Promise<void>
     logout: () => void
     hasPermission: (key: string) => boolean
     hasAnyPermission: (keys: string[]) => boolean
@@ -169,6 +175,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }
 
+    const setSession = useCallback(
+        async (token: string) => {
+            tokenStorage.saveToken(token)
+            try {
+                await fetchMe()
+            } catch {
+                // Fallback to token decode if /me fails for any reason.
+                const fallback = decodeToken(token)
+                if (fallback) setUser(fallback)
+            }
+            router.push("/")
+        },
+        [fetchMe, router],
+    )
+
     const logout = () => {
         clearAuth()
         router.push("/login")
@@ -219,6 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 error,
                 login,
                 register,
+                setSession,
                 logout,
                 hasPermission,
                 hasAnyPermission,

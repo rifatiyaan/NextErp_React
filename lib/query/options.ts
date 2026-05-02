@@ -11,6 +11,7 @@ import { purchaseAPI, type PurchaseListFilters } from "@/lib/api/purchase"
 import { saleAPI } from "@/lib/api/sale"
 import { stockAPI } from "@/lib/api/stock"
 import { supplierAPI } from "@/lib/api/supplier"
+import { systemSettingsAPI } from "@/lib/api/system-settings"
 import { unitOfMeasureAPI } from "@/lib/api/unit-of-measure"
 import { variationAPI } from "@/lib/api/variation"
 import { queryKeys } from "./keys"
@@ -382,5 +383,20 @@ export const authQueries = {
         queryOptions({
             queryKey: queryKeys.auth.me(),
             queryFn: ({ signal }) => authAPI.me(signal),
+        }),
+} as const
+
+// ---------------- System Settings ----------------
+export const systemSettingsQueries = {
+    /**
+     * Tenant-wide UI/branding settings. Long stale time (15 min) — settings
+     * change rarely and most users don't have permission to mutate them, so
+     * frequent refetch is wasted work. Mutations explicitly invalidate.
+     */
+    current: () =>
+        queryOptions({
+            queryKey: queryKeys.systemSettings.current(),
+            queryFn: ({ signal }) => systemSettingsAPI.get(signal),
+            staleTime: 15 * 60 * 1000,
         }),
 } as const

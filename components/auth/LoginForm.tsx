@@ -8,6 +8,8 @@ import { toast } from "sonner"
 import type { LoginFormType } from "@/types/auth"
 import { LoginSchema } from "@/schemas/auth-schemas"
 import { useAuth } from "@/contexts/auth-context"
+import { useLogin } from "@/hooks/use-auth"
+import { applyValidationErrors } from "@/lib/query/rhf"
 
 import { ButtonLoading } from "@/components/ui/button"
 import {
@@ -21,7 +23,8 @@ import {
 import { Input } from "@/components/ui/input"
 
 export function LoginForm() {
-    const { login } = useAuth()
+    const { setSession } = useAuth()
+    const login = useLogin()
 
     const form = useForm<LoginFormType>({
         resolver: zodResolver(LoginSchema),
@@ -31,16 +34,20 @@ export function LoginForm() {
         },
     })
 
-    const { isSubmitting } = form.formState
-    const isDisabled = isSubmitting
+    const isDisabled = login.isPending
 
-    async function onSubmit(data: LoginFormType) {
-        try {
-            await login(data)
-            toast.success("Login successful!")
-        } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Login failed")
-        }
+    function onSubmit(data: LoginFormType) {
+        login.mutate(data, {
+            onSuccess: async (response) => {
+                await setSession(response.token)
+                toast.success("Login successful!")
+            },
+            onError: (error) => {
+                if (!applyValidationErrors(error, form.setError)) {
+                    toast.error(error instanceof Error ? error.message : "Login failed")
+                }
+            },
+        })
     }
 
     return (
@@ -79,7 +86,7 @@ export function LoginForm() {
                     />
                 </div>
 
-                <ButtonLoading isLoading={isSubmitting} disabled={isDisabled}>
+                <ButtonLoading isLoading={login.isPending} disabled={isDisabled}>
                     Sign In
                 </ButtonLoading>
                 <div className="-mt-4 text-center text-sm">

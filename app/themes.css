@@ -136,7 +136,19 @@
   --border: 20 5.9% 90%;
   --input: 20 5.9% 90%;
   --ring: 20 14.3% 4.1%;
-  --radius: 0.95rem;
+  /* --radius intentionally NOT set here — corner radius is owned by the user
+     via the System Settings page (Layout tab). Theme classes only define color
+     tokens. */
+
+  /* Explicit sidebar declarations — see comment in theme-yellow for rationale. */
+  --sidebar-background: var(--secondary);
+  --sidebar-foreground: var(--card-foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--muted);
+  --sidebar-accent-foreground: var(--muted-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
 
   @variant dark {
     --background: 20 14.3% 4.1%;
@@ -188,7 +200,7 @@
   --border: 220 13% 91%;
   --input: 220 13% 91%;
   --ring: 224 71.4% 4.1%;
-  --radius: 0.35rem;
+  /* --radius removed — see comment in theme-stone. */
   --sidebar-background: var(--secondary);
   --sidebar-foreground: var(--card-foreground);
   --sidebar-primary: var(--primary);
@@ -307,7 +319,7 @@
   --border: 0 0% 89.8%;
   --input: 0 0% 89.8%;
   --ring: 0 72.2% 50.6%;
-  --radius: 0.4rem;
+  /* --radius removed — see comment in theme-stone. */
   --sidebar-background: var(--secondary);
   --sidebar-foreground: var(--card-foreground);
   --sidebar-primary: var(--primary);
@@ -426,7 +438,7 @@
   --border: 20 5.9% 90%;
   --input: 20 5.9% 90%;
   --ring: 24.6 95% 53.1%;
-  --radius: 0.95rem;
+  /* --radius removed — see comment in theme-stone. */
   --sidebar-background: var(--secondary);
   --sidebar-foreground: var(--card-foreground);
   --sidebar-primary: var(--primary);
@@ -604,7 +616,21 @@
   --border: 20 5.9% 90%;
   --input: 20 5.9% 90%;
   --ring: 20 14.3% 4.1%;
-  --radius: 0.95rem;
+  /* --radius removed — see comment in theme-stone. */
+
+  /* Explicit sidebar declarations (every other theme has these in light variant
+     too). Without them the Tailwind 4 `@theme inline` pre-resolves
+     `--color-sidebar-primary` against the :root default `--primary` (which is
+     near-black), producing a black active item on yellow. Same applies to
+     theme-stone — both were missing these in the light variant. */
+  --sidebar-background: var(--secondary);
+  --sidebar-foreground: var(--card-foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--muted);
+  --sidebar-accent-foreground: var(--muted-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
 
   @variant dark {
     --background: 20 14.3% 4.1%;

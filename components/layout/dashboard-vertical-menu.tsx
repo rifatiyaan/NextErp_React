@@ -2,8 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { ChevronDown } from "lucide-react"
+
+import { useSystemSettings } from "@/hooks/use-system-settings"
 
 import type { MenuItem } from "@/types/module"
 import { useAuth } from "@/contexts/auth-context"
@@ -245,10 +248,10 @@ export function DashboardVerticalMenu({ onNavigate }: { onNavigate?: () => void 
             <SidebarHeader className="border-b border-sidebar-border p-3">
                 <Link
                     href="/"
-                    className="mb-2 block w-fit font-black text-foreground"
+                    className="mb-2 flex w-fit items-center gap-2 font-black text-foreground"
                     onClick={close}
                 >
-                    <span className="text-xl">NextErp</span>
+                    <SidebarBrand />
                 </Link>
                 <CommandMenu buttonClassName="max-w-full" />
             </SidebarHeader>
@@ -275,5 +278,35 @@ export function DashboardVerticalMenu({ onNavigate }: { onNavigate?: () => void 
                 </SidebarContent>
             </ScrollArea>
         </div>
+    )
+}
+
+/**
+ * Sidebar brand block — reads tenant-configured company name + logo from
+ * SystemSettings (cached for 15 min, see systemSettingsQueries.current).
+ * Falls back to "NextErp" + a built-in mark when the tenant hasn't set one.
+ *
+ * Kept in this file so the brand row stays adjacent to the menu it heads.
+ * Pure visual; no side effects.
+ */
+function SidebarBrand() {
+    const { data: settings } = useSystemSettings()
+    const companyName = settings?.companyName?.trim() || "NextErp"
+    const logoUrl = settings?.companyLogoUrl?.trim() || null
+
+    return (
+        <>
+            {logoUrl ? (
+                <Image
+                    src={logoUrl}
+                    alt={companyName}
+                    width={28}
+                    height={28}
+                    className="size-7 shrink-0 rounded object-contain"
+                    unoptimized
+                />
+            ) : null}
+            <span className="text-xl truncate" title={companyName}>{companyName}</span>
+        </>
     )
 }

@@ -119,4 +119,8 @@ export const queryKeys = {
         all: ["auth"] as const,
         me: () => [...queryKeys.auth.all, "me"] as const,
     },
+    systemSettings: {
+        all: ["systemSettings"] as const,
+        current: () => [...queryKeys.systemSettings.all, "current"] as const,
+    },
 } as const

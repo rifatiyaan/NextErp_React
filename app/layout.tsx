@@ -5,6 +5,7 @@ import "./themes.css";
 import { Providers } from "@/components/providers/Providers";
 import { AuthProvider } from "@/contexts/auth-context";
 import { Toaster } from "@/components/ui/toaster";
+import { SystemSettingsSync } from "@/components/layout/system-settings-sync";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,6 +35,7 @@ export default function RootLayout({
         <Providers>
           <div className=" w-full">
             <AuthProvider>
+              <SystemSettingsSync />
               <Toaster />
               {children}
             </AuthProvider>

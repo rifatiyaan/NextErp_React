@@ -1,50 +1,32 @@
 "use client"
 
-import { useEffect, useState, use } from "react"
+import { use, useMemo } from "react"
 import Link from "next/link"
-import { moduleAPI } from "@/lib/api/module"
-import type { Module } from "@/types/module"
+import { useUserMenu } from "@/hooks/use-modules"
 import { useSidebarView } from "@/contexts/sidebar-view-context"
 import { DynamicIcon } from "@/components/dynamic-icon"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+
 export default function ModuleDashboard({ params }: { params: Promise<{ module: string }> }) {
     // Next.js 15+ convention: params is a promise
     const { module: moduleSlug } = use(params)
     const { mode } = useSidebarView()
-    const [currentModule, setCurrentModule] = useState<Module | null>(null)
-    const [isLoading, setIsLoading] = useState(true)
 
-    useEffect(() => {
-        const loadModule = async () => {
-            try {
-                // Fetch user menu (already hierarchical and filtered by roles)
-                const modules = await moduleAPI.getUserMenu()
+    // Fetch user menu (already hierarchical and filtered by roles).
+    const { data: modules, isPending } = useUserMenu()
 
-                // Match /slug or /slug/ - find the parent module
-                const found = modules.find(m => {
-                    if (!m.url) return false
-                    const normalizedUrl = m.url.toLowerCase().replace(/\/$/, "") // Remove trailing slash
-                    const normalizedSlug = moduleSlug.toLowerCase()
+    const currentModule = useMemo(() => {
+        if (!modules) return null
+        const found = modules.find((m) => {
+            if (!m.url) return false
+            const normalizedUrl = m.url.toLowerCase().replace(/\/$/, "") // Remove trailing slash
+            const normalizedSlug = moduleSlug.toLowerCase()
+            return normalizedUrl === `/${normalizedSlug}` || normalizedUrl === `/${normalizedSlug}/`
+        })
+        return found ?? null
+    }, [modules, moduleSlug])
 
-                    return normalizedUrl === `/${normalizedSlug}` || normalizedUrl === `/${normalizedSlug}/`
-                })
-
-                if (found) {
-                    setCurrentModule(found)
-                } else {
-                    console.warn(`Module not found via slug: ${moduleSlug}`)
-                }
-            } catch (error) {
-                console.error("Failed to load module data", error)
-            } finally {
-                setIsLoading(false)
-            }
-        }
-
-        loadModule()
-    }, [moduleSlug])
-
-    if (isLoading) {
+    if (isPending) {
         return (
             <div className="flex h-full items-center justify-center">
                 <p className="text-muted-foreground">Loading module...</p>
@@ -56,7 +38,7 @@ export default function ModuleDashboard({ params }: { params: Promise<{ module: 
         return (
             <div className="p-4">
                 <h1 className="text-2xl font-bold text-destructive">Module Not Found</h1>
-                <p>The module "{moduleSlug}" does not exist or you do not have permissions.</p>
+                <p>The module &quot;{moduleSlug}&quot; does not exist or you do not have permissions.</p>
             </div>
         )
     }
@@ -105,7 +87,7 @@ export default function ModuleDashboard({ params }: { params: Promise<{ module: 
                     )}
                 </div>
             )}
-            
+
             {/* In sidebar mode, show a message or redirect */}
             {mode === "sidebar" && (
                 <div className="py-12 text-center bg-muted/20 rounded-lg border border-dashed text-muted-foreground">

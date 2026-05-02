@@ -1,6 +1,6 @@
   "use client"
 
-import { useState, useMemo, useEffect, useCallback, useRef } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import {
   Search,
@@ -20,11 +20,11 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { productAPI } from "@/lib/api/product"
-import { categoryAPI } from "@/lib/api/category"
+import { useCategories } from "@/hooks/use-categories"
+import { useProducts } from "@/hooks/use-products"
+import { useCreateSale } from "@/hooks/use-sales"
 import { pickPrimaryVariant } from "@/lib/product-variant"
 import type { Product } from "@/types/product"
-import type { Category } from "@/types/category"
 import { toast } from "sonner"
 import Image from "next/image"
 import { ResizablePanel } from "@/components/ui/resizable-panel"
@@ -86,15 +86,8 @@ export default function CreateSalesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
   const [cart, setCart] = useState<CartLine[]>([])
-  const [products, setProducts] = useState<Product[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [posProductsReady, setPosProductsReady] = useState(false)
-  const [posSearchPending, setPosSearchPending] = useState(false)
-  const posFetchSeq = useRef(0)
-  const [loadingCategories, setLoadingCategories] = useState(true)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false)
-  const [isCreatingSale, setIsCreatingSale] = useState(false)
   const [discount, setDiscount] = useState(0)
   const [saleDate, setSaleDate] = useState(() => new Date().toISOString().split("T")[0])
   const [saleInvoiceNote, setSaleInvoiceNote] = useState("")
@@ -103,32 +96,59 @@ export default function CreateSalesPage() {
 
   const [invoiceProductSearchQuery, setInvoiceProductSearchQuery] = useState("")
   const [debouncedInvoiceSearch, setDebouncedInvoiceSearch] = useState("")
-  const [invoiceSearchProducts, setInvoiceSearchProducts] = useState<Product[]>([])
-  const [loadingInvoiceSearch, setLoadingInvoiceSearch] = useState(false)
   const [invoiceSearchOpen, setInvoiceSearchOpen] = useState(false)
-  const invoiceSearchSeq = useRef(0)
   const radiusClass = useRadiusClass()
 
-  // Fetch categories
+  // Categories — only show parent (root) ones in the picker.
+  const categoriesQuery = useCategories()
+  const loadingCategories = categoriesQuery.isPending
+  const categories = useMemo(
+    () => (categoriesQuery.data ?? []).filter((cat) => !cat.parentId),
+    [categoriesQuery.data]
+  )
+
+  // POS-mode product list (full grid). Only fires while on POS layout.
+  const posProductsQuery = useProducts(
+    {
+      pageIndex: 1,
+      pageSize: 1000,
+      searchText: debouncedSearchQuery || undefined,
+      categoryId: selectedCategory || undefined,
+      status: "active",
+    },
+    { enabled: layoutMode === "pos" }
+  )
+  const products = (layoutMode === "pos" ? posProductsQuery.data?.data : undefined) ?? []
+  const posSearchPending = layoutMode === "pos" && posProductsQuery.isFetching
+  const posProductsReady = layoutMode === "pos" && !posProductsQuery.isPending
+
+  // Invoice-mode autocomplete: only run for ≥2-char queries while on invoice layout.
+  const invoiceSearchEnabled =
+    layoutMode === "invoice" && debouncedInvoiceSearch.length >= 2
+  const invoiceSearchQuery = useProducts(
+    {
+      pageIndex: 1,
+      pageSize: 20,
+      searchText: invoiceSearchEnabled ? debouncedInvoiceSearch : undefined,
+      categoryId: selectedCategory || undefined,
+      status: "active",
+    },
+    { enabled: invoiceSearchEnabled }
+  )
+  const invoiceSearchProducts =
+    invoiceSearchEnabled && invoiceSearchQuery.data ? invoiceSearchQuery.data.data ?? [] : []
+  const loadingInvoiceSearch = invoiceSearchEnabled && invoiceSearchQuery.isFetching
+
+  const createSale = useCreateSale()
+  const isCreatingSale = createSale.isPending
+
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        setLoadingCategories(true)
-        const allCategories = await categoryAPI.getAllCategories()
-        // Filter to only show parent categories (no parentId)
-        const parentCategories = allCategories.filter(
-          (cat) => !cat.parentId
-        )
-        setCategories(parentCategories)
-      } catch (error) {
-        console.error("Failed to fetch categories:", error)
-        toast.error("Failed to load categories")
-      } finally {
-        setLoadingCategories(false)
-      }
-    }
-    fetchCategories()
-  }, [])
+    if (categoriesQuery.isError) toast.error("Failed to load categories")
+  }, [categoriesQuery.isError])
+
+  useEffect(() => {
+    if (layoutMode === "pos" && posProductsQuery.isError) toast.error("Failed to load products")
+  }, [layoutMode, posProductsQuery.isError])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -143,69 +163,6 @@ export default function CreateSalesPage() {
     }, PRODUCT_SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(timer)
   }, [invoiceProductSearchQuery])
-
-  const fetchProducts = useCallback(async () => {
-    const seq = ++posFetchSeq.current
-    setPosSearchPending(true)
-    try {
-      const response = await productAPI.getProducts(
-        1,
-        1000,
-        debouncedSearchQuery || undefined,
-        undefined,
-        selectedCategory || undefined,
-        "active"
-      )
-      if (seq !== posFetchSeq.current) return
-      setProducts(response?.data ?? [])
-    } catch (error) {
-      console.error("Failed to fetch products:", error)
-      if (seq !== posFetchSeq.current) return
-      toast.error("Failed to load products")
-      setProducts([])
-    } finally {
-      if (seq === posFetchSeq.current) {
-        setPosSearchPending(false)
-        setPosProductsReady(true)
-      }
-    }
-  }, [debouncedSearchQuery, selectedCategory])
-
-  useEffect(() => {
-    if (layoutMode !== "pos") return
-    void fetchProducts()
-  }, [fetchProducts, layoutMode])
-
-  useEffect(() => {
-    if (layoutMode !== "invoice") return
-    const run = async () => {
-      if (!debouncedInvoiceSearch || debouncedInvoiceSearch.length < 2) {
-        setInvoiceSearchProducts([])
-        setLoadingInvoiceSearch(false)
-        return
-      }
-      const seq = ++invoiceSearchSeq.current
-      setLoadingInvoiceSearch(true)
-      try {
-        const response = await productAPI.getProducts(
-          1,
-          20,
-          debouncedInvoiceSearch,
-          undefined,
-          selectedCategory || undefined,
-          "active"
-        )
-        if (seq !== invoiceSearchSeq.current) return
-        setInvoiceSearchProducts(response.data || [])
-      } catch {
-        if (seq !== invoiceSearchSeq.current) return
-        setInvoiceSearchProducts([])
-      } finally {
-        if (seq === invoiceSearchSeq.current) setLoadingInvoiceSearch(false)
-      }
-    }
-    void run()
-  }, [debouncedInvoiceSearch, selectedCategory, layoutMode])
 
   useEffect(() => {
     const q = invoiceProductSearchQuery.trim()
@@ -381,58 +338,45 @@ export default function CreateSalesPage() {
   }
 
   // Handle order confirmation
-  const handleConfirmOrder = async () => {
+  const handleConfirmOrder = () => {
     setIsConfirmModalOpen(false)
-    setIsCreatingSale(true)
-    
-    try {
-      // Import sale API
-      const { saleAPI } = await import("@/lib/api/sale")
-      
-      const saleData = {
-        customerId: null, // Optional
-        totalAmount: subtotal,
-        discount: discount,
-        tax: tax,
-        finalAmount: finalAmount,
-        paymentMethod: paymentMethod,
-        paidAmount: finalAmount,
-        notes: saleInvoiceNote.trim() || undefined,
-        items: cart.map((item) => ({
-          productVariantId: item.productVariantId,
-          quantity: item.quantity,
-          price: item.price,
-          subtotal: item.price * item.quantity,
-        })),
-      }
-
-      await saleAPI.createSale(saleData)
-      toast.success("Sale created successfully!")
-      setCart([])
-      setDiscount(0)
-      setIsDrawerOpen(false)
-    } catch (error: any) {
-      console.error("Failed to create sale:", error)
-      
-      // Extract error message
-      let errorMessage = "Failed to create sale. Please try again."
-      if (error?.message) {
-        errorMessage = error.message
-      } else if (typeof error === "string") {
-        errorMessage = error
-      } else if (error?.response?.data?.message) {
-        errorMessage = error.response.data.message
-      }
-      
-      // Check for stock-related errors
-      if (errorMessage.toLowerCase().includes("insufficient stock")) {
-        toast.error(errorMessage, { duration: 5000 })
-      } else {
-        toast.error(errorMessage)
-      }
-    } finally {
-      setIsCreatingSale(false)
+    const saleData = {
+      customerId: null, // Optional
+      totalAmount: subtotal,
+      discount: discount,
+      tax: tax,
+      finalAmount: finalAmount,
+      paymentMethod: paymentMethod,
+      paidAmount: finalAmount,
+      notes: saleInvoiceNote.trim() || undefined,
+      items: cart.map((item) => ({
+        productVariantId: item.productVariantId,
+        quantity: item.quantity,
+        price: item.price,
+        subtotal: item.price * item.quantity,
+      })),
     }
+
+    createSale.mutate(saleData, {
+      onSuccess: () => {
+        toast.success("Sale created successfully!")
+        setCart([])
+        setDiscount(0)
+        setIsDrawerOpen(false)
+      },
+      onError: (error: unknown) => {
+        // Stock errors deserve a longer-lived toast — `useCreateSale` is silent
+        // so the global handler does not duplicate this toast.
+        const errorMessage =
+          (error instanceof Error && error.message) ||
+          (typeof error === "string" ? error : "Failed to create sale. Please try again.")
+        if (errorMessage.toLowerCase().includes("insufficient stock")) {
+          toast.error(errorMessage, { duration: 5000 })
+        } else {
+          toast.error(errorMessage)
+        }
+      },
+    })
   }
 
   const posSearchCategoryRow = (

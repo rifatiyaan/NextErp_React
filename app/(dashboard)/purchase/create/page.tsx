@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect, useCallback, useRef } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { X, Loader2, Search, PackagePlus, Inbox } from "lucide-react"
@@ -13,16 +13,14 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { purchaseAPI } from "@/lib/api/purchase"
-import { supplierAPI } from "@/lib/api/supplier"
-import { productAPI } from "@/lib/api/product"
-import { categoryAPI } from "@/lib/api/category"
-import type { Supplier } from "@/lib/api/supplier"
 import type { Product } from "@/types/product"
-import type { Category } from "@/types/category"
 import type { PurchaseItemRequest } from "@/types/purchase"
 import { pickPrimaryVariant } from "@/lib/product-variant"
 import { useRadiusClass } from "@/hooks/use-radius-class"
+import { useCategories } from "@/hooks/use-categories"
+import { useProducts } from "@/hooks/use-products"
+import { useSuppliers } from "@/hooks/use-suppliers"
+import { useCreatePurchase } from "@/hooks/use-purchases"
 import { tableBodyRowHoverClassName } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -59,10 +57,6 @@ export default function CreatePurchasePage() {
         "h-9 w-full border-border bg-background px-2.5 text-sm shadow-sm transition-colors hover:bg-muted/40 [&>span]:truncate",
         radiusClass
     )
-    const [loading, setLoading] = useState(false)
-    const [loadingSuppliers, setLoadingSuppliers] = useState(true)
-    const [suppliers, setSuppliers] = useState<Supplier[]>([])
-    const [categories, setCategories] = useState<Category[]>([])
     const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
 
     const [supplierId, setSupplierId] = useState<number | null>(null)
@@ -73,10 +67,46 @@ export default function CreatePurchasePage() {
 
     const [productSearchQuery, setProductSearchQuery] = useState("")
     const [debouncedSearch, setDebouncedSearch] = useState("")
-    const [searchProducts, setSearchProducts] = useState<Product[]>([])
-    const [loadingProducts, setLoadingProducts] = useState(false)
     const [searchOpen, setSearchOpen] = useState(false)
-    const productSearchSeq = useRef(0)
+
+    // Suppliers — page through up to 1000 active records (mirrors prior behavior).
+    const suppliersQuery = useSuppliers({ pageIndex: 1, pageSize: 1000 })
+    const loadingSuppliers = suppliersQuery.isPending
+    const suppliers = useMemo(
+        () => (suppliersQuery.data?.data ?? []).filter((s) => s.isActive),
+        [suppliersQuery.data]
+    )
+
+    // Categories
+    const categoriesQuery = useCategories()
+    const categories = categoriesQuery.data ?? []
+
+    useEffect(() => {
+        if (suppliersQuery.isError) toast.error("Failed to load suppliers")
+    }, [suppliersQuery.isError])
+
+    useEffect(() => {
+        if (categoriesQuery.isError) toast.error("Failed to load categories")
+    }, [categoriesQuery.isError])
+
+    // Product search — only enabled for ≥2-char queries to avoid noise.
+    const productsEnabled = debouncedSearch.length >= 2
+    const productsQuery = useProducts(
+        {
+            pageIndex: 1,
+            pageSize: 20,
+            searchText: productsEnabled ? debouncedSearch : undefined,
+            categoryId: selectedCategory || undefined,
+            status: "active",
+        },
+        { enabled: productsEnabled }
+    )
+    const searchProducts: Product[] =
+        productsEnabled && productsQuery.data ? productsQuery.data.data ?? [] : []
+    const loadingProducts = productsEnabled && productsQuery.isFetching
+
+    const createPurchase = useCreatePurchase()
+    const loading = createPurchase.isPending
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -84,36 +114,6 @@ export default function CreatePurchasePage() {
         }, PRODUCT_SEARCH_DEBOUNCE_MS)
         return () => clearTimeout(timer)
     }, [productSearchQuery])
-
-    useEffect(() => {
-        const run = async () => {
-            if (!debouncedSearch || debouncedSearch.length < 2) {
-                setSearchProducts([])
-                setLoadingProducts(false)
-                return
-            }
-            const seq = ++productSearchSeq.current
-            setLoadingProducts(true)
-            try {
-                const response = await productAPI.getProducts(
-                    1,
-                    20,
-                    debouncedSearch,
-                    undefined,
-                    selectedCategory || undefined,
-                    "active"
-                )
-                if (seq !== productSearchSeq.current) return
-                setSearchProducts(response.data || [])
-            } catch {
-                if (seq !== productSearchSeq.current) return
-                setSearchProducts([])
-            } finally {
-                if (seq === productSearchSeq.current) setLoadingProducts(false)
-            }
-        }
-        void run()
-    }, [debouncedSearch, selectedCategory])
 
     useEffect(() => {
         const q = productSearchQuery.trim()
@@ -137,32 +137,6 @@ export default function CreatePurchasePage() {
         loadingProducts,
         searchProducts.length,
     ])
-
-    useEffect(() => {
-        const fetchSuppliers = async () => {
-            try {
-                setLoadingSuppliers(true)
-                const response = await supplierAPI.getSuppliers(1, 1000)
-                setSuppliers(response.data.filter((s) => s.isActive))
-            } catch {
-                toast.error("Failed to load suppliers")
-            } finally {
-                setLoadingSuppliers(false)
-            }
-        }
-        void fetchSuppliers()
-    }, [])
-
-    useEffect(() => {
-        const fetchCategories = async () => {
-            try {
-                setCategories(await categoryAPI.getAllCategories())
-            } catch {
-                toast.error("Failed to load categories")
-            }
-        }
-        void fetchCategories()
-    }, [])
 
     const addProductToItems = useCallback((product: Product) => {
         const variant = pickPrimaryVariant(product)
@@ -235,7 +209,7 @@ export default function CreatePurchasePage() {
         return `PUR-${dateStr}-${random}`
     }
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
         if (!supplierId) {
             toast.error("Please select a supplier")
@@ -253,9 +227,8 @@ export default function CreatePurchasePage() {
             return
         }
 
-        setLoading(true)
-        try {
-            await purchaseAPI.createPurchase({
+        createPurchase.mutate(
+            {
                 title: `Purchase - ${new Date().toLocaleDateString()}`,
                 purchaseNumber: generatePurchaseNumber(),
                 supplierId,
@@ -269,15 +242,15 @@ export default function CreatePurchasePage() {
                     metadata: item.metadata || undefined,
                 })),
                 metadata: { notes: invoiceNote || undefined },
-            })
-            toast.success("Purchase created successfully!")
-            router.push("/purchase/invoices")
-        } catch (error: unknown) {
-            const msg = error instanceof Error ? error.message : "Failed to create purchase"
-            toast.error(msg)
-        } finally {
-            setLoading(false)
-        }
+            },
+            {
+                onSuccess: () => {
+                    router.push("/purchase/invoices")
+                },
+                // The hook's `meta.successMessage` shows the success toast;
+                // the global handler shows error toasts. No local handling needed.
+            }
+        )
     }
 
     return (
@@ -456,7 +429,6 @@ export default function CreatePurchasePage() {
                                         onChange={(id) => {
                                             setSelectedCategory(id)
                                             setProductSearchQuery("")
-                                            setSearchProducts([])
                                         }}
                                         triggerClassName="h-8"
                                         size="compact"

@@ -8,6 +8,8 @@ import { toast } from "sonner"
 import type { RegisterFormType } from "@/types/auth"
 import { RegisterSchema } from "@/schemas/auth-schemas"
 import { useAuth } from "@/contexts/auth-context"
+import { useRegister } from "@/hooks/use-auth"
+import { applyValidationErrors } from "@/lib/query/rhf"
 
 import { ButtonLoading } from "@/components/ui/button"
 import {
@@ -21,22 +23,28 @@ import {
 import { Input } from "@/components/ui/input"
 
 export function RegisterForm() {
-    const { register } = useAuth()
+    const { setSession } = useAuth()
+    const register = useRegister()
 
     const form = useForm<RegisterFormType>({
         resolver: zodResolver(RegisterSchema),
     })
 
-    const { isSubmitting, isDirty } = form.formState
-    const isDisabled = isSubmitting || !isDirty
+    const { isDirty } = form.formState
+    const isDisabled = register.isPending || !isDirty
 
-    async function onSubmit(data: RegisterFormType) {
-        try {
-            await register(data)
-            toast.success("Registration successful!")
-        } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Registration failed")
-        }
+    function onSubmit(data: RegisterFormType) {
+        register.mutate(data, {
+            onSuccess: async (response) => {
+                await setSession(response.token)
+                toast.success("Registration successful!")
+            },
+            onError: (error) => {
+                if (!applyValidationErrors(error, form.setError)) {
+                    toast.error(error instanceof Error ? error.message : "Registration failed")
+                }
+            },
+        })
     }
 
     return (
@@ -75,7 +83,7 @@ export function RegisterForm() {
                     />
                 </div>
 
-                <ButtonLoading isLoading={isSubmitting} disabled={isDisabled}>
+                <ButtonLoading isLoading={register.isPending} disabled={isDisabled}>
                     Create Account
                 </ButtonLoading>
                 <div className="-mt-4 text-center text-sm">

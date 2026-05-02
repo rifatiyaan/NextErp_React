@@ -52,11 +52,17 @@ export function useSalesReport(filters: SalesReportFilters) {
 
 // ----- Mutations -----
 
+/**
+ * Create-sale mutation. Marked `silent` so the consumer can render a
+ * stock-aware error toast (longer duration for "insufficient stock") and
+ * its own success toast — see `app/(dashboard)/sales/create/page.tsx`.
+ * Cache invalidation still runs from `meta.invalidates` regardless of `silent`.
+ */
 export function useCreateSale() {
     return useMutation({
         mutationFn: (input: CreateSaleRequest) => saleAPI.createSale(input),
         meta: {
-            successMessage: "Sale created",
+            silent: true,
             invalidates: [queryKeys.sales.all, queryKeys.stock.all, queryKeys.products.all],
         },
     })

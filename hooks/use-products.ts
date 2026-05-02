@@ -12,10 +12,11 @@ import type { CreateProductRequest } from "@/types/product"
 
 // ----- Reads -----
 
-export function useProducts(filters: ProductListFilters) {
+export function useProducts(filters: ProductListFilters, options?: { enabled?: boolean }) {
     return useQuery({
         ...productQueries.list(filters),
         placeholderData: keepPreviousData,
+        enabled: options?.enabled ?? true,
     })
 }
 

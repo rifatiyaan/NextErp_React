@@ -5,7 +5,7 @@ import { Product } from "@/types/product"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Loader2 } from "lucide-react"
 import { format } from "date-fns"
-import { productAPI } from "@/lib/api/product"
+import { useProduct } from "@/hooks/use-products"
 import { ProductHeader } from "./product-detail/ProductHeader"
 import { ProductStats } from "./product-detail/ProductStats"
 import { ProductVariants } from "./product-detail/ProductVariants"
@@ -37,31 +37,14 @@ function formatCreatedAt(iso?: string | null): string {
 }
 
 export function ProductDetailModal({ product, open, onOpenChange }: ProductDetailModalProps) {
-    const [fullProduct, setFullProduct] = useState<Product | null>(null)
-    const [loading, setLoading] = useState(false)
     const [variantSelection, setVariantSelection] = useState<Record<number, number>>({})
 
-    useEffect(() => {
-        if (open && product?.id) {
-            const fetchFullProduct = async () => {
-                try {
-                    setLoading(true)
-                    const data = await productAPI.getProduct(product.id)
-                    setFullProduct(data)
-                } catch (error) {
-                    console.error("Failed to fetch product details:", error)
-                    setFullProduct(product)
-                } finally {
-                    setLoading(false)
-                }
-            }
-            void fetchFullProduct()
-        } else {
-            setFullProduct(product)
-        }
-    }, [open, product])
-
-    const displayProduct = fullProduct ?? product
+    // Fetch full product detail only when the modal is open and we have a product id.
+    // While the request is in flight (`fetchStatus === "fetching"`) we surface the
+    // local product immediately so the modal isn't blank.
+    const productQuery = useProduct(open && product?.id ? product.id : undefined)
+    const loading = productQuery.fetchStatus === "fetching" && !productQuery.data
+    const displayProduct: Product | null = productQuery.data ?? product
 
     const sortedVariationOptions = useMemo(() => {
         if (!displayProduct) return []
