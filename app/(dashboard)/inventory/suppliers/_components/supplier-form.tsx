@@ -5,7 +5,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
 import { SupplierFormValues, supplierSchema } from "@/schemas/supplier"
-import { supplierAPI } from "@/lib/api/supplier"
+import { useCreateSupplier, useUpdateSupplier } from "@/hooks/use-suppliers"
+import { applyValidationErrors } from "@/lib/query/rhf"
 import { Supplier } from "@/types/supplier"
 import { Button } from "@/components/ui/button"
 import {
@@ -31,7 +32,9 @@ interface SupplierFormProps {
 
 export function SupplierForm({ initialData, isEdit }: SupplierFormProps) {
     const router = useRouter()
-    const [isSubmitting, setIsSubmitting] = useState(false)
+    const createSupplier = useCreateSupplier()
+    const updateSupplier = useUpdateSupplier()
+    const isSubmitting = createSupplier.isPending || updateSupplier.isPending
     const [avatar, setAvatar] = useState<File | string | null>(null)
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
 
@@ -70,37 +73,34 @@ export function SupplierForm({ initialData, isEdit }: SupplierFormProps) {
         }
     }, [initialData, form])
 
-    const onSubmit = async (data: SupplierFormValues) => {
-        setIsSubmitting(true)
-        try {
-            const payload = {
-                title: data.title,
-                contactPerson: data.contactPerson || undefined,
-                phone: data.phone || undefined,
-                email: data.email || undefined,
-                address: data.address || undefined,
-                isActive: data.isActive,
-                vatNumber: data.metadata?.vatNumber || undefined,
-                taxId: data.metadata?.taxId || undefined,
-                notes: data.metadata?.notes || undefined,
-            }
+    const onSubmit = (data: SupplierFormValues) => {
+        const payload = {
+            title: data.title,
+            contactPerson: data.contactPerson || undefined,
+            phone: data.phone || undefined,
+            email: data.email || undefined,
+            address: data.address || undefined,
+            isActive: data.isActive,
+            vatNumber: data.metadata?.vatNumber || undefined,
+            taxId: data.metadata?.taxId || undefined,
+            notes: data.metadata?.notes || undefined,
+        }
 
-            if (isEdit && initialData) {
-                await supplierAPI.updateSupplier(initialData.id, {
-                    ...payload,
-                    id: initialData.id,
-                })
-                toast.success("Supplier updated successfully")
-            } else {
-                await supplierAPI.createSupplier(payload)
-                toast.success("Supplier created successfully")
-            }
-            router.push("/inventory/suppliers")
-        } catch (error: any) {
+        const onSuccess = () => router.push("/inventory/suppliers")
+        const onError = (error: unknown) => {
             console.error("Failed to save supplier:", error)
-            toast.error(error?.message || "Failed to save supplier")
-        } finally {
-            setIsSubmitting(false)
+            if (!applyValidationErrors(error, form.setError)) {
+                toast.error((error as Error)?.message || "Failed to save supplier")
+            }
+        }
+
+        if (isEdit && initialData) {
+            updateSupplier.mutate(
+                { id: initialData.id, data: { ...payload, id: initialData.id } },
+                { onSuccess, onError }
+            )
+        } else {
+            createSupplier.mutate(payload, { onSuccess, onError })
         }
     }
 

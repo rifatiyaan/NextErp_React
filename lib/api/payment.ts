@@ -3,8 +3,8 @@ import type { RecordSalePaymentRequest } from "@/lib/types/payment"
 import type { SalePaymentLine } from "@/lib/types/sale"
 
 export const paymentAPI = {
-    async listBySaleId(saleId: string): Promise<SalePaymentLine[]> {
-        return fetchAPI<SalePaymentLine[]>(`/api/Payment/sale/${saleId}`)
+    async listBySaleId(saleId: string, signal?: AbortSignal): Promise<SalePaymentLine[]> {
+        return fetchAPI<SalePaymentLine[]>(`/api/Payment/sale/${saleId}`, { signal })
     },
 
     async recordSalePayment(

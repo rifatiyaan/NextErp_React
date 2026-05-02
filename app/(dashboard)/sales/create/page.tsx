@@ -237,7 +237,7 @@ export default function CreateSalesPage() {
       return
     }
 
-    const availableStock = variant.stock ?? 0
+    const availableStock = variant.availableQuantity ?? 0
     if (availableStock <= 0) {
       toast.error(`${product.title} is out of stock. Please purchase stock first.`, {
         duration: 5000,
@@ -277,7 +277,7 @@ export default function CreateSalesPage() {
           title: lineTitle,
           code: product.code,
           price: variant.price,
-          stock: variant.stock,
+          stock: variant.availableQuantity ?? 0,
           imageUrl: product.imageUrl,
           quantity: 1,
         },
@@ -528,7 +528,7 @@ export default function CreateSalesPage() {
               {products.map((product) => {
                 const primary = pickPrimaryVariant(product)
                 const displayPrice = primary?.price ?? product.price
-                const displayStock = primary?.stock ?? product.stock ?? 0
+                const displayStock = primary?.availableQuantity ?? product.totalAvailableQuantity ?? 0
                 return (
                   <Card
                     key={product.id}
@@ -823,7 +823,7 @@ export default function CreateSalesPage() {
                               const img = product.imageUrl?.trim() || ""
                               const primary = pickPrimaryVariant(product)
                               const displayPrice = primary?.price ?? product.price
-                              const displayStock = primary?.stock ?? product.stock ?? 0
+                              const displayStock = primary?.availableQuantity ?? product.totalAvailableQuantity ?? 0
                               return (
                                 <CommandItem
                                   key={product.id}

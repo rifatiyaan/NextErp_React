@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -17,8 +17,15 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { moduleAPI, CreateModuleRequest } from "@/lib/api/module"
-import { Module, ModuleType, coerceModuleType } from "@/types/module"
+import { CreateModuleRequest } from "@/lib/api/module"
+import {
+    useModule,
+    useModules,
+    useCreateModule,
+    useUpdateModule,
+} from "@/hooks/use-modules"
+import { applyValidationErrors } from "@/lib/query/rhf"
+import { ModuleType, coerceModuleType } from "@/types/module"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { Loader } from "@/components/ui/loader"
@@ -59,14 +66,23 @@ interface ModuleFormProps {
 
 export function ModuleForm({ moduleId }: ModuleFormProps) {
     const router = useRouter()
-    const [loading, setLoading] = useState(false)
-    const [fetching, setFetching] = useState(!!moduleId)
-    const [parentModules, setParentModules] = useState<Module[]>([])
+    const createModule = useCreateModule()
+    const updateModule = useUpdateModule()
+    const loading = createModule.isPending || updateModule.isPending
+
+    // Parent modules list (only Module type) for the parent picker.
+    const parentModulesQuery = useModules({ type: ModuleType.Module })
+    const parentModules = parentModulesQuery.data ?? []
+
+    // Module being edited.
+    const moduleQuery = useModule(moduleId)
+    const fetching = !!moduleId && moduleQuery.isPending
 
     const {
         register,
         handleSubmit,
         formState: { errors },
+        setError,
         setValue,
         watch,
     } = useForm<ModuleFormValues>({
@@ -101,59 +117,41 @@ export function ModuleForm({ moduleId }: ModuleFormProps) {
     const moduleType = watch("type")
     const parentId = watch("parentId")
 
-    // Fetch parent modules (only Module type, not Link)
+    // Hydrate the form once the module loads.
     useEffect(() => {
-        const fetchParents = async () => {
-            try {
-                const modules = await moduleAPI.getModulesByType(ModuleType.Module)
-                setParentModules(modules)
-            } catch (error) {
-                console.error("Failed to fetch parent modules:", error)
-            }
-        }
-        fetchParents()
-    }, [])
+        const module = moduleQuery.data
+        if (!module) return
+        setValue("title", module.title)
+        setValue("icon", module.icon || null)
+        setValue("url", module.url || null)
+        setValue("parentId", module.parentId || null)
+        setValue("type", coerceModuleType(module.type))
+        setValue("description", module.description || null)
+        setValue("version", module.version || null)
+        setValue("isInstalled", module.isInstalled)
+        setValue("isEnabled", module.isEnabled)
+        setValue("order", module.order)
+        setValue("isActive", module.isActive)
+        setValue("isExternal", module.isExternal)
+        setValue("metadata", module.metadata || {
+            roles: [],
+            badgeText: null,
+            badgeColor: null,
+            description: null,
+            openInNewTab: false,
+            author: null,
+            website: null,
+            dependencies: [],
+            configurationUrl: null,
+        })
+    }, [moduleQuery.data, setValue])
 
-    // Fetch module data if editing
     useEffect(() => {
-        if (moduleId) {
-            const fetchModule = async () => {
-                setFetching(true)
-                try {
-                    const module = await moduleAPI.getModuleById(moduleId)
-                    setValue("title", module.title)
-                    setValue("icon", module.icon || null)
-                    setValue("url", module.url || null)
-                    setValue("parentId", module.parentId || null)
-                    setValue("type", coerceModuleType(module.type))
-                    setValue("description", module.description || null)
-                    setValue("version", module.version || null)
-                    setValue("isInstalled", module.isInstalled)
-                    setValue("isEnabled", module.isEnabled)
-                    setValue("order", module.order)
-                    setValue("isActive", module.isActive)
-                    setValue("isExternal", module.isExternal)
-                    setValue("metadata", module.metadata || {
-                        roles: [],
-                        badgeText: null,
-                        badgeColor: null,
-                        description: null,
-                        openInNewTab: false,
-                        author: null,
-                        website: null,
-                        dependencies: [],
-                        configurationUrl: null,
-                    })
-                } catch (error) {
-                    console.error("Failed to fetch module:", error)
-                    toast.error("Failed to load module data")
-                } finally {
-                    setFetching(false)
-                }
-            }
-            fetchModule()
+        if (moduleQuery.isError) {
+            console.error("Failed to fetch module:", moduleQuery.error)
+            toast.error("Failed to load module data")
         }
-    }, [moduleId, setValue])
+    }, [moduleQuery.isError, moduleQuery.error])
 
     // Reset parentId when type changes to Module
     useEffect(() => {
@@ -162,39 +160,36 @@ export function ModuleForm({ moduleId }: ModuleFormProps) {
         }
     }, [moduleType, setValue])
 
-    const onSubmit = async (data: ModuleFormValues) => {
-        setLoading(true)
-        try {
-            // Explicitly construct payload to avoid sending any unwanted properties
-            const payload: CreateModuleRequest = {
-                title: data.title,
-                icon: data.icon || null,
-                url: data.url || null,
-                parentId: moduleType === ModuleType.Module ? null : data.parentId || null,
-                type: data.type,
-                description: data.description || null,
-                version: data.version || null,
-                isInstalled: data.isInstalled,
-                isEnabled: data.isEnabled,
-                order: data.order,
-                isActive: data.isActive,
-                isExternal: data.isExternal,
-                metadata: data.metadata || undefined,
-            }
+    const onSubmit = (data: ModuleFormValues) => {
+        // Explicitly construct payload to avoid sending any unwanted properties
+        const payload: CreateModuleRequest = {
+            title: data.title,
+            icon: data.icon || null,
+            url: data.url || null,
+            parentId: moduleType === ModuleType.Module ? null : data.parentId || null,
+            type: data.type,
+            description: data.description || null,
+            version: data.version || null,
+            isInstalled: data.isInstalled,
+            isEnabled: data.isEnabled,
+            order: data.order,
+            isActive: data.isActive,
+            isExternal: data.isExternal,
+            metadata: data.metadata || undefined,
+        }
 
-            if (moduleId) {
-                await moduleAPI.updateModule(moduleId, payload)
-                toast.success("Module updated successfully")
-            } else {
-                await moduleAPI.createModule(payload)
-                toast.success("Module created successfully")
-            }
-            router.push("/settings/modules")
-        } catch (error) {
+        const onSuccess = () => router.push("/settings/modules")
+        const onError = (error: unknown) => {
             console.error("Failed to save module:", error)
-            toast.error("Failed to save module")
-        } finally {
-            setLoading(false)
+            if (!applyValidationErrors(error, setError)) {
+                toast.error("Failed to save module")
+            }
+        }
+
+        if (moduleId) {
+            updateModule.mutate({ id: moduleId, data: payload }, { onSuccess, onError })
+        } else {
+            createModule.mutate(payload, { onSuccess, onError })
         }
     }
 

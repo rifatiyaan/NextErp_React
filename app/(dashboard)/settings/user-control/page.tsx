@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { useIdentityDashboard } from "@/hooks/use-identity-dashboard"
-import { useMenuPermissionGroups } from "@/hooks/use-menu-permission-groups"
+import { useIdentityDashboard, usePatchUser } from "@/hooks/use-identity"
+import { useMenuPermissionGroups } from "@/hooks/use-modules"
 import { countRoleMenuPermissions } from "@/lib/permissions/menu-permission-groups"
 import { EditablePermissionMatrix } from "./_components/editable-permission-matrix"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -47,8 +47,11 @@ function initials(user: IdentityUserEntry) {
 }
 
 export default function UserControlPage() {
-    const { roles, users, branches, loading, error, refetch, patchUser } =
+    const { roles, users, branches, loading, error, refetch } =
         useIdentityDashboard()
+    const patchUserMutation = usePatchUser()
+    const patchUser = (userId: string, patch: { branchId?: string; roleName?: string }) =>
+        patchUserMutation.mutateAsync({ userId, patch }).then(() => undefined)
     const {
         groups: permissionGroups,
         menuKeySet,

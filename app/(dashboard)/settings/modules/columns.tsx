@@ -14,7 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { DynamicIcon } from "@/components/dynamic-icon"
-import { moduleAPI } from "@/lib/api/module"
+import { useDeleteModule } from "@/hooks/use-modules"
 import { Checkbox } from "@/components/ui/checkbox"
 
 export const columns: ColumnDef<Module>[] = [
@@ -125,50 +125,47 @@ export const columns: ColumnDef<Module>[] = [
     {
         id: "actions",
         header: "",
-        cell: ({ row }) => {
-            const module = row.original
-
-            return (
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-6 w-6 p-0">
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-3.5 w-3.5" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem asChild>
-                            <Link href={`/settings/modules/${module.id}`}>
-                                <Pencil className="mr-2 h-4 w-4" />
-                                Edit
-                            </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={async () => {
-                                if (
-                                    confirm(
-                                        `Are you sure you want to delete "${module.title}"?`
-                                    )
-                                ) {
-                                    try {
-                                        await moduleAPI.deleteModule(module.id)
-                                        window.location.reload()
-                                    } catch (error) {
-                                        console.error("Failed to delete module:", error)
-                                        alert("Failed to delete module")
-                                    }
-                                }
-                            }}
-                        >
-                            <Trash className="mr-2 h-4 w-4" />
-                            Delete
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            )
-        },
+        cell: ({ row }) => <ModuleRowActions module={row.original} />,
     },
 ]
+
+function ModuleRowActions({ module }: { module: Module }) {
+    const deleteModule = useDeleteModule()
+
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-6 w-6 p-0">
+                    <span className="sr-only">Open menu</span>
+                    <MoreHorizontal className="h-3.5 w-3.5" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuItem asChild>
+                    <Link href={`/settings/modules/${module.id}`}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit
+                    </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={() => {
+                        if (confirm(`Are you sure you want to delete "${module.title}"?`)) {
+                            deleteModule.mutate(module.id, {
+                                onError: (error: unknown) => {
+                                    console.error("Failed to delete module:", error)
+                                    alert("Failed to delete module")
+                                },
+                            })
+                        }
+                    }}
+                >
+                    <Trash className="mr-2 h-4 w-4" />
+                    Delete
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    )
+}
 

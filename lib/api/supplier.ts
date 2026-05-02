@@ -46,7 +46,8 @@ export const supplierAPI = {
         pageIndex: number = 1,
         pageSize: number = 10,
         searchText?: string,
-        sortBy?: string
+        sortBy?: string,
+        signal?: AbortSignal
     ): Promise<SupplierListResponse> {
         const params = new URLSearchParams({
             pageIndex: pageIndex.toString(),
@@ -56,11 +57,11 @@ export const supplierAPI = {
         if (searchText) params.append("searchText", searchText)
         if (sortBy) params.append("sortBy", sortBy)
 
-        return await fetchAPI<SupplierListResponse>(`/api/Party?${params.toString()}`)
+        return await fetchAPI<SupplierListResponse>(`/api/Party?${params.toString()}`, { signal })
     },
 
-    async getSupplierById(id: string): Promise<Supplier> {
-        return await fetchAPI<Supplier>(`/api/Party/${id}`)
+    async getSupplierById(id: string, signal?: AbortSignal): Promise<Supplier> {
+        return await fetchAPI<Supplier>(`/api/Party/${id}`, { signal })
     },
 
     async createSupplier(data: SupplierCreateRequest): Promise<Supplier> {

@@ -2,14 +2,30 @@ import { tokenStorage } from "@/lib/auth/storage"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://localhost:7245"
 
+/**
+ * Thrown by {@link fetchAPI} for any non-2xx response or network failure.
+ *
+ * For HTTP 422 (validation) responses from the backend, {@link validationErrors}
+ * is populated with the per-field error dictionary produced by FluentValidation.
+ * Forms can map these directly to `react-hook-form` `setError()` calls.
+ *
+ * For 5xx / 4xx other than 422, {@link validationErrors} is undefined and the
+ * caller should show {@link message} directly (typically via the global toast
+ * handler in `lib/query/client.ts`).
+ */
 export class APIError extends Error {
     constructor(
         message: string,
         public status: number,
-        public data?: any
+        public data?: any,
+        public validationErrors?: Record<string, string[]>,
     ) {
         super(message)
         this.name = "APIError"
+    }
+
+    get isValidation(): boolean {
+        return this.status === 422
     }
 }
 
@@ -31,12 +47,12 @@ export async function fetchAPI<T = any>(
     const url = `${API_BASE_URL}${endpoint}`
 
     try {
+        // `signal` is forwarded if the caller provides one (TanStack Query passes its own
+        // AbortSignal automatically). On unmount or query invalidation, the in-flight
+        // request is cancelled and the AbortError surfaces as a thrown error.
         const response = await fetch(url, {
             ...options,
             headers,
-            // For development with self-signed certificates
-            // Note: This only works in Node.js, browsers will still validate certificates
-            // For browser, user must accept the certificate warning
         })
 
         // Handle non-JSON responses
@@ -46,23 +62,34 @@ export async function fetchAPI<T = any>(
         if (!response.ok) {
             const errorData = isJSON ? await response.json() : await response.text()
             console.error(`API Error ${response.status} at ${url}:`, errorData)
-            
+
             let errorMessage = "Request failed"
-            if (isJSON && errorData) {
-                if (typeof errorData === "object" && errorData.message) {
+            let validationErrors: Record<string, string[]> | undefined
+
+            if (isJSON && errorData && typeof errorData === "object") {
+                // ASP.NET ProblemDetails shape: { title, detail, errors? }
+                // Backend FluentValidation pipeline puts per-field errors under `errors`
+                // when status === 422.
+                if (typeof errorData.detail === "string") {
+                    errorMessage = errorData.detail
+                } else if (typeof errorData.title === "string") {
+                    errorMessage = errorData.title
+                } else if (typeof errorData.message === "string") {
                     errorMessage = errorData.message
-                } else if (typeof errorData === "string") {
-                    errorMessage = errorData
+                }
+
+                if (
+                    response.status === 422 &&
+                    errorData.errors &&
+                    typeof errorData.errors === "object"
+                ) {
+                    validationErrors = errorData.errors as Record<string, string[]>
                 }
             } else if (typeof errorData === "string") {
                 errorMessage = errorData
             }
-            
-            throw new APIError(
-                errorMessage,
-                response.status,
-                errorData
-            )
+
+            throw new APIError(errorMessage, response.status, errorData, validationErrors)
         }
 
         // Return parsed JSON or null for 204 No Content

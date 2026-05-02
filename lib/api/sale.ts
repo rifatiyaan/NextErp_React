@@ -29,15 +29,16 @@ export const saleAPI = {
         })
     },
 
-    async getSaleById(id: string): Promise<SaleDetail> {
-        return fetchAPI<SaleDetail>(`/api/Sale/${id}`)
+    async getSaleById(id: string, signal?: AbortSignal): Promise<SaleDetail> {
+        return fetchAPI<SaleDetail>(`/api/Sale/${id}`, { signal })
     },
 
     async getSales(
         pageIndex: number = 1,
         pageSize: number = 10,
         searchText?: string,
-        sortBy?: string
+        sortBy?: string,
+        signal?: AbortSignal
     ): Promise<PagedSaleListResponse> {
         const params = new URLSearchParams({
             page: pageIndex.toString(),
@@ -46,7 +47,7 @@ export const saleAPI = {
         if (searchText) params.append("searchText", searchText)
         if (sortBy) params.append("sortBy", sortBy)
 
-        const raw = await fetchAPI<Record<string, unknown>>(`/api/Sale?${params.toString()}`)
+        const raw = await fetchAPI<Record<string, unknown>>(`/api/Sale?${params.toString()}`, { signal })
         const dataRaw = raw?.data ?? raw?.Data
         const rows = Array.isArray(dataRaw)
             ? (dataRaw as Record<string, unknown>[]).map(normalizeSaleListRow)
@@ -65,13 +66,14 @@ export const saleAPI = {
     async getSalesReport(
         startDate: string,
         endDate: string,
-        customerId?: string | null
+        customerId?: string | null,
+        signal?: AbortSignal
     ) {
         const params = new URLSearchParams({
             startDate,
             endDate,
         })
         if (customerId) params.append("customerId", customerId)
-        return fetchAPI<SalesReport>(`/api/Sale/report?${params.toString()}`)
+        return fetchAPI<SalesReport>(`/api/Sale/report?${params.toString()}`, { signal })
     },
 }

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { formatQuantity } from "@/lib/formatters/number"
-import { stockAPI } from "@/lib/api/stock"
+import { useSetReorderLevel } from "@/hooks/use-stock"
 import type { StockTableRow } from "@/hooks/use-stock-page"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -25,7 +25,8 @@ interface StockTableProps {
 export function StockTable({ rows, highlightLow, onReorderLevelChange }: StockTableProps) {
     const [editingId, setEditingId] = useState<number | null>(null)
     const [editValue, setEditValue] = useState<string>("")
-    const [saving, setSaving] = useState(false)
+    const setReorderLevel = useSetReorderLevel()
+    const saving = setReorderLevel.isPending
     const inputRef = useRef<HTMLInputElement | null>(null)
 
     useEffect(() => {
@@ -42,7 +43,7 @@ export function StockTable({ rows, highlightLow, onReorderLevelChange }: StockTa
         setEditValue("")
     }
 
-    const commitEdit = async (row: StockTableRow) => {
+    const commitEdit = (row: StockTableRow) => {
         if (saving) return
         const trimmed = editValue.trim()
         let parsed: number | null = null
@@ -59,19 +60,21 @@ export function StockTable({ rows, highlightLow, onReorderLevelChange }: StockTa
             cancelEdit()
             return
         }
-        setSaving(true)
-        try {
-            await stockAPI.setReorderLevel(row.productVariantId, parsed)
-            onReorderLevelChange?.(row.productVariantId, parsed)
-            toast.success("Reorder level updated")
-            cancelEdit()
-        } catch (error) {
-            const message =
-                (error as { message?: string })?.message ?? "Failed to update reorder level"
-            toast.error(message)
-        } finally {
-            setSaving(false)
-        }
+        setReorderLevel.mutate(
+            { productVariantId: row.productVariantId, reorderLevel: parsed },
+            {
+                onSuccess: () => {
+                    onReorderLevelChange?.(row.productVariantId, parsed)
+                    cancelEdit()
+                },
+                onError: (error: unknown) => {
+                    const message =
+                        (error as { message?: string })?.message ??
+                        "Failed to update reorder level"
+                    toast.error(message)
+                },
+            }
+        )
     }
 
     return (

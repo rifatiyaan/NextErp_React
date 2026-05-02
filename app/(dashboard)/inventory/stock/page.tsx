@@ -1,12 +1,14 @@
 "use client"
 
-import { Package } from "lucide-react"
+import Link from "next/link"
+import { Package, Plus } from "lucide-react"
 
 import { StockTable } from "./_components/stock-table"
 import { EmptyState } from "@/components/feedback/empty-state"
 import { TableSkeleton } from "@/components/feedback/table-skeleton"
 import { Button } from "@/components/ui/button"
 import { useStockPage } from "@/hooks/use-stock-page"
+import { RequirePermission } from "@/components/auth/RequirePermission"
 
 export default function DashboardStockPage() {
     const { rows, filter, setFilter, loading, error, current, low, rowIsLowStock } =
@@ -55,6 +57,16 @@ export default function DashboardStockPage() {
                 >
                     Low stock
                 </Button>
+                <div className="ml-auto">
+                    <RequirePermission permission="Stock.Adjust">
+                        <Button asChild type="button" size="sm" variant="default">
+                            <Link href="/inventory/stock/adjust">
+                                <Plus className="h-3.5 w-3.5 mr-1" />
+                                New Adjustment
+                            </Link>
+                        </Button>
+                    </RequirePermission>
+                </div>
             </div>
 
             {error ? (

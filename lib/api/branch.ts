@@ -19,8 +19,8 @@ function normalizeBranch(raw: Record<string, unknown>): Branch {
 }
 
 export const branchAPI = {
-    async getBranches(): Promise<BranchListResponse> {
-        const raw = await fetchAPI<unknown[]>("/api/Branch")
+    async getBranches(signal?: AbortSignal): Promise<BranchListResponse> {
+        const raw = await fetchAPI<unknown[]>("/api/Branch", { signal })
         const list = Array.isArray(raw) ? raw : []
         return {
             data: list.map((r) => normalizeBranch(r as Record<string, unknown>)),
@@ -28,8 +28,8 @@ export const branchAPI = {
         }
     },
 
-    async getBranchById(id: string): Promise<Branch> {
-        const raw = await fetchAPI<Record<string, unknown>>(`/api/Branch/${id}`)
+    async getBranchById(id: string, signal?: AbortSignal): Promise<Branch> {
+        const raw = await fetchAPI<Record<string, unknown>>(`/api/Branch/${id}`, { signal })
         return normalizeBranch(raw)
     },
 

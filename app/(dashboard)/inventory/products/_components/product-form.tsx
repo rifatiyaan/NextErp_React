@@ -5,11 +5,9 @@ import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
 import { ProductFormValues, ProductVariantFormValues } from "@/schemas/product"
-import { productAPI } from "@/lib/api/product"
-import { categoryAPI } from "@/lib/api/category"
-import { unitOfMeasureAPI } from "@/lib/api/unit-of-measure"
-import type { UnitOfMeasure } from "@/lib/types/unit-of-measure"
-import { variationAPI, type BulkVariationOption } from "@/lib/api/variation"
+import { useProductFormLookups } from "@/hooks/use-product-form-lookups"
+import { useCreateProduct, useUpdateProduct } from "@/hooks/use-products"
+import { applyValidationErrors } from "@/lib/query/rhf"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import {
@@ -111,20 +109,30 @@ function cartesianVariationKeys(
 
 export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
     const router = useRouter()
-    const [isLoading, setIsLoading] = useState(false)
+    const createProduct = useCreateProduct()
+    const updateProduct = useUpdateProduct()
+    const isLoading = createProduct.isPending || updateProduct.isPending
     const [gallerySlots, setGallerySlots] = useState<GallerySlot[]>([])
     const [thumbnailKey, setThumbnailKey] = useState<string | null>(null)
     const galleryDirtyRef = useRef(false)
     const codeManuallyEditedRef = useRef(false)
-    const [categories, setCategories] = useState<Category[]>([])
-    const [subCategories, setSubCategories] = useState<Category[]>([])
-    const [loadingCategories, setLoadingCategories] = useState(true)
-    const [units, setUnits] = useState<UnitOfMeasure[]>([])
-    const [loadingUnits, setLoadingUnits] = useState(true)
+
+    // All three lookup datasets are loaded via TanStack Query.
+    // Cleanup, AbortSignal cancellation on unmount, and cross-mount caching are
+    // handled inside the hook — no useEffect needed here.
+    const {
+        parentCategories: categories,
+        childCategories: subCategories,
+        unitsOfMeasure: units,
+        bulkVariationOptions,
+        loading: loadingLookups,
+    } = useProductFormLookups()
+    const loadingCategories = loadingLookups
+    const loadingUnits = loadingLookups
+    const loadingBulkVariations = loadingLookups
+
     const [newValueInputs, setNewValueInputs] = useState<Record<number, string>>({})
     const [originalVariationOptions, setOriginalVariationOptions] = useState<any[]>([])
-    const [bulkVariationOptions, setBulkVariationOptions] = useState<BulkVariationOption[]>([])
-    const [loadingBulkVariations, setLoadingBulkVariations] = useState(false)
 
     const form = useForm<ProductFormValues>({
         resolver: zodResolver(productSchema),
@@ -132,7 +140,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
             title: "",
             code: "",
             price: 0,
-            stock: 0,
+            initialStock: 0,
             categoryId: 0,
             subCategoryId: undefined,
             unitOfMeasureId: undefined,
@@ -159,69 +167,9 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
         name: "productVariants",
     })
 
-    // Fetch categories and subcategories from real API
-    useEffect(() => {
-        const fetchCategories = async () => {
-            try {
-                setLoadingCategories(true)
-                // Fetch all categories from the real backend API
-                const allCategories = await categoryAPI.getAllCategories()
-
-                // Filter to only show active categories
-                // Parent categories: categories without a parentId (null or undefined)
-                const parentCategories = allCategories.filter(
-                    (cat) => !cat.parentId && cat.isActive
-                )
-
-                // Subcategories: categories with a parentId
-                const childCategories = allCategories.filter(
-                    (cat) => cat.parentId != null && cat.isActive
-                )
-
-                setCategories(parentCategories)
-                setSubCategories(childCategories)
-            } catch (error) {
-                console.error("Failed to fetch categories:", error)
-                toast.error("Failed to load categories")
-            } finally {
-                setLoadingCategories(false)
-            }
-        }
-        fetchCategories()
-    }, [])
-
-    // Fetch units of measure
-    useEffect(() => {
-        const fetchUnits = async () => {
-            try {
-                setLoadingUnits(true)
-                const all = await unitOfMeasureAPI.getAll()
-                setUnits(all)
-            } catch (error) {
-                console.error("Failed to fetch units of measure:", error)
-                toast.error("Failed to load units of measure")
-            } finally {
-                setLoadingUnits(false)
-            }
-        }
-        fetchUnits()
-    }, [])
-
-    // Fetch global variation options (for dropdown when building product variations)
-    useEffect(() => {
-        const fetchBulkVariations = async () => {
-            try {
-                setLoadingBulkVariations(true)
-                const options = await variationAPI.getBulkOptions()
-                setBulkVariationOptions(options)
-            } catch (error) {
-                console.error("Failed to fetch variation options:", error)
-            } finally {
-                setLoadingBulkVariations(false)
-            }
-        }
-        fetchBulkVariations()
-    }, [])
+    // Lookup data (categories, units, variation options) is now sourced from
+    // useProductFormLookups() above. The 3 ad-hoc useEffect fetches that used to
+    // live here have been replaced with cached, abortable TanStack Query calls.
 
     // Load initialData into form when editing
     useEffect(() => {
@@ -231,7 +179,8 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                 title: initialData.title || "",
                 code: initialData.code || "",
                 price: initialData.price || 0,
-                stock: initialData.stock || 0,
+                // Stock quantity no longer lives on Product; edit via stock adjustments page.
+                initialStock: 0,
                 categoryId: initialData.categoryId && initialData.categoryId > 0 ? initialData.categoryId : undefined,
                 subCategoryId: initialData.subCategoryId && initialData.subCategoryId > 0 ? initialData.subCategoryId : undefined,
                 unitOfMeasureId: initialData.unitOfMeasureId && initialData.unitOfMeasureId > 0 ? initialData.unitOfMeasureId : undefined,
@@ -268,7 +217,8 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                     formData.productVariants = initialData.productVariants.map((variant: any) => ({
                         sku: variant.sku || "",
                         price: variant.price || 0,
-                        stock: variant.stock || 0,
+                        // Stock is not editable via product update; shown as availableQuantity for reference only.
+                        initialStock: 0,
                         isActive: variant.isActive ?? true,
                         variationValueKeys: (variant.variationValues ?? [])
                             .map((vv: any) => valueToKey.get((vv.value ?? "").trim()))
@@ -390,7 +340,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
                 existing ?? {
                     sku: `${base}${suffix}`,
                     price: basePrice,
-                    stock: 0,
+                    initialStock: 0,
                     isActive: true,
                     variationValueKeys: keys,
                 }
@@ -467,95 +417,93 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [watchedVariationOptions, hasVariations])
 
-    const onSubmit = async (data: ProductFormValues) => {
-        setIsLoading(true)
-        try {
-            const slots = gallerySlots.filter((s) => s.file || s.url)
-            const thumbKeyResolved = thumbnailKey ?? slots[0]?.key ?? null
-            const primarySlot = thumbKeyResolved ? slots.find((s) => s.key === thumbKeyResolved) : slots[0]
+    const onSubmit = (data: ProductFormValues) => {
+        const slots = gallerySlots.filter((s) => s.file || s.url)
+        const thumbKeyResolved = thumbnailKey ?? slots[0]?.key ?? null
+        const primarySlot = thumbKeyResolved ? slots.find((s) => s.key === thumbKeyResolved) : slots[0]
 
-            const submitData: any = {
-                ...data,
-                imageUrl:
-                    primarySlot?.url ??
-                    (typeof data.imageUrl === "string" ? data.imageUrl : undefined) ??
-                    (isEdit ? initialData?.imageUrl : undefined),
+        const submitData: any = {
+            ...data,
+            imageUrl:
+                primarySlot?.url ??
+                (typeof data.imageUrl === "string" ? data.imageUrl : undefined) ??
+                (isEdit ? initialData?.imageUrl : undefined),
+        }
+
+        if (!isEdit) {
+            if (slots.length > 0) {
+                submitData.imageSlots = slots.map((s) => ({
+                    url: s.file ? undefined : s.url,
+                    file: s.file,
+                    isThumbnail: s.key === thumbKeyResolved,
+                }))
             }
-
-            if (!isEdit) {
-                if (slots.length > 0) {
+        } else {
+            const hasServerIds = slots.some((s) => s.serverId != null)
+            if (!galleryDirtyRef.current && hasServerIds && slots.length > 0) {
+                submitData.productImageThumbnailUpdates = slots
+                    .filter((s) => s.serverId != null)
+                    .map((s) => ({
+                        id: s.serverId!,
+                        isThumbnail: s.key === thumbKeyResolved,
+                    }))
+            } else {
+                if (slots.length === 0) {
+                    submitData.clearGallery = true
+                    submitData.imageUrl = undefined
+                } else {
                     submitData.imageSlots = slots.map((s) => ({
                         url: s.file ? undefined : s.url,
                         file: s.file,
                         isThumbnail: s.key === thumbKeyResolved,
                     }))
                 }
-            } else {
-                const hasServerIds = slots.some((s) => s.serverId != null)
-                if (!galleryDirtyRef.current && hasServerIds && slots.length > 0) {
-                    submitData.productImageThumbnailUpdates = slots
-                        .filter((s) => s.serverId != null)
-                        .map((s) => ({
-                            id: s.serverId!,
-                            isThumbnail: s.key === thumbKeyResolved,
-                        }))
-                } else {
-                    if (slots.length === 0) {
-                        submitData.clearGallery = true
-                        submitData.imageUrl = undefined
-                    } else {
-                        submitData.imageSlots = slots.map((s) => ({
-                            url: s.file ? undefined : s.url,
-                            file: s.file,
-                            isThumbnail: s.key === thumbKeyResolved,
-                        }))
-                    }
-                }
             }
+        }
 
-            // If product has variations, ensure variation data is included
-            if (data.hasVariations) {
-                submitData.hasVariations = true
-                submitData.variationOptions = (data.variationOptions || []).filter((opt: any) => opt.name && opt.values && opt.values.length > 0)
-                submitData.productVariants = (data.productVariants || []).filter((v: any) => v.sku && v.variationValueKeys && v.variationValueKeys.length > 0)
+        // If product has variations, ensure variation data is included
+        if (data.hasVariations) {
+            submitData.hasVariations = true
+            submitData.variationOptions = (data.variationOptions || []).filter((opt: any) => opt.name && opt.values && opt.values.length > 0)
+            submitData.productVariants = (data.productVariants || []).filter((v: any) => v.sku && v.variationValueKeys && v.variationValueKeys.length > 0)
 
-                // Validate that we have valid variation data
-                if (submitData.variationOptions.length === 0 || submitData.productVariants.length === 0) {
-                    toast.error("Please add at least one variation option with values and ensure variants are generated")
-                    setIsLoading(false)
-                    return
-                }
-            } else {
-                submitData.hasVariations = false
-                submitData.variationOptions = []
-                submitData.productVariants = []
+            // Validate that we have valid variation data
+            if (submitData.variationOptions.length === 0 || submitData.productVariants.length === 0) {
+                toast.error("Please add at least one variation option with values and ensure variants are generated")
+                return
             }
+        } else {
+            submitData.hasVariations = false
+            submitData.variationOptions = []
+            submitData.productVariants = []
+        }
 
-            // Debug logging (remove in production)
-            console.log("Submitting product data:", {
-                hasVariations: submitData.hasVariations,
-                variationOptionsCount: submitData.variationOptions?.length || 0,
-                productVariantsCount: submitData.productVariants?.length || 0,
-            })
+        // Debug logging (remove in production)
+        console.log("Submitting product data:", {
+            hasVariations: submitData.hasVariations,
+            variationOptionsCount: submitData.variationOptions?.length || 0,
+            productVariantsCount: submitData.productVariants?.length || 0,
+        })
 
-            if (isEdit && initialData?.id) {
-                await productAPI.updateProduct(initialData.id, submitData)
-                toast.success("Product updated successfully")
-            } else {
-                await productAPI.createProduct(submitData)
-                toast.success("Product created successfully")
-            }
+        const onSuccess = () => {
             router.push("/inventory/products")
             router.refresh()
-        } catch (error: any) {
+        }
+        const onError = (error: unknown) => {
             console.error(error)
-            const errorMessage =
-                error?.response?.data?.message ||
-                error?.message ||
-                (isEdit ? "Failed to update product" : "Failed to create product")
-            toast.error(errorMessage)
-        } finally {
-            setIsLoading(false)
+            if (!applyValidationErrors(error, form.setError)) {
+                const message =
+                    (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+                    (error as Error)?.message ||
+                    (isEdit ? "Failed to update product" : "Failed to create product")
+                toast.error(message)
+            }
+        }
+
+        if (isEdit && initialData?.id) {
+            updateProduct.mutate({ id: initialData.id, data: submitData }, { onSuccess, onError })
+        } else {
+            createProduct.mutate(submitData, { onSuccess, onError })
         }
     }
 
@@ -566,7 +514,7 @@ export default function ProductForm({ initialData, isEdit }: ProductFormProps) {
             return
         }
         const data = form.getValues()
-        await onSubmit(data)
+        onSubmit(data)
     }
 
     return (

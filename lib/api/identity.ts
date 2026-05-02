@@ -33,8 +33,8 @@ function normalizeDto(raw: Record<string, unknown>): IdentityCommandCenterDto {
 }
 
 export const identityAPI = {
-    async getDashboard(): Promise<IdentityCommandCenterDto> {
-        const raw = await fetchAPI<Record<string, unknown>>("/api/identity/dashboard")
+    async getDashboard(signal?: AbortSignal): Promise<IdentityCommandCenterDto> {
+        const raw = await fetchAPI<Record<string, unknown>>("/api/identity/dashboard", { signal })
         return normalizeDto(raw)
     },
 

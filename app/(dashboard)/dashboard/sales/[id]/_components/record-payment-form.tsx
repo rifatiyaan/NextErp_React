@@ -22,7 +22,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { paymentAPI } from "@/lib/api/payment"
+import { useRecordSalePayment } from "@/hooks/use-payments"
 import type { RecordSalePaymentMethod } from "@/lib/types/payment"
 
 const METHOD_OPTIONS: { value: RecordSalePaymentMethod; label: string }[] = [
@@ -65,9 +65,10 @@ export function RecordPaymentForm({
         }
     }, [balanceDue, form])
 
-    const submitting = form.formState.isSubmitting
+    const recordPayment = useRecordSalePayment()
+    const submitting = recordPayment.isPending
 
-    const onSubmit = form.handleSubmit(async (values) => {
+    const onSubmit = form.handleSubmit((values) => {
         if (!Number.isFinite(values.amount) || values.amount <= 0) {
             toast.error("Enter a valid amount greater than zero")
             return
@@ -76,20 +77,24 @@ export function RecordPaymentForm({
             toast.error(`Amount cannot exceed balance due (${balanceDue.toFixed(2)})`)
             return
         }
-        try {
-            await paymentAPI.recordSalePayment({
+        recordPayment.mutate(
+            {
                 saleId,
                 amount: values.amount,
                 paymentMethod: values.paymentMethod,
                 reference: values.reference?.trim() || undefined,
-            })
-            toast.success("Payment recorded")
-            form.setValue("reference", "")
-            await onRecorded()
-        } catch (e) {
-            const msg = e instanceof Error ? e.message : "Could not record payment"
-            toast.error(msg)
-        }
+            },
+            {
+                onSuccess: async () => {
+                    form.setValue("reference", "")
+                    await onRecorded()
+                },
+                onError: (e: unknown) => {
+                    const msg = e instanceof Error ? e.message : "Could not record payment"
+                    toast.error(msg)
+                },
+            }
+        )
     })
 
     if (balanceDue <= 0) {

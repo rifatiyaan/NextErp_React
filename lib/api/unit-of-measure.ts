@@ -2,12 +2,12 @@ import { fetchAPI } from "@/lib/api/client"
 import type { UnitOfMeasure } from "@/lib/types/unit-of-measure"
 
 export const unitOfMeasureAPI = {
-    async getAll(): Promise<UnitOfMeasure[]> {
-        return fetchAPI<UnitOfMeasure[]>("/api/UnitOfMeasure")
+    async getAll(signal?: AbortSignal): Promise<UnitOfMeasure[]> {
+        return fetchAPI<UnitOfMeasure[]>("/api/UnitOfMeasure", { signal })
     },
 
-    async getById(id: number): Promise<UnitOfMeasure> {
-        return fetchAPI<UnitOfMeasure>(`/api/UnitOfMeasure/${id}`)
+    async getById(id: number, signal?: AbortSignal): Promise<UnitOfMeasure> {
+        return fetchAPI<UnitOfMeasure>(`/api/UnitOfMeasure/${id}`, { signal })
     },
 
     async create(data: { name: string; abbreviation: string; category?: string | null }): Promise<UnitOfMeasure> {

@@ -29,22 +29,22 @@ export interface CreateModuleRequest {
 }
 
 export const moduleAPI = {
-    async getUserMenu(): Promise<Module[]> {
-        return fetchAPI<Module[]>("/api/Module/user-menu")
+    async getUserMenu(signal?: AbortSignal): Promise<Module[]> {
+        return fetchAPI<Module[]>("/api/Module/user-menu", { signal })
     },
 
-    async getAllModules(tenantId?: string): Promise<Module[]> {
+    async getAllModules(tenantId?: string, signal?: AbortSignal): Promise<Module[]> {
         const params = tenantId ? `?tenantId=${tenantId}` : ""
-        return fetchAPI<Module[]>(`/api/Module${params}`)
+        return fetchAPI<Module[]>(`/api/Module${params}`, { signal })
     },
 
-    async getModulesByType(type: number, tenantId?: string): Promise<Module[]> {
+    async getModulesByType(type: number, tenantId?: string, signal?: AbortSignal): Promise<Module[]> {
         const params = tenantId ? `?tenantId=${tenantId}` : ""
-        return fetchAPI<Module[]>(`/api/Module/by-type/${type}${params}`)
+        return fetchAPI<Module[]>(`/api/Module/by-type/${type}${params}`, { signal })
     },
 
-    async getModuleById(id: number): Promise<Module> {
-        return fetchAPI<Module>(`/api/Module/${id}`)
+    async getModuleById(id: number, signal?: AbortSignal): Promise<Module> {
+        return fetchAPI<Module>(`/api/Module/${id}`, { signal })
     },
 
     async createModule(data: CreateModuleRequest): Promise<Module> {

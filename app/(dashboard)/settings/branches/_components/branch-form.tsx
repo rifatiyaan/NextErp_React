@@ -1,9 +1,13 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { branchAPI } from "@/lib/api/branch"
-import type { Branch, BranchCreateRequest } from "@/lib/types/branch"
+import {
+    useBranch,
+    useCreateBranch,
+    useUpdateBranch,
+} from "@/hooks/use-branches"
+import type { BranchCreateRequest } from "@/lib/types/branch"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -28,33 +32,36 @@ export function BranchForm({ branchId }: BranchFormProps) {
     const isEdit = Boolean(branchId)
 
     const [form, setForm] = useState<BranchCreateRequest>(EMPTY)
-    const [loading, setLoading] = useState(isEdit)
-    const [saving, setSaving] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    const load = useCallback(async () => {
-        if (!branchId) return
-        try {
-            const branch = await branchAPI.getBranchById(branchId)
-            setForm({
-                name: branch.name,
-                address: branch.address ?? "",
-                isActive: branch.isActive,
-                metadata: {
-                    phone: branch.metadata?.phone ?? "",
-                    managerName: branch.metadata?.managerName ?? "",
-                    branchCode: branch.metadata?.branchCode ?? "",
-                    email: branch.metadata?.email ?? "",
-                },
-            })
-        } catch {
-            setError("Failed to load branch data")
-        } finally {
-            setLoading(false)
-        }
-    }, [branchId])
+    const branchQuery = useBranch(branchId)
+    const createBranch = useCreateBranch()
+    const updateBranch = useUpdateBranch()
+    const loading = isEdit && branchQuery.isPending
+    const saving = createBranch.isPending || updateBranch.isPending
 
-    useEffect(() => { void load() }, [load])
+    // Hydrate the form once the branch loads.
+    useEffect(() => {
+        const branch = branchQuery.data
+        if (!branch) return
+        setForm({
+            name: branch.name,
+            address: branch.address ?? "",
+            isActive: branch.isActive,
+            metadata: {
+                phone: branch.metadata?.phone ?? "",
+                managerName: branch.metadata?.managerName ?? "",
+                branchCode: branch.metadata?.branchCode ?? "",
+                email: branch.metadata?.email ?? "",
+            },
+        })
+    }, [branchQuery.data])
+
+    useEffect(() => {
+        if (branchQuery.isError) {
+            setError("Failed to load branch data")
+        }
+    }, [branchQuery.isError])
 
     function set(field: keyof BranchCreateRequest, value: unknown) {
         setForm((prev) => ({ ...prev, [field]: value }))
@@ -67,28 +74,27 @@ export function BranchForm({ branchId }: BranchFormProps) {
         }))
     }
 
-    async function handleSubmit(e: React.FormEvent) {
+    function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
-        setSaving(true)
         setError(null)
-        try {
-            if (isEdit && branchId) {
-                await branchAPI.updateBranch(branchId, { ...form, id: branchId })
-            } else {
-                await branchAPI.createBranch(form)
-            }
-            router.push("/settings/branches")
-        } catch (err) {
+        const onSuccess = () => router.push("/settings/branches")
+        const onError = (err: unknown) => {
             setError(err instanceof Error ? err.message : "Save failed")
-        } finally {
-            setSaving(false)
+        }
+        if (isEdit && branchId) {
+            updateBranch.mutate(
+                { id: branchId, data: { ...form, id: branchId } },
+                { onSuccess, onError }
+            )
+        } else {
+            createBranch.mutate(form, { onSuccess, onError })
         }
     }
 
     if (loading) return <Loader text="Loading branch..." />
 
     return (
-        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
                 <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
                     {error}

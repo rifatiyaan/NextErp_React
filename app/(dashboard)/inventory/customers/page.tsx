@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { Table } from "@tanstack/react-table"
-import { customerAPI } from "@/lib/api/customer"
 import { Customer } from "@/types/customer"
 import { DataTable } from "./data-table"
 import { createColumns } from "./columns"
@@ -19,68 +18,44 @@ import {
 } from "@/components/ui/select"
 import { TopBar } from "@/components/layout/TopBar"
 import { ColumnVisibility } from "./_components/ColumnVisibility"
+import { useCustomers } from "@/hooks/use-customers"
 export default function CustomersPage() {
-    const [data, setData] = useState<Customer[]>([])
-    const [loading, setLoading] = useState(true)
     const [pageIndex, setPageIndex] = useState(1)
     const [pageSize, setPageSize] = useState(10)
-    const [total, setTotal] = useState(0)
     const [searchQuery, setSearchQuery] = useState("")
+    const [debouncedSearch, setDebouncedSearch] = useState("")
     const [statusFilter, setStatusFilter] = useState<string>("all")
     const [table, setTable] = useState<Table<Customer> | null>(null)
 
-    const fetchData = async (page: number, size: number) => {
-        setLoading(true)
-        try {
-            const response = await customerAPI.getCustomers(
-                page,
-                size,
-                searchQuery || undefined
-            )
-            if (response && response.data) {
-                // Filter by status if needed
-                let filteredData = response.data
-                if (statusFilter === "active") {
-                    filteredData = filteredData.filter((c) => c.isActive)
-                } else if (statusFilter === "inactive") {
-                    filteredData = filteredData.filter((c) => !c.isActive)
-                }
-                setData(filteredData)
-                setTotal(response.total)
-            } else {
-                setData([])
-                setTotal(0)
-            }
-        } catch (error) {
-            console.error("Failed to fetch customers:", error)
-            setData([])
-            setTotal(0)
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    useEffect(() => {
-        fetchData(pageIndex, pageSize)
-    }, [pageIndex, pageSize])
-
-    // Debounce search
+    // Debounce search input — reset page on change
     useEffect(() => {
         const timer = setTimeout(() => {
-            if (pageIndex === 1) {
-                fetchData(1, pageSize)
-            } else {
-                setPageIndex(1)
-            }
+            setDebouncedSearch(searchQuery.trim())
+            setPageIndex(1)
         }, 500)
-
         return () => clearTimeout(timer)
     }, [searchQuery])
 
-    // Refetch when status filter changes
     useEffect(() => {
-        fetchData(pageIndex, pageSize)
+        setPageIndex(1)
     }, [statusFilter])
+
+    const customersQuery = useCustomers({
+        pageIndex,
+        pageSize,
+        searchText: debouncedSearch || undefined,
+    })
+
+    // Status filtering is client-side because the API does not currently support it.
+    const allRows = customersQuery.data?.data ?? []
+    const data =
+        statusFilter === "active"
+            ? allRows.filter((c) => c.isActive)
+            : statusFilter === "inactive"
+              ? allRows.filter((c) => !c.isActive)
+              : allRows
+    const total = customersQuery.data?.total ?? 0
+    const loading = customersQuery.isPending
 
     const pageCount = Math.ceil(total / pageSize)
     const columns = createColumns({ pageIndex, pageSize })

@@ -29,7 +29,7 @@ function toFormData(data: CreateCategoryRequest): FormData {
 }
 
 export const categoryAPI = {
-    async getCategories(pageIndex: number = 1, pageSize: number = 10, searchText?: string, sortBy?: string): Promise<CategoryListResponse> {
+    async getCategories(pageIndex: number = 1, pageSize: number = 10, searchText?: string, sortBy?: string, signal?: AbortSignal): Promise<CategoryListResponse> {
         const params = new URLSearchParams({
             pageIndex: pageIndex.toString(),
             pageSize: pageSize.toString(),
@@ -37,11 +37,11 @@ export const categoryAPI = {
         if (searchText) params.append("searchText", searchText)
         if (sortBy) params.append("sortBy", sortBy)
 
-        return fetchAPI<CategoryListResponse>(`/api/Category?${params.toString()}`)
+        return fetchAPI<CategoryListResponse>(`/api/Category?${params.toString()}`, { signal })
     },
 
-    async getCategory(id: number | string): Promise<Category> {
-        return fetchAPI<Category>(`/api/Category/${id}`)
+    async getCategory(id: number | string, signal?: AbortSignal): Promise<Category> {
+        return fetchAPI<Category>(`/api/Category/${id}`, { signal })
     },
 
     async createCategory(data: CreateCategoryRequest): Promise<Category> {
@@ -71,8 +71,8 @@ export const categoryAPI = {
         })
     },
 
-    async getAllCategories(): Promise<Category[]> {
-        const response = await this.getCategories(1, 1000)
+    async getAllCategories(signal?: AbortSignal): Promise<Category[]> {
+        const response = await this.getCategories(1, 1000, undefined, undefined, signal)
         return response.data
     }
 }

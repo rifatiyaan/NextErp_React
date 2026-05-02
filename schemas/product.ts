@@ -18,7 +18,7 @@ export const productVariantSchema = z.object({
         .min(1, "SKU is required")
         .regex(/^[A-Za-z0-9]+$/, "SKU must be alphanumeric only"),
     price: z.coerce.number().min(0, "Price must be positive"),
-    stock: z.coerce.number().min(0, "Stock must be non-negative"),
+    initialStock: z.coerce.number().min(0, "Stock must be non-negative").optional(),
     isActive: z.boolean().default(true),
     variationValueKeys: z.array(z.string()).min(1, "At least one variation value is required"),
 })
@@ -29,7 +29,7 @@ export const productSchema = z.object({
         .min(1, "SKU is required")
         .regex(/^[A-Za-z0-9]+$/, "SKU must be alphanumeric (letters and numbers only)"),
     price: z.coerce.number().min(0, "Price must be positive"),
-    stock: z.coerce.number().min(0, "Stock must be non-negative").optional(),
+    initialStock: z.coerce.number().min(0, "Stock must be non-negative").optional(),
     categoryId: z.coerce.number().min(1, "Category is required"),
     subCategoryId: z.coerce.number().optional(),
     unitOfMeasureId: z.coerce.number().optional(),

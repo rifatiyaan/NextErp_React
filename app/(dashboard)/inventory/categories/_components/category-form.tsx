@@ -4,10 +4,14 @@ import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
-import { z } from "zod"
 import { CategoryFormValues, categorySchema } from "@/schemas/category"
-import { categoryAPI } from "@/lib/api/category"
-import { Category } from "@/types/category"
+import {
+    useCategories,
+    useCreateCategory,
+    useUpdateCategory,
+} from "@/hooks/use-categories"
+import { applyValidationErrors } from "@/lib/query/rhf"
+import type { Category, CreateCategoryRequest } from "@/types/category"
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -40,9 +44,17 @@ interface CategoryFormProps {
 
 export default function CategoryForm({ initialData, isEdit }: CategoryFormProps) {
     const router = useRouter()
-    const [isLoading, setIsLoading] = useState(false)
-    const [categories, setCategories] = useState<Category[]>([])
     const [images, setImages] = useState<(File | string)[]>([])
+
+    // Categories for parent selection — filter out self when editing to prevent cycles.
+    const { data: allCategories = [] } = useCategories()
+    const categories = isEdit
+        ? allCategories.filter((c) => c.id !== initialData?.id)
+        : allCategories
+
+    const createCategory = useCreateCategory()
+    const updateCategory = useUpdateCategory()
+    const isLoading = createCategory.isPending || updateCategory.isPending
 
     const form = useForm<CategoryFormValues>({
         resolver: zodResolver(categorySchema),
@@ -63,51 +75,35 @@ export default function CategoryForm({ initialData, isEdit }: CategoryFormProps)
         }
     }, [isEdit, initialData])
 
-    useEffect(() => {
-        // Fetch categories for parent selection
-        const fetchCategories = async () => {
-            try {
-                const cats = await categoryAPI.getAllCategories()
-                // Filter out self if editing to prevent cycles
-                const validParents = isEdit
-                    ? cats.filter(c => c.id !== initialData?.id)
-                    : cats
-                setCategories(validParents)
-            } catch (error) {
-                console.error("Failed to fetch parent categories", error)
-            }
+    const onSubmit = (data: CategoryFormValues) => {
+        // Get files from images state
+        const fileImages = images.filter((img): img is File => img instanceof File)
+
+        const payload: CreateCategoryRequest = {
+            title: data.title,
+            description: data.description || null,
+            parentId: data.parentId || null,
+            metadata: data.metadata || {},
+            images: fileImages.length > 0 ? fileImages : undefined,
         }
-        fetchCategories()
-    }, [isEdit, initialData])
 
-    const onSubmit = async (data: CategoryFormValues) => {
-        setIsLoading(true)
-        try {
-            // Get files from images state
-            const fileImages = images.filter((img): img is File => img instanceof File)
-            
-            const payload: CreateCategoryRequest = {
-                title: data.title,
-                description: data.description || null,
-                parentId: data.parentId || null,
-                metadata: data.metadata || {},
-                images: fileImages.length > 0 ? fileImages : undefined,
-            }
-
-            if (isEdit && initialData?.id) {
-                await categoryAPI.updateCategory(initialData.id, payload)
-                toast.success("Category updated successfully")
-            } else {
-                await categoryAPI.createCategory(payload)
-                toast.success("Category created successfully")
-            }
+        const onSuccess = () => {
             router.push("/inventory/categories")
             router.refresh()
-        } catch (error) {
-            console.error(error)
-            toast.error(isEdit ? "Failed to update category" : "Failed to create category")
-        } finally {
-            setIsLoading(false)
+        }
+        const onError = (error: unknown) => {
+            if (!applyValidationErrors(error, form.setError)) {
+                toast.error(isEdit ? "Failed to update category" : "Failed to create category")
+            }
+        }
+
+        if (isEdit && initialData?.id) {
+            updateCategory.mutate(
+                { id: initialData.id, data: payload },
+                { onSuccess, onError }
+            )
+        } else {
+            createCategory.mutate(payload, { onSuccess, onError })
         }
     }
 

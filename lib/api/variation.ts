@@ -19,8 +19,8 @@ export interface VariationOptionDto {
 }
 
 export const variationAPI = {
-    async getOptions(): Promise<VariationOptionDto[]> {
-        return fetchAPI<VariationOptionDto[]>(`/api/variation/options`, { method: "GET" })
+    async getOptions(signal?: AbortSignal): Promise<VariationOptionDto[]> {
+        return fetchAPI<VariationOptionDto[]>(`/api/variation/options`, { method: "GET", signal })
     },
 
     async createOption(payload: { name: string; displayOrder?: number }): Promise<{ id: number }> {
@@ -38,8 +38,8 @@ export const variationAPI = {
         })
     },
 
-    async getOptionsByProduct(productId: number): Promise<VariationOptionDto[]> {
-        return fetchAPI<VariationOptionDto[]>(`/api/variation/product/${productId}/options`, { method: "GET" })
+    async getOptionsByProduct(productId: number, signal?: AbortSignal): Promise<VariationOptionDto[]> {
+        return fetchAPI<VariationOptionDto[]>(`/api/variation/product/${productId}/options`, { method: "GET", signal })
     },
 
     async assignOptionToProduct(productId: number, variationOptionId: number, displayOrder?: number): Promise<{ id: number }> {
@@ -53,7 +53,7 @@ export const variationAPI = {
         return fetchAPI(`/api/variation/product/${productId}/assign-option/${variationOptionId}`, { method: "DELETE" })
     },
 
-    async getBulkOptions(): Promise<BulkVariationOption[]> {
-        return fetchAPI<BulkVariationOption[]>(`/api/variation/bulk/options`, { method: "GET" })
+    async getBulkOptions(signal?: AbortSignal): Promise<BulkVariationOption[]> {
+        return fetchAPI<BulkVariationOption[]>(`/api/variation/bulk/options`, { method: "GET", signal })
     },
 }

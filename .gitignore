@@ -30,6 +30,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# package manager — yarn is the source of truth; reject npm/pnpm lockfiles
+package-lock.json
+pnpm-lock.yaml
+
 # env files (can opt-in for committing if needed)
 .env*
 

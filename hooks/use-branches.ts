@@ -1,33 +1,54 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { branchAPI } from "@/lib/api/branch"
-import type { Branch } from "@/lib/types/branch"
+import { branchQueries } from "@/lib/query/options"
+import { queryKeys } from "@/lib/query/keys"
+import type { BranchCreateRequest, BranchUpdateRequest } from "@/lib/types/branch"
+
+/**
+ * Branches — read + write hooks. Replaces the old useState/useEffect implementation.
+ */
+
+// ----- Reads -----
 
 export function useBranches() {
-    const [data, setData] = useState<Branch[]>([])
-    const [total, setTotal] = useState(0)
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<Error | null>(null)
+    return useQuery(branchQueries.all())
+}
 
-    const refetch = useCallback(async () => {
-        setLoading(true)
-        setError(null)
-        try {
-            const result = await branchAPI.getBranches()
-            setData(result.data)
-            setTotal(result.total)
-        } catch (e) {
-            setData([])
-            setError(e instanceof Error ? e : new Error("Failed to load branches"))
-        } finally {
-            setLoading(false)
-        }
-    }, [])
+export function useBranch(id: string | undefined) {
+    return useQuery(branchQueries.detail(id ?? ""))
+}
 
-    useEffect(() => {
-        void refetch()
-    }, [refetch])
+// ----- Mutations -----
 
-    return { data, total, loading, error, refetch }
+export function useCreateBranch() {
+    return useMutation({
+        mutationFn: (input: BranchCreateRequest) => branchAPI.createBranch(input),
+        meta: {
+            successMessage: "Branch created",
+            invalidates: [queryKeys.branches.all],
+        },
+    })
+}
+
+export function useUpdateBranch() {
+    return useMutation({
+        mutationFn: (input: { id: string; data: BranchUpdateRequest }) =>
+            branchAPI.updateBranch(input.id, input.data),
+        meta: {
+            successMessage: "Branch updated",
+            invalidates: [queryKeys.branches.all],
+        },
+    })
+}
+
+export function useDeleteBranch() {
+    return useMutation({
+        mutationFn: (id: string) => branchAPI.deleteBranch(id),
+        meta: {
+            successMessage: "Branch deleted",
+            invalidates: [queryKeys.branches.all],
+        },
+    })
 }

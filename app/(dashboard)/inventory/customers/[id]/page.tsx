@@ -1,15 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { use } from "react"
-import { useParams, useRouter } from "next/navigation"
-import { customerAPI } from "@/lib/api/customer"
-import { Customer } from "@/types/customer"
+import { use, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { CustomerForm } from "../_components/customer-form"
+import { useCustomer } from "@/hooks/use-customers"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft } from "lucide-react"
 import { Loader } from "@/components/ui/loader"
 import Link from "next/link"
+
 export default function EditCustomerPage({
     params,
 }: {
@@ -17,26 +16,12 @@ export default function EditCustomerPage({
 }) {
     const { id } = use(params)
     const router = useRouter()
-    const [customer, setCustomer] = useState<Customer | null>(null)
-    const [loading, setLoading] = useState(true)
+    const { data: customer, isPending: loading, isError } = useCustomer(id)
 
+    // On not-found / fetch failure, send the user back to the list.
     useEffect(() => {
-        const fetchCustomer = async () => {
-            try {
-                const data = await customerAPI.getCustomerById(id)
-                setCustomer(data)
-            } catch (error) {
-                console.error("Failed to fetch customer:", error)
-                router.push("/inventory/customers")
-            } finally {
-                setLoading(false)
-            }
-        }
-
-        if (id) {
-            fetchCustomer()
-        }
-    }, [id, router])
+        if (isError) router.push("/inventory/customers")
+    }, [isError, router])
 
     if (loading) {
         return <Loader text="Loading customer..." />
@@ -67,4 +52,3 @@ export default function EditCustomerPage({
         </div>
     )
 }
-

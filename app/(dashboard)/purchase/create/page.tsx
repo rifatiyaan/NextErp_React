@@ -437,7 +437,7 @@ export default function CreatePurchasePage() {
                                                                             <span className="font-mono text-xs text-muted-foreground tabular-nums">
                                                                                 {product.code} ·{" "}
                                                                                 {formatMoney(product.price)} ·
-                                                                                stock {product.stock}
+                                                                                stock {product.totalAvailableQuantity ?? 0}
                                                                             </span>
                                                                         </div>
                                                                     </div>

@@ -25,7 +25,8 @@ export const purchaseAPI = {
         pageSize: number = 10,
         searchText?: string,
         sortBy?: string,
-        filters?: PurchaseListFilters
+        filters?: PurchaseListFilters,
+        signal?: AbortSignal
     ): Promise<PurchaseListResponse> {
         const params = new URLSearchParams({
             pageIndex: pageIndex.toString(),
@@ -35,11 +36,11 @@ export const purchaseAPI = {
         if (sortBy) params.append("sortBy", sortBy)
         appendPurchaseListFilters(params, filters)
 
-        return fetchAPI<PurchaseListResponse>(`/api/Purchase?${params.toString()}`)
+        return fetchAPI<PurchaseListResponse>(`/api/Purchase?${params.toString()}`, { signal })
     },
 
-    async getPurchaseById(id: string): Promise<Purchase> {
-        return fetchAPI<Purchase>(`/api/Purchase/${id}`)
+    async getPurchaseById(id: string, signal?: AbortSignal): Promise<Purchase> {
+        return fetchAPI<Purchase>(`/api/Purchase/${id}`, { signal })
     },
 
     async createPurchase(data: CreatePurchaseRequest): Promise<Purchase> {
@@ -52,11 +53,12 @@ export const purchaseAPI = {
     async getReport(
         startDate: string,
         endDate: string,
-        supplierId?: number | null
+        supplierId?: number | null,
+        signal?: AbortSignal
     ): Promise<PurchaseReport> {
         const params = new URLSearchParams({ startDate, endDate })
         if (supplierId != null) params.append("supplierId", String(supplierId))
-        return fetchAPI<PurchaseReport>(`/api/Purchase/report?${params.toString()}`)
+        return fetchAPI<PurchaseReport>(`/api/Purchase/report?${params.toString()}`, { signal })
     },
 }
 

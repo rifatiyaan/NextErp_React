@@ -85,7 +85,9 @@ export default function DashboardSaleDetailPage({
                     <RecordPaymentForm
                         saleId={sale.id}
                         balanceDue={sale.balanceDue}
-                        onRecorded={refetch}
+                        onRecorded={async () => {
+                            await refetch()
+                        }}
                     />
                 </CardContent>
             </Card>

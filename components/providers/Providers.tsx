@@ -7,10 +7,12 @@ import { SidebarViewProvider } from "@/contexts/sidebar-view-context"
 import { SidebarWidthProvider } from "@/contexts/sidebar-width-context"
 import { AccentThemeSync } from "@/components/layout/accent-theme-sync"
 import { RadiusCssVarSync } from "@/components/layout/radius-css-var-sync"
+import { QueryProvider } from "@/components/providers/QueryProvider"
 
 export function Providers({ children }: { children: ReactNode }) {
     return (
-        <NextThemesProvider
+        <QueryProvider>
+            <NextThemesProvider
             attribute="class"
             defaultTheme="system"
             enableSystem
@@ -40,6 +42,7 @@ export function Providers({ children }: { children: ReactNode }) {
                     </SidebarViewProvider>
                 </SidebarProvider>
             </SidebarWidthProvider>
-        </NextThemesProvider>
+            </NextThemesProvider>
+        </QueryProvider>
     )
 }

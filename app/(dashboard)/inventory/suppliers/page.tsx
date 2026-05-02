@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { Table } from "@tanstack/react-table"
-import { supplierAPI } from "@/lib/api/supplier"
 import { Supplier } from "@/types/supplier"
 import { DataTable } from "./data-table"
 import { createColumns } from "./columns"
@@ -19,68 +18,43 @@ import {
 } from "@/components/ui/select"
 import { TopBar } from "@/components/layout/TopBar"
 import { ColumnVisibility } from "./_components/ColumnVisibility"
+import { useSuppliers } from "@/hooks/use-suppliers"
 export default function SuppliersPage() {
-    const [data, setData] = useState<Supplier[]>([])
-    const [loading, setLoading] = useState(true)
     const [pageIndex, setPageIndex] = useState(1)
     const [pageSize, setPageSize] = useState(10)
-    const [total, setTotal] = useState(0)
     const [searchQuery, setSearchQuery] = useState("")
+    const [debouncedSearch, setDebouncedSearch] = useState("")
     const [statusFilter, setStatusFilter] = useState<string>("all")
     const [table, setTable] = useState<Table<Supplier> | null>(null)
 
-    const fetchData = async (page: number, size: number) => {
-        setLoading(true)
-        try {
-            const response = await supplierAPI.getSuppliers(
-                page,
-                size,
-                searchQuery || undefined
-            )
-            if (response && response.data) {
-                // Filter by status if needed
-                let filteredData = response.data
-                if (statusFilter === "active") {
-                    filteredData = filteredData.filter((s) => s.isActive)
-                } else if (statusFilter === "inactive") {
-                    filteredData = filteredData.filter((s) => !s.isActive)
-                }
-                setData(filteredData)
-                setTotal(response.total)
-            } else {
-                setData([])
-                setTotal(0)
-            }
-        } catch (error) {
-            console.error("Failed to fetch suppliers:", error)
-            setData([])
-            setTotal(0)
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    useEffect(() => {
-        fetchData(pageIndex, pageSize)
-    }, [pageIndex, pageSize])
-
-    // Debounce search
     useEffect(() => {
         const timer = setTimeout(() => {
-            if (pageIndex === 1) {
-                fetchData(1, pageSize)
-            } else {
-                setPageIndex(1)
-            }
+            setDebouncedSearch(searchQuery.trim())
+            setPageIndex(1)
         }, 500)
-
         return () => clearTimeout(timer)
     }, [searchQuery])
 
-    // Refetch when status filter changes
     useEffect(() => {
-        fetchData(pageIndex, pageSize)
+        setPageIndex(1)
     }, [statusFilter])
+
+    const suppliersQuery = useSuppliers({
+        pageIndex,
+        pageSize,
+        searchText: debouncedSearch || undefined,
+    })
+
+    // Status is filtered client-side because the API does not support it.
+    const allRows = suppliersQuery.data?.data ?? []
+    const data =
+        statusFilter === "active"
+            ? allRows.filter((s) => s.isActive)
+            : statusFilter === "inactive"
+              ? allRows.filter((s) => !s.isActive)
+              : allRows
+    const total = suppliersQuery.data?.total ?? 0
+    const loading = suppliersQuery.isPending
 
     const pageCount = Math.ceil(total / pageSize)
     const columns = createColumns({ pageIndex, pageSize })

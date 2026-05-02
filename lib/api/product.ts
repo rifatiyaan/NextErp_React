@@ -16,12 +16,27 @@ function normalizeProduct(p: Record<string, unknown>): Product {
               .filter((img) => img.url)
               .sort((a, b) => a.displayOrder - b.displayOrder)
         : undefined
+    const rawVariants = (p.productVariants ?? p.ProductVariants) as unknown
+    const normalizedVariants = Array.isArray(rawVariants)
+        ? rawVariants.map((v: Record<string, unknown>) => {
+              const availRaw = v.availableQuantity ?? v.AvailableQuantity
+              return {
+                  id: Number(v.id ?? v.Id ?? 0),
+                  sku: String(v.sku ?? v.Sku ?? ""),
+                  price: Number(v.price ?? v.Price ?? 0),
+                  availableQuantity:
+                      availRaw === null || availRaw === undefined ? undefined : Number(availRaw),
+                  isActive: Boolean(v.isActive ?? v.IsActive ?? true),
+                  title: String(v.title ?? v.Title ?? ""),
+                  variationValues: (v.variationValues ?? v.VariationValues ?? []) as NonNullable<Product["productVariants"]>[number]["variationValues"],
+              }
+          })
+        : undefined
     return {
         id: Number(p.id ?? p.Id ?? 0),
         title: String(p.title ?? p.Title ?? ""),
         code: String(p.code ?? p.Code ?? ""),
         price: Number(p.price ?? p.Price ?? 0),
-        stock: Number(p.stock ?? p.Stock ?? 0),
         totalAvailableQuantity:
             taq === null || taq === undefined ? undefined : Number(taq),
         hasLowStock:
@@ -33,9 +48,9 @@ function normalizeProduct(p: Record<string, unknown>): Product {
         metadata: (p.metadata ?? p.Metadata) as Product["metadata"],
         category: (p.category ?? p.Category) as Product["category"],
         isActive: Boolean(p.isActive ?? p.IsActive ?? true),
-        hasVariations: p.hasVariations ?? p.HasVariations,
+        hasVariations: (p.hasVariations ?? p.HasVariations) as boolean | undefined,
         variationOptions: (p.variationOptions ?? p.VariationOptions) as Product["variationOptions"],
-        productVariants: (p.productVariants ?? p.ProductVariants) as Product["productVariants"],
+        productVariants: normalizedVariants as Product["productVariants"],
         unitOfMeasureId: Number(p.unitOfMeasureId ?? p.UnitOfMeasureId ?? 0) || undefined,
         unitAbbreviation: (p.unitAbbreviation ?? p.UnitAbbreviation) as string | undefined,
         unitTitle: (p.unitTitle ?? p.UnitTitle) as string | undefined,
@@ -44,13 +59,14 @@ function normalizeProduct(p: Record<string, unknown>): Product {
 
 export const productAPI = {
     async getProducts(
-        pageIndex: number = 1, 
-        pageSize: number = 10, 
-        searchText?: string, 
+        pageIndex: number = 1,
+        pageSize: number = 10,
+        searchText?: string,
         sortBy?: string,
         categoryId?: number | null,
         status?: string | null,
-        includeStock?: boolean
+        includeStock?: boolean,
+        signal?: AbortSignal
     ): Promise<ProductListResponse> {
         const params = new URLSearchParams({
             pageIndex: pageIndex.toString(),
@@ -62,7 +78,7 @@ export const productAPI = {
         if (status && status !== "all") params.append("status", status)
         if (includeStock) params.append("includeStock", "true")
 
-        const raw = await fetchAPI<Record<string, unknown>>(`/api/Product?${params.toString()}`)
+        const raw = await fetchAPI<Record<string, unknown>>(`/api/Product?${params.toString()}`, { signal })
         const dataArray = raw?.data ?? raw?.Data
         const data = Array.isArray(dataArray) ? dataArray.map((p: Record<string, unknown>) => normalizeProduct(p)) : []
         const total = Number(raw?.total ?? raw?.Total ?? 0)
@@ -70,8 +86,8 @@ export const productAPI = {
         return { data, total, totalDisplay }
     },
 
-    async getProduct(id: number | string): Promise<Product> {
-        const raw = await fetchAPI<Record<string, unknown>>(`/api/Product/${id}`)
+    async getProduct(id: number | string, signal?: AbortSignal): Promise<Product> {
+        const raw = await fetchAPI<Record<string, unknown>>(`/api/Product/${id}`, { signal })
         return raw ? normalizeProduct(raw) : (null as unknown as Product)
     },
 
@@ -99,7 +115,6 @@ export const productAPI = {
             title: product.title,
             code: product.code,
             price: product.price,
-            stock: product.stock,
             categoryId: product.categoryId,
             imageUrl: product.imageUrl ?? undefined,
             metadata: product.metadata ?? undefined,
@@ -113,7 +128,7 @@ export const productAPI = {
                 productVariants: product.productVariants.map((v) => ({
                     sku: v.sku,
                     price: v.price,
-                    stock: v.stock,
+                    // Stock not changed on deactivate; omit initialStock
                     isActive: v.isActive,
                     variationValueKeys: v.variationValues?.map((vv) => vv.value) ?? [],
                 })),
@@ -221,8 +236,8 @@ function toFormData(data: any): FormData {
                         if (typeof variant.price === "number") {
                             formData.append(`ProductVariants[${varIndex}].Price`, String(variant.price))
                         }
-                        if (typeof variant.stock === "number") {
-                            formData.append(`ProductVariants[${varIndex}].Stock`, String(variant.stock))
+                        if (typeof variant.initialStock === "number") {
+                            formData.append(`ProductVariants[${varIndex}].InitialStock`, String(variant.initialStock))
                         }
                         if (typeof variant.isActive === "boolean") {
                             formData.append(`ProductVariants[${varIndex}].IsActive`, String(variant.isActive))

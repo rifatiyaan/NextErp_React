@@ -1,8 +1,13 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { variationAPI, type VariationOptionDto } from "@/lib/api/variation"
+import type { VariationOptionDto } from "@/lib/api/variation"
+import {
+    useVariationOptions,
+    useCreateVariationOption,
+    useCreateVariationValue,
+} from "@/hooks/use-variations"
 import { TopBar } from "@/components/layout/TopBar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -33,33 +38,22 @@ export default function VariationsPage() {
     const searchParams = useSearchParams()
     const returnTo = searchParams.get("returnTo") ?? ""
 
-    const [options, setOptions] = useState<VariationOptionDto[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    const optionsQuery = useVariationOptions()
+    const createOption = useCreateVariationOption()
+    const createValue = useCreateVariationValue()
+    const options: VariationOptionDto[] = optionsQuery.data ?? []
+    const loading = optionsQuery.isPending
+    const error =
+        optionsQuery.error instanceof Error
+            ? optionsQuery.error.message
+            : optionsQuery.error
+              ? "Failed to load variation options"
+              : null
 
     const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null)
     const [newOptionName, setNewOptionName] = useState("")
     const [valueInputs, setValueInputs] = useState<string[]>([""])
-    const [submitting, setSubmitting] = useState(false)
-
-    const fetchList = useCallback(async () => {
-        setLoading(true)
-        setError(null)
-        try {
-            const data = await variationAPI.getOptions()
-            setOptions(data)
-        } catch (err) {
-            const message = err instanceof Error ? err.message : "Failed to load variation options"
-            setError(message)
-            setOptions([])
-        } finally {
-            setLoading(false)
-        }
-    }, [])
-
-    useEffect(() => {
-        fetchList()
-    }, [fetchList])
+    const submitting = createOption.isPending || createValue.isPending
 
     const isNewOption = selectedOptionId === NEW_OPTION_VALUE
     const selectedOption = selectedOptionId && selectedOptionId !== NEW_OPTION_VALUE
@@ -89,25 +83,25 @@ export default function VariationsPage() {
                 toast.error("Enter a name for the new option.")
                 return
             }
-            setSubmitting(true)
             try {
-                const { id: optionId } = await variationAPI.createOption({
+                const { id: optionId } = await createOption.mutateAsync({
                     name,
                     displayOrder: options.length,
                 })
                 for (let i = 0; i < values.length; i++) {
-                    await variationAPI.createValue(optionId, { value: values[i], displayOrder: i })
+                    await createValue.mutateAsync({
+                        optionId,
+                        value: values[i],
+                        displayOrder: i,
+                    })
                 }
                 toast.success(`"${name}" created with ${values.length} value(s).`)
                 setNewOptionName("")
                 setValueInputs([""])
                 setSelectedOptionId(null)
-                await fetchList()
             } catch (err) {
                 const msg = err instanceof Error ? err.message : "Failed to create option"
                 toast.error(msg)
-            } finally {
-                setSubmitting(false)
             }
             return
         }
@@ -115,23 +109,20 @@ export default function VariationsPage() {
             toast.error("Select an option or create a new one.")
             return
         }
-        setSubmitting(true)
         try {
             const existingCount = selectedOption.values?.length ?? 0
             for (let i = 0; i < values.length; i++) {
-                await variationAPI.createValue(selectedOption.id, {
+                await createValue.mutateAsync({
+                    optionId: selectedOption.id,
                     value: values[i],
                     displayOrder: existingCount + i,
                 })
             }
             toast.success(`Added ${values.length} value(s) to "${selectedOption.name}".`)
             setValueInputs([""])
-            await fetchList()
         } catch (err) {
             const msg = err instanceof Error ? err.message : "Failed to add values"
             toast.error(msg)
-        } finally {
-            setSubmitting(false)
         }
     }
 

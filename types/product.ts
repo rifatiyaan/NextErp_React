@@ -24,7 +24,7 @@ export interface ProductVariant {
     id: number
     sku: string
     price: number
-    stock: number
+    availableQuantity?: number
     isActive: boolean
     title: string
     variationValues: VariationValue[]
@@ -42,7 +42,6 @@ export interface Product {
     title: string
     code: string
     price: number
-    stock: number
     totalAvailableQuantity?: number | null
     hasLowStock?: boolean | null
     categoryId: number
@@ -81,7 +80,7 @@ export interface CreateProductRequest {
     title: string
     code: string
     price: number
-    stock: number
+    initialStock?: number
     categoryId: number
     imageUrl?: File | string | null
     imageSlots?: ProductImageSlotPayload[]

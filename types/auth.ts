@@ -23,5 +23,19 @@ export interface User {
     isGlobal?: boolean
 }
 
+export interface CurrentUser {
+    id: string
+    email?: string
+    userName?: string
+    firstName?: string
+    lastName?: string
+    branchId?: string | null
+    branchName?: string | null
+    isSuperAdmin: boolean
+    isGlobal: boolean
+    roles: string[]
+    permissions: string[]
+}
+
 export type LoginFormType = LoginDto
 export type RegisterFormType = RegisterDto

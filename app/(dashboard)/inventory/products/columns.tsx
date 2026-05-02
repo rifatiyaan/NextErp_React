@@ -18,7 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 
 const getProductStatus = (product: Product) => {
     if (!product.isActive) return "closed for sale"
-    if (product.stock === 0) return "out of stock"
+    if ((product.totalAvailableQuantity ?? 0) === 0) return "out of stock"
     return "active"
 }
 

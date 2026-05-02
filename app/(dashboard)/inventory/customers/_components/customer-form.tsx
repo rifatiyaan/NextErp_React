@@ -1,12 +1,12 @@
 "use client"
 
-import { z } from "zod"
 import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
 import { CustomerFormValues, customerSchema } from "@/schemas/customer"
-import { customerAPI } from "@/lib/api/customer"
+import { useCreateCustomer, useUpdateCustomer } from "@/hooks/use-customers"
+import { applyValidationErrors } from "@/lib/query/rhf"
 import { Customer } from "@/types/customer"
 import { Button } from "@/components/ui/button"
 import {
@@ -32,7 +32,9 @@ interface CustomerFormProps {
 
 export function CustomerForm({ initialData, isEdit }: CustomerFormProps) {
     const router = useRouter()
-    const [isSubmitting, setIsSubmitting] = useState(false)
+    const createCustomer = useCreateCustomer()
+    const updateCustomer = useUpdateCustomer()
+    const isSubmitting = createCustomer.isPending || updateCustomer.isPending
     const [avatar, setAvatar] = useState<File | string | null>(null)
     const [avatarPreview, setAvatarPreview] = useState<string | null>(
         initialData?.metadata?.notes ? null : null // We'll use a placeholder for now
@@ -71,38 +73,35 @@ export function CustomerForm({ initialData, isEdit }: CustomerFormProps) {
         }
     }, [initialData, form])
 
-    const onSubmit = async (data: CustomerFormValues) => {
-        setIsSubmitting(true)
-        try {
-            const payload = {
-                title: data.title,
-                email: data.email || undefined,
-                phone: data.phone || undefined,
-                address: data.address || undefined,
-                isActive: data.isActive,
-                metadata: {
-                    loyaltyCode: data.metadata?.loyaltyCode || undefined,
-                    notes: data.metadata?.notes || undefined,
-                    nationalId: data.metadata?.nationalId || undefined,
-                },
-            }
+    const onSubmit = (data: CustomerFormValues) => {
+        const payload = {
+            title: data.title,
+            email: data.email || undefined,
+            phone: data.phone || undefined,
+            address: data.address || undefined,
+            isActive: data.isActive,
+            metadata: {
+                loyaltyCode: data.metadata?.loyaltyCode || undefined,
+                notes: data.metadata?.notes || undefined,
+                nationalId: data.metadata?.nationalId || undefined,
+            },
+        }
 
-            if (isEdit && initialData) {
-                await customerAPI.updateCustomer(initialData.id, {
-                    ...payload,
-                    id: initialData.id,
-                })
-                toast.success("Customer updated successfully")
-            } else {
-                await customerAPI.createCustomer(payload)
-                toast.success("Customer created successfully")
-            }
-            router.push("/inventory/customers")
-        } catch (error: any) {
+        const onSuccess = () => router.push("/inventory/customers")
+        const onError = (error: unknown) => {
             console.error("Failed to save customer:", error)
-            toast.error(error?.message || "Failed to save customer")
-        } finally {
-            setIsSubmitting(false)
+            if (!applyValidationErrors(error, form.setError)) {
+                toast.error((error as Error)?.message || "Failed to save customer")
+            }
+        }
+
+        if (isEdit && initialData) {
+            updateCustomer.mutate(
+                { id: initialData.id, data: { ...payload, id: initialData.id } },
+                { onSuccess, onError }
+            )
+        } else {
+            createCustomer.mutate(payload, { onSuccess, onError })
         }
     }
 

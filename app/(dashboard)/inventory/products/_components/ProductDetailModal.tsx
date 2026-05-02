@@ -99,7 +99,9 @@ export function ProductDetailModal({ product, open, onOpenChange }: ProductDetai
     }, [selectedVariant, displayProduct])
 
     const displayStock =
-        displayProduct && selectedVariant ? selectedVariant.stock : (displayProduct?.stock ?? 0)
+        displayProduct && selectedVariant
+            ? selectedVariant.availableQuantity ?? 0
+            : displayProduct?.totalAvailableQuantity ?? 0
     const inStock = displayStock > 0
 
     const displaySku = selectedVariant?.sku || displayProduct?.code || ""

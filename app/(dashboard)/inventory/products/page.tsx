@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState, useCallback, useMemo } from "react"
-import { productAPI } from "@/lib/api/product"
 import { Product } from "@/types/product"
 import { DataTable } from "./data-table"
 import { createColumns } from "./columns"
@@ -18,9 +17,8 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Search, Loader2, Plus } from "lucide-react"
-import { toast } from "sonner"
-import { Category } from "@/types/category"
-import { categoryAPI } from "@/lib/api/category"
+import { useProducts, useDeactivateProduct } from "@/hooks/use-products"
+import { useCategories } from "@/hooks/use-categories"
 import { TopBar } from "@/components/layout/TopBar"
 import { ColumnVisibility } from "./_components/ColumnVisibility"
 import { Table } from "@tanstack/react-table"
@@ -29,16 +27,12 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 
 export default function ProductsPage() {
-    const [data, setData] = useState<Product[]>([])
-    const [loading, setLoading] = useState(true)
     const [pageIndex, setPageIndex] = useState(1)
     const [pageSize, setPageSize] = useState(10)
-    const [total, setTotal] = useState(0)
     const [searchQuery, setSearchQuery] = useState("")
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
     const [statusFilter, setStatusFilter] = useState<string>("all")
     const [categoryFilter, setCategoryFilter] = useState<string>("all")
-    const [categories, setCategories] = useState<Category[]>([])
     const [isSearching, setIsSearching] = useState(false)
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
@@ -61,55 +55,8 @@ export default function ProductsPage() {
         return () => clearTimeout(timer)
     }, [searchQuery, debouncedSearchQuery])
 
-    // Fetch categories for filter dropdown
-    useEffect(() => {
-        const fetchCategories = async () => {
-            try {
-                const response = await categoryAPI.getCategories(1, 1000)
-                if (response && response.data) {
-                    setCategories(response.data)
-                }
-            } catch (error) {
-                console.error("Failed to fetch categories:", error)
-            }
-        }
-        fetchCategories()
-    }, [])
-
-    const fetchData = useCallback(async (
-        page: number, 
-        size: number, 
-        search?: string, 
-        status?: string | null, 
-        categoryId?: number | null,
-        includeStock?: boolean
-    ) => {
-        setLoading(true)
-        try {
-            const response = await productAPI.getProducts(
-                page, 
-                size, 
-                search || undefined, 
-                undefined, 
-                categoryId || undefined, 
-                status || undefined,
-                includeStock
-            )
-            if (response && response.data) {
-                setData(response.data)
-                setTotal(response.total)
-            } else {
-                setData([])
-                setTotal(0)
-            }
-        } catch (error) {
-            console.error("Failed to fetch products:", error)
-            setData([])
-            setTotal(0)
-        } finally {
-            setLoading(false)
-        }
-    }, [])
+    // Categories for filter dropdown — sourced via TanStack Query.
+    const { data: categories = [] } = useCategories()
 
     // Reset to page 1 when filters change (except pageIndex itself)
     useEffect(() => {
@@ -121,20 +68,26 @@ export default function ProductsPage() {
         setPageIndex(1)
     }, [withStock])
 
-    // Fetch data when filters change
-    useEffect(() => {
-        const categoryId = categoryFilter !== "all" ? parseInt(categoryFilter) : null
-        fetchData(
-            pageIndex, 
-            pageSize, 
-            debouncedSearchQuery || undefined, 
-            statusFilter !== "all" ? statusFilter : null,
-            categoryId && categoryId > 0 ? categoryId : null,
-            withStock
-        )
-    }, [pageIndex, pageSize, debouncedSearchQuery, statusFilter, categoryFilter, withStock, fetchData])
+    const categoryIdFilter =
+        categoryFilter !== "all" && parseInt(categoryFilter) > 0
+            ? parseInt(categoryFilter)
+            : null
 
+    const productsQuery = useProducts({
+        pageIndex,
+        pageSize,
+        searchText: debouncedSearchQuery || undefined,
+        status: statusFilter !== "all" ? statusFilter : null,
+        categoryId: categoryIdFilter,
+        includeStock: withStock,
+    })
+
+    const data = productsQuery.data?.data ?? []
+    const total = productsQuery.data?.total ?? 0
+    const loading = productsQuery.isPending
     const pageCount = Math.ceil(total / pageSize) || 1
+
+    const deactivateProduct = useDeactivateProduct()
 
     const handleViewDetails = useCallback((product: Product) => {
         setSelectedProduct(product)
@@ -146,27 +99,12 @@ export default function ProductsPage() {
         setProductToDelete({ id: productId, title: productTitle })
     }, [])
 
-    const handleConfirmDelete = useCallback(async () => {
+    const handleConfirmDelete = useCallback(() => {
         if (!productToDelete || productToDelete.id <= 0) return
-        const id = productToDelete.id
-        try {
-            await productAPI.deactivateProduct(id)
-            setProductToDelete(null)
-            toast.success("Product removed")
-            const categoryId = categoryFilter !== "all" ? parseInt(categoryFilter) : null
-            await fetchData(
-                pageIndex,
-                pageSize,
-                debouncedSearchQuery || undefined,
-                statusFilter !== "all" ? statusFilter : null,
-                categoryId && categoryId > 0 ? categoryId : null,
-                withStock
-            )
-        } catch (error) {
-            console.error("Failed to delete product:", error)
-            toast.error("Failed to remove product")
-        }
-    }, [productToDelete, pageIndex, pageSize, debouncedSearchQuery, statusFilter, categoryFilter, withStock, fetchData])
+        deactivateProduct.mutate(productToDelete.id, {
+            onSuccess: () => setProductToDelete(null),
+        })
+    }, [productToDelete, deactivateProduct])
 
     const columns = useMemo(
         () =>

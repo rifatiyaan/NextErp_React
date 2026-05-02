@@ -1,10 +1,11 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useCallback, useContext, useEffect, useState } from "react"
 import type { ReactNode } from "react"
 import { useRouter } from "next/navigation"
-import type { LoginDto, RegisterDto, User } from "@/types/auth"
+import type { CurrentUser, LoginDto, RegisterDto } from "@/types/auth"
 import { fetchAPI } from "@/lib/api/client"
+import { authAPI } from "@/lib/api/auth"
 import { tokenStorage } from "@/lib/auth/storage"
 import {
     extractIsGlobalFromJwtPayload,
@@ -12,57 +13,107 @@ import {
 } from "@/lib/auth/roles"
 
 interface AuthContextType {
-    user: User | null
+    user: CurrentUser | null
+    permissions: Set<string>
     isLoading: boolean
     error: string | null
     login: (credentials: LoginDto) => Promise<void>
     register: (data: RegisterDto) => Promise<void>
     logout: () => void
+    hasPermission: (key: string) => boolean
+    hasAnyPermission: (keys: string[]) => boolean
+    hasAllPermissions: (keys: string[]) => boolean
+    refreshPermissions: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+// Decode JWT to get a minimal user shape — kept for backward compat as a fallback
+// when /me has not yet resolved (e.g. during initial mount).
+const decodeToken = (token: string): CurrentUser | null => {
+    try {
+        const payload = JSON.parse(atob(token.split(".")[1])) as Record<string, unknown>
+        const id =
+            (payload[
+                "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
+            ] as string) || (payload.sub as string)
+        const email =
+            (payload[
+                "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"
+            ] as string) || (payload.email as string)
+        const userName =
+            (payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] as string) ||
+            (payload.name as string)
+        const isGlobal = extractIsGlobalFromJwtPayload(payload)
+        return {
+            id,
+            email,
+            userName,
+            roles: extractRolesFromJwtPayload(payload),
+            isGlobal,
+            isSuperAdmin: isGlobal,
+            permissions: [],
+        }
+    } catch {
+        return null
+    }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [user, setUser] = useState<User | null>(null)
+    const [user, setUser] = useState<CurrentUser | null>(null)
+    const [permissions, setPermissions] = useState<Set<string>>(new Set())
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const router = useRouter()
 
-    // Decode JWT to get user info (simple implementation)
-    const decodeToken = (token: string): User | null => {
-        try {
-            const payload = JSON.parse(atob(token.split(".")[1])) as Record<string, unknown>
-            const id =
-                (payload[
-                    "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
-                ] as string) || (payload.sub as string)
-            const email =
-                (payload[
-                    "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"
-                ] as string) || (payload.email as string)
-            const userName =
-                (payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] as string) ||
-                (payload.name as string)
-            return {
-                id,
-                email,
-                userName,
-                roles: extractRolesFromJwtPayload(payload),
-                isGlobal: extractIsGlobalFromJwtPayload(payload),
-            }
-        } catch {
-            return null
-        }
-    }
+    const applyCurrentUser = useCallback((current: CurrentUser) => {
+        setUser(current)
+        setPermissions(new Set(current.permissions ?? []))
+    }, [])
 
-    // Check for existing token on mount
+    const clearAuth = useCallback(() => {
+        tokenStorage.clearToken()
+        setUser(null)
+        setPermissions(new Set())
+    }, [])
+
+    const fetchMe = useCallback(async () => {
+        const current = await authAPI.me()
+        applyCurrentUser(current)
+        return current
+    }, [applyCurrentUser])
+
+    // On mount: if a token exists, hydrate via /me. On 401, log out silently.
     useEffect(() => {
-        const token = tokenStorage.getToken()
-        if (token) {
-            const userData = decodeToken(token)
-            setUser(userData)
+        let cancelled = false
+        const init = async () => {
+            const token = tokenStorage.getToken()
+            if (!token) {
+                setIsLoading(false)
+                return
+            }
+            // Pre-populate from JWT for snappier UX while /me is in flight.
+            const fallback = decodeToken(token)
+            if (fallback && !cancelled) setUser(fallback)
+            try {
+                await fetchMe()
+            } catch (err: unknown) {
+                const status = (err as { status?: number })?.status
+                if (status === 401) {
+                    if (!cancelled) {
+                        clearAuth()
+                        router.push("/login")
+                    }
+                }
+            } finally {
+                if (!cancelled) setIsLoading(false)
+            }
         }
-        setIsLoading(false)
+        void init()
+        return () => {
+            cancelled = true
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     const login = async (credentials: LoginDto) => {
@@ -76,8 +127,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             })
 
             tokenStorage.saveToken(response.token)
-            const userData = decodeToken(response.token)
-            setUser(userData)
+            try {
+                await fetchMe()
+            } catch {
+                // Fallback to token decode if /me fails for any reason.
+                const fallback = decodeToken(response.token)
+                if (fallback) setUser(fallback)
+            }
             router.push("/")
         } catch (err: any) {
             setError(err.message || "Login failed")
@@ -98,8 +154,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             })
 
             tokenStorage.saveToken(response.token)
-            const userData = decodeToken(response.token)
-            setUser(userData)
+            try {
+                await fetchMe()
+            } catch {
+                const fallback = decodeToken(response.token)
+                if (fallback) setUser(fallback)
+            }
             router.push("/")
         } catch (err: any) {
             setError(err.message || "Registration failed")
@@ -110,20 +170,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const logout = () => {
-        tokenStorage.clearToken()
-        setUser(null)
+        clearAuth()
         router.push("/login")
     }
+
+    const hasPermission = useCallback(
+        (key: string) => {
+            if (user?.isSuperAdmin) return true
+            return permissions.has(key)
+        },
+        [user, permissions],
+    )
+
+    const hasAnyPermission = useCallback(
+        (keys: string[]) => {
+            if (user?.isSuperAdmin) return true
+            return keys.some((k) => permissions.has(k))
+        },
+        [user, permissions],
+    )
+
+    const hasAllPermissions = useCallback(
+        (keys: string[]) => {
+            if (user?.isSuperAdmin) return true
+            return keys.every((k) => permissions.has(k))
+        },
+        [user, permissions],
+    )
+
+    const refreshPermissions = useCallback(async () => {
+        try {
+            await fetchMe()
+        } catch (err: unknown) {
+            const status = (err as { status?: number })?.status
+            if (status === 401) {
+                clearAuth()
+                router.push("/login")
+            }
+        }
+    }, [fetchMe, clearAuth, router])
 
     return (
         <AuthContext.Provider
             value={{
                 user,
+                permissions,
                 isLoading,
                 error,
                 login,
                 register,
                 logout,
+                hasPermission,
+                hasAnyPermission,
+                hasAllPermissions,
+                refreshPermissions,
             }}
         >
             {children}

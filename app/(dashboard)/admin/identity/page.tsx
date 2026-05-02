@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { useIdentityDashboard } from "@/hooks/use-identity-dashboard"
-import { useMenuPermissionGroups } from "@/hooks/use-menu-permission-groups"
+import { useIdentityDashboard, usePatchUser } from "@/hooks/use-identity"
+import { useMenuPermissionGroups } from "@/hooks/use-modules"
 import { RoleBentoGrid } from "./_components/role-bento-grid"
 import { UserDirectory } from "./_components/user-directory"
 import { PermissionMatrix } from "./_components/permission-matrix"
@@ -35,8 +35,11 @@ function CommandCenterSkeleton() {
 }
 
 export default function IdentityCommandCenterPage() {
- const { roles, users, branches, loading, error, refetch, patchUser } =
+ const { roles, users, branches, loading, error, refetch } =
  useIdentityDashboard()
+ const patchUserMutation = usePatchUser()
+ const patchUser = (userId: string, patch: { branchId?: string; roleName?: string }) =>
+ patchUserMutation.mutateAsync({ userId, patch }).then(() => undefined)
  const {
  groups: permissionGroups,
  loading: menuLoading,

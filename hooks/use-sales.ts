@@ -1,84 +1,63 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
-
+import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query"
 import { saleAPI } from "@/lib/api/sale"
-import type { PagedSaleListResponse, SaleDetail } from "@/lib/types/sale"
+import { saleQueries, type SaleListFilters, type SalesReportFilters } from "@/lib/query/options"
+import { queryKeys } from "@/lib/query/keys"
+import type { CreateSaleRequest } from "@/lib/types/sale"
 
-interface UseSalesListParams {
-    pageIndex: number
-    pageSize: number
-    searchText?: string
-    sortBy?: string
+/**
+ * Sales — read + write hooks. Replaces the old useState/useEffect implementation.
+ */
+
+// ----- Reads -----
+
+export function useSales(filters: SaleListFilters) {
+    return useQuery({
+        ...saleQueries.list(filters),
+        placeholderData: keepPreviousData,
+    })
 }
 
-export function useSalesList({
-    pageIndex,
-    pageSize,
-    searchText,
-    sortBy,
-}: UseSalesListParams) {
-    const [result, setResult] = useState<PagedSaleListResponse | null>(null)
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<Error | null>(null)
-
-    const refetch = useCallback(async () => {
-        setLoading(true)
-        setError(null)
-        try {
-            const data = await saleAPI.getSales(pageIndex, pageSize, searchText, sortBy)
-            setResult(data)
-        } catch (e) {
-            setResult(null)
-            setError(e instanceof Error ? e : new Error("Failed to load sales"))
-        } finally {
-            setLoading(false)
-        }
-    }, [pageIndex, pageSize, searchText, sortBy])
-
-    useEffect(() => {
-        void refetch()
-    }, [refetch])
-
+/**
+ * Convenience wrapper that mirrors the old useSalesList shape (rows + totals).
+ */
+export function useSalesList(filters: SaleListFilters) {
+    const q = useSales(filters)
     return {
-        rows: result?.data ?? [],
-        total: result?.total ?? 0,
-        totalDisplay: result?.totalDisplay ?? 0,
-        page: result?.page,
-        pageSize: result?.pageSize,
-        loading,
-        error,
-        refetch,
+        rows: q.data?.data ?? [],
+        total: q.data?.total ?? 0,
+        totalDisplay: q.data?.totalDisplay ?? 0,
+        page: q.data?.page,
+        pageSize: q.data?.pageSize,
+        loading: q.isPending,
+        error: (q.error as Error | null) ?? null,
+        refetch: q.refetch,
     }
 }
 
 export function useSaleById(saleId: string | undefined) {
-    const [sale, setSale] = useState<SaleDetail | null>(null)
-    const [loading, setLoading] = useState(Boolean(saleId))
-    const [error, setError] = useState<Error | null>(null)
+    const q = useQuery(saleQueries.detail(saleId))
+    return {
+        sale: q.data ?? null,
+        loading: q.isPending && !!saleId,
+        error: (q.error as Error | null) ?? null,
+        refetch: q.refetch,
+    }
+}
 
-    const refetch = useCallback(async () => {
-        if (!saleId) {
-            setSale(null)
-            setLoading(false)
-            return
-        }
-        setLoading(true)
-        setError(null)
-        try {
-            const data = await saleAPI.getSaleById(saleId)
-            setSale(data)
-        } catch (e) {
-            setSale(null)
-            setError(e instanceof Error ? e : new Error("Failed to load sale"))
-        } finally {
-            setLoading(false)
-        }
-    }, [saleId])
+export function useSalesReport(filters: SalesReportFilters) {
+    return useQuery(saleQueries.report(filters))
+}
 
-    useEffect(() => {
-        void refetch()
-    }, [refetch])
+// ----- Mutations -----
 
-    return { sale, loading, error, refetch }
+export function useCreateSale() {
+    return useMutation({
+        mutationFn: (input: CreateSaleRequest) => saleAPI.createSale(input),
+        meta: {
+            successMessage: "Sale created",
+            invalidates: [queryKeys.sales.all, queryKeys.stock.all, queryKeys.products.all],
+        },
+    })
 }

@@ -1,32 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import ProductForm from "../_components/product-form"
-import { productAPI } from "@/lib/api/product"
-import { Product } from "@/types/product"
+import { useProduct } from "@/hooks/use-products"
 import { Loader } from "@/components/ui/loader"
+
 export default function EditProductPage() {
     const params = useParams()
-    const [product, setProduct] = useState<Product | null>(null)
-    const [loading, setLoading] = useState(true)
-
-    useEffect(() => {
-        async function fetchProduct() {
-            try {
-                const id = params.id
-                if (id) {
-                    const data = await productAPI.getProduct(String(id))
-                    setProduct(data)
-                }
-            } catch (error) {
-                console.error("Failed to fetch product", error)
-            } finally {
-                setLoading(false)
-            }
-        }
-        fetchProduct()
-    }, [params.id])
+    const id = params.id ? String(params.id) : undefined
+    const { data: product, isPending: loading } = useProduct(id)
 
     if (loading) {
         return <Loader text="Loading product..." />

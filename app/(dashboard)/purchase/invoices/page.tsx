@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useState, useCallback, useMemo } from "react"
-import { purchaseAPI, type PurchaseListFilters } from "@/lib/api/purchase"
-import { supplierAPI } from "@/lib/api/supplier"
+import { type PurchaseListFilters } from "@/lib/api/purchase"
+import { usePurchases } from "@/hooks/use-purchases"
+import { useSuppliers } from "@/hooks/use-suppliers"
 import type { Supplier } from "@/lib/api/supplier"
 import { Purchase } from "@/types/purchase"
 import { DataTable } from "@/app/(dashboard)/inventory/products/data-table"
@@ -33,17 +34,17 @@ const STATUS_OPTIONS = [
 
 export default function PurchaseListPage() {
     const radiusClass = useRadiusClass()
-    const [data, setData] = useState<Purchase[]>([])
-    const [loading, setLoading] = useState(true)
     const [pageIndex, setPageIndex] = useState(1)
     const [pageSize, setPageSize] = useState(10)
-    const [total, setTotal] = useState(0)
     const [searchQuery, setSearchQuery] = useState("")
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
     const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
-    const [suppliers, setSuppliers] = useState<Supplier[]>([])
     const [appliedFilters, setAppliedFilters] = useState<FilterBarValues>({})
+
+    // Suppliers used by filter bar (active only). 1-page pull is enough for typical tenant size.
+    const suppliersQuery = useSuppliers({ pageIndex: 1, pageSize: 1000 })
+    const suppliers: Supplier[] = suppliersQuery.data?.data ?? []
 
     const filtersConfig = useMemo<FilterBarFieldConfig[]>(() => {
         const supplierOptions = suppliers
@@ -64,63 +65,33 @@ export default function PurchaseListPage() {
     }, [suppliers])
 
     useEffect(() => {
-        const load = async () => {
-            try {
-                const res = await supplierAPI.getSuppliers(1, 1000)
-                setSuppliers(res.data ?? [])
-            } catch {
-                setSuppliers([])
-            }
-        }
-        void load()
-    }, [])
-
-    useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearchQuery(searchQuery.trim())
         }, 500)
         return () => clearTimeout(timer)
     }, [searchQuery])
 
-    const fetchData = useCallback(
-        async (page: number, size: number, search?: string, filters?: PurchaseListFilters) => {
-            setLoading(true)
-            try {
-                const response = await purchaseAPI.getPurchases(
-                    page,
-                    size,
-                    search || undefined,
-                    undefined,
-                    filters
-                )
-                if (response?.data) {
-                    setData(response.data)
-                    setTotal(response.total)
-                } else {
-                    setData([])
-                    setTotal(0)
-                }
-            } catch {
-                setData([])
-                setTotal(0)
-            } finally {
-                setLoading(false)
-            }
-        },
-        []
-    )
-
     useEffect(() => {
         setPageIndex(1)
     }, [debouncedSearchQuery])
 
-    useEffect(() => {
-        const apiFilters: PurchaseListFilters = {
+    const apiFilters: PurchaseListFilters = useMemo(
+        () => ({
             status: appliedFilters.status ?? [],
             supplier: appliedFilters.supplier ?? [],
-        }
-        void fetchData(pageIndex, pageSize, debouncedSearchQuery || undefined, apiFilters)
-    }, [pageIndex, pageSize, debouncedSearchQuery, appliedFilters, fetchData])
+        }),
+        [appliedFilters]
+    )
+
+    const purchasesQuery = usePurchases({
+        pageIndex,
+        pageSize,
+        searchText: debouncedSearchQuery || undefined,
+        filters: apiFilters,
+    })
+    const data = purchasesQuery.data?.data ?? []
+    const total = purchasesQuery.data?.total ?? 0
+    const loading = purchasesQuery.isPending
 
     const pageCount = Math.ceil(total / pageSize) || 1
 

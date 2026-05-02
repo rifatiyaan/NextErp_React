@@ -1,7 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { moduleAPI } from "@/lib/api/module"
+import { useModules } from "@/hooks/use-modules"
 import { Module, ModuleType, coerceModuleType } from "@/types/module"
 import { DataTable } from "./data-table"
 import { columns } from "./columns"
@@ -11,24 +10,12 @@ import { Loader } from "@/components/ui/loader"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 export default function ModulesPage() {
-    const [data, setData] = useState<Module[]>([])
-    const [loading, setLoading] = useState(true)
-
-    const fetchData = async () => {
-        setLoading(true)
-        try {
-            const modules = await moduleAPI.getAllModules()
-            setData(modules)
-        } catch (error) {
-            console.error("Failed to fetch modules:", error)
-        } finally {
-            setLoading(false)
-        }
+    const modulesQuery = useModules()
+    const data: Module[] = modulesQuery.data ?? []
+    const loading = modulesQuery.isPending
+    const refresh = () => {
+        void modulesQuery.refetch()
     }
-
-    useEffect(() => {
-        fetchData()
-    }, [])
 
     return (
         <div className="space-y-3">
@@ -89,7 +76,7 @@ export default function ModulesPage() {
             {loading ? (
                 <Loader text="Loading modules..." />
             ) : (
-                <DataTable columns={columns} data={data} onRefresh={fetchData} />
+                <DataTable columns={columns} data={data} onRefresh={refresh} />
             )}
         </div>
     )

@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils"
 import type { IdentityRoleEntry } from "@/lib/types/identity"
 import type { MenuPermissionItem } from "@/lib/permissions/menu-permission-groups"
 import { flattenMenuPermissionKeys } from "@/lib/permissions/menu-permission-groups"
-import { identityAPI } from "@/lib/api/identity"
+import { useSetRolePermissions } from "@/hooks/use-identity"
 
 function normKey(k: string) {
     return k.toLowerCase()
@@ -35,9 +35,10 @@ export function EditablePermissionMatrix({
 
     const [draft, setDraft] = useState<Set<string>>(new Set())
     const [hasChanges, setHasChanges] = useState(false)
-    const [saving, setSaving] = useState(false)
     const [saveError, setSaveError] = useState<string | null>(null)
     const [openGroups, setOpenGroups] = useState<Set<string>>(new Set())
+    const setRolePermissions = useSetRolePermissions()
+    const saving = setRolePermissions.isPending
 
     useEffect(() => {
         setOpenGroups(new Set(Object.keys(permissionGroups)))
@@ -85,23 +86,25 @@ export function EditablePermissionMatrix({
         })
     }
 
-    async function handleSave() {
+    function handleSave() {
         if (!selectedRole) return
-        setSaving(true)
         setSaveError(null)
-        try {
-            const fromMenu = Array.from(draft)
-            const roleLower = selectedRole.permissions.map(normKey)
-            const orphans = roleLower.filter((k) => !menuKeys.has(k))
-            const merged = [...new Set([...orphans, ...fromMenu])]
-            await identityAPI.setRolePermissions(selectedRole.id, merged)
-            onPermissionsUpdated(selectedRole.id, merged)
-            setHasChanges(false)
-        } catch (e) {
-            setSaveError(e instanceof Error ? e.message : "Save failed")
-        } finally {
-            setSaving(false)
-        }
+        const fromMenu = Array.from(draft)
+        const roleLower = selectedRole.permissions.map(normKey)
+        const orphans = roleLower.filter((k) => !menuKeys.has(k))
+        const merged = [...new Set([...orphans, ...fromMenu])]
+        setRolePermissions.mutate(
+            { roleId: selectedRole.id, permissionKeys: merged },
+            {
+                onSuccess: () => {
+                    onPermissionsUpdated(selectedRole.id, merged)
+                    setHasChanges(false)
+                },
+                onError: (e: unknown) => {
+                    setSaveError(e instanceof Error ? e.message : "Save failed")
+                },
+            }
+        )
     }
 
     if (groupsLoading) {

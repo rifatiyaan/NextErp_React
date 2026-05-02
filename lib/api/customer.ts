@@ -44,7 +44,8 @@ export const customerAPI = {
         pageIndex: number = 1,
         pageSize: number = 10,
         searchText?: string,
-        sortBy?: string
+        sortBy?: string,
+        signal?: AbortSignal
     ): Promise<CustomerListResponse> {
         const params = new URLSearchParams({
             pageIndex: pageIndex.toString(),
@@ -54,11 +55,11 @@ export const customerAPI = {
         if (searchText) params.append("searchText", searchText)
         if (sortBy) params.append("sortBy", sortBy)
 
-        return await fetchAPI<CustomerListResponse>(`/api/Party?${params.toString()}`)
+        return await fetchAPI<CustomerListResponse>(`/api/Party?${params.toString()}`, { signal })
     },
 
-    async getCustomerById(id: string): Promise<Customer> {
-        return await fetchAPI<Customer>(`/api/Party/${id}`)
+    async getCustomerById(id: string, signal?: AbortSignal): Promise<Customer> {
+        return await fetchAPI<Customer>(`/api/Party/${id}`, { signal })
     },
 
     async createCustomer(data: CustomerCreateRequest): Promise<Customer> {

@@ -1,8 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useState } from "react"
 import type { Table } from "@tanstack/react-table"
-import { branchAPI } from "@/lib/api/branch"
+import { useBranches, useDeleteBranch } from "@/hooks/use-branches"
 import type { Branch } from "@/lib/types/branch"
 import { DataTable } from "./data-table"
 import { createColumns } from "./columns"
@@ -26,58 +26,38 @@ import {
 } from "@/components/ui/breadcrumb"
 
 export default function BranchesPage() {
-    const [data, setData] = useState<Branch[]>([])
-    const [loading, setLoading] = useState(true)
     const [pageIndex, setPageIndex] = useState(1)
     const [pageSize, setPageSize] = useState(10)
-    const [total, setTotal] = useState(0)
     const [searchQuery, setSearchQuery] = useState("")
     const [statusFilter, setStatusFilter] = useState("all")
     const [table, setTable] = useState<Table<Branch> | null>(null)
 
-    const fetchData = useCallback(async () => {
-        setLoading(true)
-        try {
-            const response = await branchAPI.getBranches()
-            let filtered = response.data
+    const branchesQuery = useBranches()
+    const deleteBranch = useDeleteBranch()
+    const loading = branchesQuery.isPending
+    const branchListResponse = branchesQuery.data?.data ?? []
 
-            if (statusFilter === "active") filtered = filtered.filter((b) => b.isActive)
-            else if (statusFilter === "inactive") filtered = filtered.filter((b) => !b.isActive)
+    let filtered: Branch[] = branchListResponse
+    if (statusFilter === "active") filtered = filtered.filter((b) => b.isActive)
+    else if (statusFilter === "inactive") filtered = filtered.filter((b) => !b.isActive)
+    if (searchQuery) {
+        const q = searchQuery.toLowerCase()
+        filtered = filtered.filter(
+            (b) =>
+                b.name.toLowerCase().includes(q) ||
+                b.address?.toLowerCase().includes(q) ||
+                b.metadata?.branchCode?.toLowerCase().includes(q)
+        )
+    }
+    const total = filtered.length
+    const start = (pageIndex - 1) * pageSize
+    const data = filtered.slice(start, start + pageSize)
 
-            if (searchQuery) {
-                const q = searchQuery.toLowerCase()
-                filtered = filtered.filter(
-                    (b) =>
-                        b.name.toLowerCase().includes(q) ||
-                        b.address?.toLowerCase().includes(q) ||
-                        b.metadata?.branchCode?.toLowerCase().includes(q)
-                )
-            }
-
-            setTotal(filtered.length)
-            // Client-side slice for pagination (API returns all branches)
-            const start = (pageIndex - 1) * pageSize
-            setData(filtered.slice(start, start + pageSize))
-        } catch {
-            setData([])
-            setTotal(0)
-        } finally {
-            setLoading(false)
-        }
-    }, [pageIndex, pageSize, searchQuery, statusFilter])
-
-    useEffect(() => {
-        void fetchData()
-    }, [fetchData])
-
-    async function handleDeactivate(branch: Branch) {
+    function handleDeactivate(branch: Branch) {
         if (!confirm(`Deactivate "${branch.name}"?`)) return
-        try {
-            await branchAPI.deleteBranch(branch.id)
-            void fetchData()
-        } catch {
-            alert("Failed to deactivate branch")
-        }
+        deleteBranch.mutate(branch.id, {
+            onError: () => alert("Failed to deactivate branch"),
+        })
     }
 
     const pageCount = Math.max(1, Math.ceil(total / pageSize))

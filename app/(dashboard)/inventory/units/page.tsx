@@ -1,13 +1,18 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Plus, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
-import { unitOfMeasureAPI } from "@/lib/api/unit-of-measure"
+import {
+    useUnitsOfMeasure,
+    useCreateUnitOfMeasure,
+    useUpdateUnitOfMeasure,
+    useDeleteUnitOfMeasure,
+} from "@/hooks/use-units"
 import type { UnitOfMeasure } from "@/lib/types/unit-of-measure"
 
 import { TopBar } from "@/components/layout/TopBar"
@@ -51,13 +56,18 @@ const unitSchema = z.object({
 type UnitFormValues = z.infer<typeof unitSchema>
 
 export default function UnitsSettingsPage() {
-    const [rows, setRows] = useState<UnitOfMeasure[]>([])
-    const [loading, setLoading] = useState(true)
+    const unitsQuery = useUnitsOfMeasure()
+    const createUnit = useCreateUnitOfMeasure()
+    const updateUnit = useUpdateUnitOfMeasure()
+    const deleteUnit = useDeleteUnitOfMeasure()
+    const rows = unitsQuery.data ?? []
+    const loading = unitsQuery.isPending
+    const saving = createUnit.isPending || updateUnit.isPending
+    const deleting = deleteUnit.isPending
+
     const [dialogOpen, setDialogOpen] = useState(false)
     const [editing, setEditing] = useState<UnitOfMeasure | null>(null)
-    const [saving, setSaving] = useState(false)
     const [deleteTarget, setDeleteTarget] = useState<UnitOfMeasure | null>(null)
-    const [deleting, setDeleting] = useState(false)
 
     const form = useForm<UnitFormValues>({
         resolver: zodResolver(unitSchema),
@@ -68,23 +78,6 @@ export default function UnitsSettingsPage() {
             isActive: true,
         },
     })
-
-    const fetchRows = async () => {
-        setLoading(true)
-        try {
-            const data = await unitOfMeasureAPI.getAll()
-            setRows(data)
-        } catch (error) {
-            console.error("Failed to fetch units:", error)
-            toast.error("Failed to load units of measure")
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    useEffect(() => {
-        fetchRows()
-    }, [])
 
     const openCreate = () => {
         setEditing(null)
@@ -103,58 +96,56 @@ export default function UnitsSettingsPage() {
         setDialogOpen(true)
     }
 
-    const onSubmit = async (values: UnitFormValues) => {
-        setSaving(true)
-        try {
-            const category = values.category?.trim() ? values.category.trim() : null
-            if (editing) {
-                await unitOfMeasureAPI.update(editing.id, {
-                    name: values.name.trim(),
-                    abbreviation: values.abbreviation.trim(),
-                    category,
-                    isActive: values.isActive,
-                })
-                toast.success("Unit updated")
-            } else {
-                await unitOfMeasureAPI.create({
-                    name: values.name.trim(),
-                    abbreviation: values.abbreviation.trim(),
-                    category,
-                })
-                toast.success("Unit created")
-            }
+    const onSubmit = (values: UnitFormValues) => {
+        const category = values.category?.trim() ? values.category.trim() : null
+        const onSuccess = () => {
             setDialogOpen(false)
             setEditing(null)
-            await fetchRows()
-        } catch (error) {
-            const message =
-                (error as { message?: string })?.message ?? "Failed to save unit"
+        }
+        const onError = (error: unknown) => {
+            const message = (error as { message?: string })?.message ?? "Failed to save unit"
             toast.error(message)
-        } finally {
-            setSaving(false)
+        }
+        if (editing) {
+            updateUnit.mutate(
+                {
+                    id: editing.id,
+                    data: {
+                        name: values.name.trim(),
+                        abbreviation: values.abbreviation.trim(),
+                        category,
+                        isActive: values.isActive,
+                    },
+                },
+                { onSuccess, onError }
+            )
+        } else {
+            createUnit.mutate(
+                {
+                    name: values.name.trim(),
+                    abbreviation: values.abbreviation.trim(),
+                    category,
+                },
+                { onSuccess, onError }
+            )
         }
     }
 
-    const confirmDelete = async () => {
+    const confirmDelete = () => {
         if (!deleteTarget) return
         if (deleteTarget.isSystem) {
             toast.error("System units cannot be deleted")
             setDeleteTarget(null)
             return
         }
-        setDeleting(true)
-        try {
-            await unitOfMeasureAPI.delete(deleteTarget.id)
-            toast.success("Unit deleted")
-            setDeleteTarget(null)
-            await fetchRows()
-        } catch (error) {
-            const message =
-                (error as { message?: string })?.message ?? "Failed to delete unit"
-            toast.error(message)
-        } finally {
-            setDeleting(false)
-        }
+        deleteUnit.mutate(deleteTarget.id, {
+            onSuccess: () => setDeleteTarget(null),
+            onError: (error: unknown) => {
+                const message =
+                    (error as { message?: string })?.message ?? "Failed to delete unit"
+                toast.error(message)
+            },
+        })
     }
 
     return (
