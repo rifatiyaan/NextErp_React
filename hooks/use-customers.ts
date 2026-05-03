@@ -9,9 +9,6 @@ import {
 import { customerQueries, type CustomerListFilters } from "@/lib/query/options"
 import { queryKeys } from "@/lib/query/keys"
 
-/**
- * Customers — read + write hooks.
- */
 
 // ----- Reads -----
 

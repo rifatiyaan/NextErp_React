@@ -6,9 +6,6 @@ import { branchQueries } from "@/lib/query/options"
 import { queryKeys } from "@/lib/query/keys"
 import type { BranchCreateRequest, BranchUpdateRequest } from "@/lib/types/branch"
 
-/**
- * Branches — read + write hooks. Replaces the old useState/useEffect implementation.
- */
 
 // ----- Reads -----
 

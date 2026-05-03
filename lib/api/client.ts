@@ -2,17 +2,6 @@ import { tokenStorage } from "@/lib/auth/storage"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://localhost:7245"
 
-/**
- * Thrown by {@link fetchAPI} for any non-2xx response or network failure.
- *
- * For HTTP 422 (validation) responses from the backend, {@link validationErrors}
- * is populated with the per-field error dictionary produced by FluentValidation.
- * Forms can map these directly to `react-hook-form` `setError()` calls.
- *
- * For 5xx / 4xx other than 422, {@link validationErrors} is undefined and the
- * caller should show {@link message} directly (typically via the global toast
- * handler in `lib/query/client.ts`).
- */
 export class APIError extends Error {
     constructor(
         message: string,

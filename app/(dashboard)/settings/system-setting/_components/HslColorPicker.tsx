@@ -7,33 +7,11 @@ import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { formatHslVar, hexToHsl, hslToHex, parseHslVar } from "./hsl-utils"
 
-/**
- * Controlled HSL color picker that round-trips the backend's `H S% L%` storage
- * format. Internally uses HEX (what react-colorful exposes); we convert at edges.
- *
- * Architecture decision — **uncontrolled internal state**:
- *
- * Earlier versions kept a `useState`+`useEffect` mirror of the parent value
- * because react-colorful needs a stable `color` string. But HSL ↔ HEX is
- * lossy (rounding clips), so the value coming back from parent could
- * round-trip to a slightly different hex than what we just emitted. Naive
- * sync caused infinite re-render under React 19's strict batching.
- *
- * The fix here: a debounced parent-emit. The picker shows the LOCAL hex
- * immediately during drag (no jitter). The HSL value is only pushed up to
- * the parent after a short idle window, breaking the tight feedback loop
- * that produced the "Maximum update depth exceeded" error. External
- * value changes (preset selection, reset, clear) replace the local hex via
- * a guarded effect that only fires when the incoming value clearly differs
- * from what we last emitted.
- */
 interface HslColorPickerProps {
     label: string
-    /** Backend HSL string `H S% L%` or null (= unset). */
     value: string | null
     onChange: (value: string | null) => void
     description?: string
-    /** Tailwind rounded-* class to apply to swatch + input + picker frame. */
     radiusClass?: string
     className?: string
 }

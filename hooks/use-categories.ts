@@ -6,15 +6,6 @@ import { categoryQueries, type CategoryListFilters } from "@/lib/query/options"
 import { queryKeys } from "@/lib/query/keys"
 import type { CreateCategoryRequest } from "@/types/category"
 
-/**
- * Categories — read + write hooks.
- *
- * Each mutation declares its toast + invalidations via `meta` so the
- * component layer stays free of try/catch and manual cache-invalidation logic.
- * Form-level field errors (HTTP 422) are still the form's responsibility:
- * use `applyValidationErrors(error, setError)` from `lib/query/rhf` inside
- * `mutate(input, { onError: ... })` when wiring a form.
- */
 
 // ----- Reads -----
 

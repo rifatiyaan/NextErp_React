@@ -10,9 +10,6 @@ import {
 import { queryKeys } from "@/lib/query/keys"
 import type { CreatePurchaseRequest } from "@/types/purchase"
 
-/**
- * Purchases — read + write hooks.
- */
 
 // ----- Reads -----
 

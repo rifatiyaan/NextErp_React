@@ -19,11 +19,6 @@ interface AuthContextType {
     error: string | null
     login: (credentials: LoginDto) => Promise<void>
     register: (data: RegisterDto) => Promise<void>
-    /**
-     * Save a freshly issued token, hydrate `me`, and redirect to the dashboard.
-     * Used by the login/register forms (which now perform the network call via
-     * `useLogin` / `useRegister`) to hand the resulting token to the context.
-     */
     setSession: (token: string) => Promise<void>
     logout: () => void
     hasPermission: (key: string) => boolean

@@ -5,15 +5,6 @@ import { fetchAPI } from "@/lib/api/client"
 import { authQueries } from "@/lib/query/options"
 import type { AuthResponse, LoginDto, RegisterDto } from "@/types/auth"
 
-/**
- * Auth — `me` query plus login/register mutations.
- *
- * Login and register go through the shared `fetchAPI` client so APIError handling
- * (including HTTP 422 ValidationException → field errors via `applyValidationErrors`)
- * works the same way as for any other mutation. The AuthContext owns post-success
- * state (token storage, /me hydration, navigation); the hooks just return the mutation
- * handle so the form can react to `isPending` and `onError` without try/catch.
- */
 
 // ----- Reads -----
 

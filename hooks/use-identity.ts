@@ -6,12 +6,6 @@ import { identityQueries } from "@/lib/query/options"
 import { queryKeys } from "@/lib/query/keys"
 import type { IdentityCommandCenterDto, PatchUserRequest } from "@/lib/types/identity"
 
-/**
- * Identity — dashboard read + user/role mutations.
- *
- * Replaces the legacy `useIdentityDashboard` hook. Optimistic update for `patchUser`
- * is preserved by writing to the cache via `setQueryData` in `onMutate`.
- */
 
 // ----- Reads -----
 

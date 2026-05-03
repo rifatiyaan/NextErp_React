@@ -5,9 +5,6 @@ import { unitOfMeasureAPI } from "@/lib/api/unit-of-measure"
 import { unitOfMeasureQueries } from "@/lib/query/options"
 import { queryKeys } from "@/lib/query/keys"
 
-/**
- * Units of Measure — read + write hooks.
- */
 
 // ----- Reads -----
 

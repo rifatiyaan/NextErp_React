@@ -6,9 +6,6 @@ import { saleQueries, type SaleListFilters, type SalesReportFilters } from "@/li
 import { queryKeys } from "@/lib/query/keys"
 import type { CreateSaleRequest } from "@/lib/types/sale"
 
-/**
- * Sales — read + write hooks. Replaces the old useState/useEffect implementation.
- */
 
 // ----- Reads -----
 
@@ -19,9 +16,6 @@ export function useSales(filters: SaleListFilters) {
     })
 }
 
-/**
- * Convenience wrapper that mirrors the old useSalesList shape (rows + totals).
- */
 export function useSalesList(filters: SaleListFilters) {
     const q = useSales(filters)
     return {
@@ -52,12 +46,6 @@ export function useSalesReport(filters: SalesReportFilters) {
 
 // ----- Mutations -----
 
-/**
- * Create-sale mutation. Marked `silent` so the consumer can render a
- * stock-aware error toast (longer duration for "insufficient stock") and
- * its own success toast — see `app/(dashboard)/sales/create/page.tsx`.
- * Cache invalidation still runs from `meta.invalidates` regardless of `silent`.
- */
 export function useCreateSale() {
     return useMutation({
         mutationFn: (input: CreateSaleRequest) => saleAPI.createSale(input),

@@ -1,15 +1,3 @@
-/**
- * HSL utilities — the backend stores colors as the CSS-var-friendly string
- * "H S% L%" (e.g. "221 83% 53%"). The picker library `react-colorful` works
- * in numeric HSL objects, and humans typically reach for HEX. These helpers
- * round-trip between the three.
- *
- * Edge cases:
- *  - Black/white round-trip cleanly.
- *  - HSL → HEX is lossy at extreme saturations (out-of-gamut clipping handled
- *    by Math.round). For UI swatch preview the loss is invisible.
- *  - Whitespace is tolerated on parse; emit is normalised to single spaces.
- */
 
 export interface HslColor {
     h: number  // 0-360
@@ -17,7 +5,6 @@ export interface HslColor {
     l: number  // 0-100
 }
 
-/** Format an HSL object as the backend's `H S% L%` storage string. */
 export function formatHslVar(hsl: HslColor): string {
     const h = Math.round(clamp(hsl.h, 0, 360))
     const s = Math.round(clamp(hsl.s, 0, 100))

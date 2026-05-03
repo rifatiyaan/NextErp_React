@@ -9,25 +9,6 @@ import { useAuth } from "@/contexts/auth-context"
 
 const TENANT_OVERRIDE_STYLE_ID = "tenant-overrides"
 
-/**
- * Applies the per-tenant SystemSettings to the live UI:
- *   1. Toggles the preset accent class on `<body>` (e.g. `theme-blue`)
- *   2. Injects a `<style id="tenant-overrides">` block in `<head>` with any
- *      custom HSL CSS-var overrides
- *   3. Mirrors the result into the existing Zustand `useUiSettingsStore` so
- *      <AccentThemeSync> + <RadiusCssVarSync> + the legacy `AppSettingsPanel`
- *      stay consistent without us reimplementing them
- *
- * Auth-gated: the query is disabled until the user is authenticated, since
- * the API requires a JWT. On logout the override style block is removed and
- * the body class falls back to the Zustand default.
- *
- * Why a side-effect component (renders null) and not a hook?
- *  - Imperative DOM mutation (style tag injection) doesn't fit React's
- *    declarative model cleanly.
- *  - Mounted once at the top of the tree → single source of truth, no
- *    duplicated effects from multiple consumers.
- */
 export function SystemSettingsSync() {
     const { user } = useAuth()
     const isAuthenticated = !!user
@@ -93,11 +74,6 @@ export function SystemSettingsSync() {
     return null
 }
 
-/**
- * Set or clear a CSS custom property inline on the given element.
- * Inline styles have highest specificity, so this overrides any `themes.css`
- * class-based declaration of the same property.
- */
 function applyOrClear(el: HTMLElement, prop: string, value: string | null | undefined): void {
     if (value && value.trim().length > 0) {
         el.style.setProperty(prop, value)

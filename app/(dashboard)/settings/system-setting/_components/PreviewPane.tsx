@@ -3,16 +3,7 @@
 import { Bell, ChevronRight, Layers, Search, Sparkles, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-/**
- * Live mini-dashboard mock. Reflects whatever CSS variables are set on its
- * own root via inline style — so the parent can drive a "preview without
- * commit" experience without affecting the rest of the app.
- *
- * Layout (sidebar vs topbar) and radius switch the mock structure live.
- * Branding (company name + logo) flows in from props for verisimilitude.
- */
 interface PreviewPaneProps {
-    /** Inline CSS vars to apply scoped to the preview root only. */
     style?: React.CSSProperties
     placement: "sidebar" | "topbar"
     radius: "none" | "sm" | "md"

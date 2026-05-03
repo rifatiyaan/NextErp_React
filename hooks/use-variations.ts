@@ -5,9 +5,6 @@ import { variationAPI } from "@/lib/api/variation"
 import { variationQueries } from "@/lib/query/options"
 import { queryKeys } from "@/lib/query/keys"
 
-/**
- * Variation Options — read + write hooks.
- */
 
 // ----- Reads -----
 

@@ -281,14 +281,6 @@ export function DashboardVerticalMenu({ onNavigate }: { onNavigate?: () => void 
     )
 }
 
-/**
- * Sidebar brand block — reads tenant-configured company name + logo from
- * SystemSettings (cached for 15 min, see systemSettingsQueries.current).
- * Falls back to "NextErp" + a built-in mark when the tenant hasn't set one.
- *
- * Kept in this file so the brand row stays adjacent to the menu it heads.
- * Pure visual; no side effects.
- */
 function SidebarBrand() {
     const { data: settings } = useSystemSettings()
     const companyName = settings?.companyName?.trim() || "NextErp"

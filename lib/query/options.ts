@@ -16,22 +16,6 @@ import { unitOfMeasureAPI } from "@/lib/api/unit-of-measure"
 import { variationAPI } from "@/lib/api/variation"
 import { queryKeys } from "./keys"
 
-/**
- * Query options factories — co-located with the query key factory and the API client.
- *
- * Pattern: each factory function returns a `queryOptions(...)` object that bundles
- * `{ queryKey, queryFn, staleTime?, ... }`. This is TanStack v5's recommended way to
- * keep the key + fetcher + per-query overrides in one place; consumers (hooks, prefetch
- * utilities, manual cache reads) all share the same definition.
- *
- * Why factories and not just hooks?
- * - **Reusability**: `queryClient.prefetchQuery(categoryQueries.all())` works for SSR.
- * - **Co-location**: changing the URL or shape touches one place.
- * - **Composition**: `useQuery(categoryQueries.all())` reads naturally.
- *
- * `signal` is forwarded from TanStack Query's queryFn context to the fetch call —
- * unmount or `queryClient.cancelQueries(...)` aborts the in-flight request automatically.
- */
 
 // ---------------- Categories ----------------
 export interface CategoryListFilters {
@@ -388,11 +372,6 @@ export const authQueries = {
 
 // ---------------- System Settings ----------------
 export const systemSettingsQueries = {
-    /**
-     * Tenant-wide UI/branding settings. Long stale time (15 min) — settings
-     * change rarely and most users don't have permission to mutate them, so
-     * frequent refetch is wasted work. Mutations explicitly invalidate.
-     */
     current: () =>
         queryOptions({
             queryKey: queryKeys.systemSettings.current(),

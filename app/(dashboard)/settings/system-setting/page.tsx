@@ -24,20 +24,6 @@ import { HslColorPicker } from "./_components/HslColorPicker"
 import { PreviewPane } from "./_components/PreviewPane"
 import { BrandingSection } from "./_components/BrandingSection"
 
-/**
- * /settings/system-setting — tenant-wide UI + branding.
- *
- * Layout draws inspiration from /settings/user-control: breadcrumb,
- * page header with icon + title + subtle stats, three meaningful columns.
- * Here the columns are:
- *   ── LEFT     : Live preview pane (fixed, reflects unsaved draft state)
- *   ── CENTER   : Tabbed controls (Appearance / Layout / Branding)
- *   ── RIGHT    : Sticky summary card + Save / Reset actions
- *
- * Draft pattern: edits live in `draft` state until the user clicks Save.
- * The preview reflects the draft instantly; the rest of the app keeps the
- * committed theme until the mutation succeeds + the cache invalidates.
- */
 type Draft = Required<Pick<UpdateSystemSettingsRequest,
     "presetAccentTheme" |
     "customPrimary" | "customSecondary" |
@@ -53,12 +39,6 @@ const COLOR_TARGETS = [
     { key: "customSidebarForeground" as const, label: "Sidebar foreground", description: "Text + icon color in the sidebar" },
 ]
 
-/**
- * Map the SystemSettings radius enum to a Tailwind `rounded-*` class at a
- * given "size" tier. Lets every UI surface (cards, swatches, inputs) follow
- * the corner-radius preference — selecting Sharp produces sharp swatches,
- * etc., consistent with the live preview.
- */
 function radiusToClass(radius: "none" | "sm" | "md", tier: "sm" | "md" | "lg"): string {
     if (radius === "none") return "rounded-none"
     if (radius === "sm") return tier === "sm" ? "rounded-sm" : tier === "md" ? "rounded-sm" : "rounded"

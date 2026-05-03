@@ -1,24 +1,3 @@
-/**
- * Query key factory — single source of truth for all TanStack Query cache keys.
- *
- * Pattern (Tkdodo's "Query Key Factories"):
- *   queryKeys.{entity}.{action}(params?) -> readonly array
- *
- * Why a factory and not loose strings?
- * - **Type safety**: misspelt keys are caught at compile time, not after a stale-cache bug
- *   ships to production.
- * - **Hierarchical invalidation**: `queryClient.invalidateQueries({ queryKey: queryKeys.products.all })`
- *   invalidates every products-* query (list, by id, by filter) in one call. Sub-keys are
- *   prefixed with their parent's key, so partial-match invalidation is automatic.
- * - **Refactoring**: rename a key in one place, every consumer updates.
- *
- * Conventions:
- * - All keys are `as const` so TS infers literal-tuple types.
- * - `all`     — the entity root (most general, invalidates everything for the entity)
- * - `lists()` — sub-root for list/paged queries
- * - `list(filters)` — concrete list with filter tuple
- * - `details()` / `detail(id)` — same for entity-by-id
- */
 export const queryKeys = {
     categories: {
         all: ["categories"] as const,

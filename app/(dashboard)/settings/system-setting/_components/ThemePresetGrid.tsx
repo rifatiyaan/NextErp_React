@@ -4,17 +4,9 @@ import { Check } from "lucide-react"
 import { ACCENT_THEMES, type AccentThemeClass } from "@/lib/ui-settings"
 import { cn } from "@/lib/utils"
 
-/**
- * Curated preset palette grid. Selecting a preset clears any custom HSL
- * values (the backend handler enforces preset XOR custom). Non-selected
- * tiles show only their swatch + name; selected tile gets a checkmark
- * badge and a primary ring.
- */
 interface ThemePresetGridProps {
     selected: string | null
     onSelect: (preset: AccentThemeClass) => void
-    /** Tailwind rounded-* class to apply to each tile + swatch. Lets the grid
-     * follow the corner-radius setting consistently with the live preview. */
     radiusClass?: string
     disabled?: boolean
 }

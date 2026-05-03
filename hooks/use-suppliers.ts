@@ -9,9 +9,6 @@ import {
 import { supplierQueries, type SupplierListFilters } from "@/lib/query/options"
 import { queryKeys } from "@/lib/query/keys"
 
-/**
- * Suppliers — read + write hooks.
- */
 
 // ----- Reads -----
 

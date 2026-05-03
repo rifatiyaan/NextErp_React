@@ -6,9 +6,6 @@ import { productQueries, type ProductListFilters } from "@/lib/query/options"
 import { queryKeys } from "@/lib/query/keys"
 import type { CreateProductRequest } from "@/types/product"
 
-/**
- * Products — read + write hooks.
- */
 
 // ----- Reads -----
 

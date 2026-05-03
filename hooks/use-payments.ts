@@ -6,9 +6,6 @@ import { paymentQueries } from "@/lib/query/options"
 import { queryKeys } from "@/lib/query/keys"
 import type { RecordSalePaymentRequest } from "@/lib/types/payment"
 
-/**
- * Payments — read + write hooks.
- */
 
 // ----- Reads -----
 

@@ -5,9 +5,6 @@ import { stockAPI } from "@/lib/api/stock"
 import { stockQueries, type StockAdjustmentsFilters } from "@/lib/query/options"
 import { queryKeys } from "@/lib/query/keys"
 
-/**
- * Stock — read + write hooks.
- */
 
 // ----- Reads -----
 

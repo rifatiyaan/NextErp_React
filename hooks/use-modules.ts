@@ -11,9 +11,6 @@ import {
     type MenuPermissionItem,
 } from "@/lib/permissions/menu-permission-groups"
 
-/**
- * Modules — read + write hooks plus a derived hook for permission grouping.
- */
 
 // ----- Reads -----
 
@@ -29,10 +26,6 @@ export function useModule(id: number | undefined) {
     return useQuery(moduleQueries.detail(id ?? 0))
 }
 
-/**
- * Derived hook: fetches user menu and groups it for permission UI.
- * Replaces the old useMenuPermissionGroups (raw fetch).
- */
 export function useMenuPermissionGroups() {
     const query = useQuery(moduleQueries.userMenu())
 

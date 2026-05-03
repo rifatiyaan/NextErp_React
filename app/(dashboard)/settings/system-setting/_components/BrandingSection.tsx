@@ -10,14 +10,6 @@ import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
-/**
- * Branding panel — company name + logo upload.
- *
- * The logo upload uses `useUploadCompanyLogo` (silent mutation, the form
- * shows its own progress UI). On successful upload the URL is propagated
- * up to the parent's draft state — the actual PUT happens when the user
- * clicks Save on the page so all settings commit atomically.
- */
 interface BrandingSectionProps {
     companyName: string | null
     companyLogoUrl: string | null

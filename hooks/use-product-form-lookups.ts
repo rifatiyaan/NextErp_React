@@ -11,33 +11,14 @@ import type { Category } from "@/types/category"
 import type { UnitOfMeasure } from "@/lib/types/unit-of-measure"
 import type { BulkVariationOption } from "@/lib/api/variation"
 
-/**
- * Composite hook for ProductForm lookup data — categories (parent + child split),
- * units of measure, and bulk variation options.
- *
- * Each underlying query is independent (separate cache entry, separate stale time)
- * but the hook surface is unified: one return shape, one combined `loading` flag.
- * Consumers do not see TanStack Query at all — they get derived data + loading state.
- *
- * Cleanup:
- * - Unmount automatically unsubscribes from each query.
- * - In-flight fetches are aborted via the queryFn's `signal` (forwarded to fetch).
- * - The cached payload survives unmount for `gcTime` (default 10 min) so re-mount
- *   shows data instantly without a refetch.
- */
 export interface ProductFormLookups {
-    /** Top-level (parent) categories only — ready for the category dropdown. */
     parentCategories: Category[]
-    /** Child categories (those with a parentId) — ready for the subcategory dropdown. */
     childCategories: Category[]
     unitsOfMeasure: UnitOfMeasure[]
     bulkVariationOptions: BulkVariationOption[]
 
-    /** True while any underlying query is fetching for the first time. */
     loading: boolean
-    /** True when ALL underlying queries have at least one successful result. */
     ready: boolean
-    /** First error encountered across the underlying queries, if any. */
     error: Error | null
 }
 

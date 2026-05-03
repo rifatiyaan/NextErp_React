@@ -19,11 +19,6 @@ export const systemSettingsAPI = {
         })
     },
 
-    /**
-     * Uploads the company logo and returns the public URL. The caller is
-     * responsible for then PUTting the URL via {@link update} so the change
-     * is committed atomically with any other settings tweak in the same form.
-     */
     async uploadLogo(file: File): Promise<{ url: string }> {
         const formData = new FormData()
         formData.append("file", file)
